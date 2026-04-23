@@ -1,0 +1,153 @@
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    "python.defaultInterpreterPath": "${workspaceFolder}/backend/venv/bin/python",
+    "python.analysis.typeCheckingMode": "basic",
+    "python.linting.enabled": true,
+    "python.linting.pylintEnabled": false,
+    "python.linting.flake8Enabled": true,
+    "python.formatting.provider": "black",
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "[python]": {
+      "editor.defaultFormatter": "ms-python.python"
+    },
+    "tailwindCSS.includeLanguages": {
+      "javascript": "javascript",
+      "javascriptreact": "javascript"
+    },
+    "files.associations": {
+      "*.jsx": "javascriptreact"
+    },
+    "emmet.includeLanguages": {
+      "javascript": "javascriptreact"
+    },
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/venv": true,
+      "**/__pycache__": true
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-python.python",
+      "ms-python.vscode-pylance",
+      "dbaeumer.vscode-eslint",
+      "esbenp.prettier-vscode",
+      "bradlc.vscode-tailwindcss",
+      "dsznajder.es7-react-js-snippets",
+      "mongodb.mongodb-vscode",
+      "rangav.vscode-thunder-client"
+    ]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Backend: FastAPI",
+        "type": "python",
+        "request": "launch",
+        "module": "uvicorn",
+        "args": [
+          "server:app",
+          "--reload",
+          "--host",
+          "0.0.0.0",
+          "--port",
+          "8001"
+        ],
+        "cwd": "${workspaceFolder}/backend",
+        "envFile": "${workspaceFolder}/backend/.env",
+        "console": "integratedTerminal"
+      },
+      {
+        "name": "Backend: Debug Current File",
+        "type": "python",
+        "request": "launch",
+        "program": "${file}",
+        "cwd": "${workspaceFolder}/backend",
+        "envFile": "${workspaceFolder}/backend/.env",
+        "console": "integratedTerminal"
+      },
+      {
+        "name": "Frontend: React Dev Server",
+        "type": "node",
+        "request": "launch",
+        "runtimeExecutable": "yarn",
+        "runtimeArgs": ["start"],
+        "cwd": "${workspaceFolder}/frontend",
+        "console": "integratedTerminal"
+      }
+    ],
+    "compounds": [
+      {
+        "name": "Full Stack (Backend + Frontend)",
+        "configurations": ["Backend: FastAPI", "Frontend: React Dev Server"],
+        "stopAll": true
+      }
+    ]
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Install Backend Dependencies",
+        "type": "shell",
+        "command": "pip install -r requirements.txt",
+        "options": {
+          "cwd": "${workspaceFolder}/backend"
+        },
+        "group": "build"
+      },
+      {
+        "label": "Install Frontend Dependencies",
+        "type": "shell",
+        "command": "yarn install",
+        "options": {
+          "cwd": "${workspaceFolder}/frontend"
+        },
+        "group": "build"
+      },
+      {
+        "label": "Run Backend Tests",
+        "type": "shell",
+        "command": "pytest tests/ -v",
+        "options": {
+          "cwd": "${workspaceFolder}/backend"
+        },
+        "group": "test"
+      },
+      {
+        "label": "Run Frontend Tests",
+        "type": "shell",
+        "command": "yarn test",
+        "options": {
+          "cwd": "${workspaceFolder}/frontend"
+        },
+        "group": "test"
+      },
+      {
+        "label": "Lint Python",
+        "type": "shell",
+        "command": "flake8 .",
+        "options": {
+          "cwd": "${workspaceFolder}/backend"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "Lint JavaScript",
+        "type": "shell",
+        "command": "yarn lint",
+        "options": {
+          "cwd": "${workspaceFolder}/frontend"
+        },
+        "problemMatcher": []
+      }
+    ]
+  }
+}

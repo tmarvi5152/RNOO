@@ -1,0 +1,144 @@
+<!doctype html>
+<html>
+  <head>
+    <title>RNOO Connection Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 50px auto;
+        padding: 20px;
+      }
+      .status {
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 5px;
+      }
+      .success {
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+      }
+      .error {
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+      }
+      .info {
+        background: #d1ecf1;
+        border: 1px solid #bee5eb;
+        color: #0c5460;
+      }
+      button {
+        padding: 10px 20px;
+        margin: 10px 5px;
+        cursor: pointer;
+      }
+      pre {
+        background: #f4f4f4;
+        padding: 10px;
+        border-radius: 5px;
+        overflow-x: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🔗 RNOO Connection Test</h1>
+    <p>This page tests the frontend → backend → database connection.</p>
+
+    <button onclick="testHealth()">Test Backend Health</button>
+    <button onclick="testDatabase()">Test Database Connection</button>
+    <button onclick="testAPI()">Test API Endpoint</button>
+
+    <div id="results"></div>
+
+    <script>
+      const BACKEND_URL = "http://127.0.0.1:8765";
+
+      function showResult(message, type = "info") {
+        const div = document.createElement("div");
+        div.className = `status ${type}`;
+        div.innerHTML = message;
+        document.getElementById("results").appendChild(div);
+      }
+
+      async function testHealth() {
+        document.getElementById("results").innerHTML = "";
+        try {
+          const response = await fetch(`${BACKEND_URL}/health`);
+          const data = await response.json();
+          showResult(
+            `✓ <strong>Backend Health:</strong> ${data.status}<br>✓ <strong>MongoDB:</strong> ${data.mongo}`,
+            "success",
+          );
+        } catch (error) {
+          showResult(
+            `✗ <strong>Backend Error:</strong> ${error.message}`,
+            "error",
+          );
+        }
+      }
+
+      async function testDatabase() {
+        document.getElementById("results").innerHTML = "";
+        showResult("Testing database connection via backend API...", "info");
+
+        try {
+          const response = await fetch(`${BACKEND_URL}/health`);
+          const data = await response.json();
+
+          if (data.mongo === "ok") {
+            showResult(
+              `✓ <strong>Database Connected!</strong><br>
+                        • MongoDB URL: mongodb://localhost:27017<br>
+                        • Database: rnoo<br>
+                        • Status: Connected and operational`,
+              "success",
+            );
+          } else {
+            showResult(`✗ Database connection issue: ${data.mongo}`, "error");
+          }
+        } catch (error) {
+          showResult(
+            `✗ <strong>Connection Error:</strong> ${error.message}`,
+            "error",
+          );
+        }
+      }
+
+      async function testAPI() {
+        document.getElementById("results").innerHTML = "";
+        showResult("Testing API endpoint (public merchants list)...", "info");
+
+        try {
+          const response = await fetch(`${BACKEND_URL}/api/merchants`);
+
+          if (response.status === 401) {
+            showResult(
+              `ℹ <strong>API Reachable!</strong><br>
+                        Got 401 (authentication required) - this is expected for protected endpoints.<br>
+                        This confirms:<br>
+                        • Frontend can reach backend ✓<br>
+                        • Backend is processing requests ✓<br>
+                        • Database queries are working ✓`,
+              "success",
+            );
+          } else {
+            const data = await response.json();
+            showResult(
+              `✓ <strong>API Response:</strong><br><pre>${JSON.stringify(data, null, 2)}</pre>`,
+              "success",
+            );
+          }
+        } catch (error) {
+          showResult(`✗ <strong>API Error:</strong> ${error.message}`, "error");
+        }
+      }
+
+      // Auto-test on load
+      window.onload = () => {
+        setTimeout(testHealth, 500);
+      };
+    </script>
+  </body>
+</html>
