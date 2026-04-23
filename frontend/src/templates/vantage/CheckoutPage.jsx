@@ -1,0 +1,394 @@
+import React, { useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { motion } from "framer-motion";
+import { useCartStore } from "../../stores/cartStore";
+import { apiService } from "../../context/AppContext";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import { Label } from "../../components/ui/label";
+import { Textarea } from "../../components/ui/textarea";
+import { Separator } from "../../components/ui/separator";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { useVantageTheme } from "./VantageTheme";
+
+const VantageCheckoutPage = () => {
+  useVantageTheme();
+  const { slug } = useParams();
+  const navigate = useNavigate();
+  const { items, merchantId, getSubtotal, getTax, clearCart } = useCartStore();
+
+  const [submitting, setSubmitting] = useState(false);
+  const [orderType, setOrderType] = useState("pickup");
+  const [orderTiming, setOrderTiming] = useState("asap");
+  const [scheduledDate, setScheduledDate] = useState("");
+  const [scheduledTime, setScheduledTime] = useState("");
+  const [tip, setTip] = useState(0);
+  const [notes, setNotes] = useState("");
+  const [customer, setCustomer] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    address_line1: "",
+    address_line2: "",
+    city: "",
+    state: "",
+    zip_code: "",
+  });
+
+  const subtotal = getSubtotal();
+  const tax = getTax();
+  const deliveryFee = orderType === "delivery" ? 4.99 : 0;
+  const total = subtotal + tax + deliveryFee + tip;
+
+  const dateOptions = useMemo(() => {
+    return Array.from({ length: 7 }).map((_, idx) => {
+      const d = new Date();
+      d.setDate(d.getDate() + idx);
+      return d.toISOString().split("T")[0];
+    });
+  }, []);
+
+  const timeOptions = useMemo(() => {
+    const options = [];
+    for (let h = 9; h <= 21; h++) {
+      for (let m = 0; m < 60; m += 15) {
+        if (h === 21 && m > 0) continue;
+        const value = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+        options.push(value);
+      }
+    }
+    return options;
+  }, []);
+
+  const validate = () => {
+    if (!customer.name.trim()) return "Name is required";
+    if (!customer.phone.trim()) return "Phone is required";
+    if (orderType === "delivery") {
+      if (!customer.address_line1.trim())
+        return "Address is required for delivery";
+      if (!customer.city.trim()) return "City is required for delivery";
+      if (!customer.zip_code.trim()) return "ZIP is required for delivery";
+    }
+    if (orderTiming !== "asap" && (!scheduledDate || !scheduledTime)) {
+      return "Please select date and time";
+    }
+    if (!items.length) return "Your cart is empty";
+    if (!merchantId) return "Merchant context missing";
+    return null;
+  };
+
+  const handleSubmit = async () => {
+    const validationError = validate();
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const orderData = {
+        merchant_id: merchantId,
+        customer: {
+          name: customer.name,
+          email: customer.email || "guest@rnoo.com",
+          phone: customer.phone,
+          address_line1:
+            orderType === "delivery" ? customer.address_line1 : null,
+          address_line2:
+            orderType === "delivery" ? customer.address_line2 : null,
+          city: orderType === "delivery" ? customer.city : null,
+          state: orderType === "delivery" ? customer.state : null,
+          zip_code: orderType === "delivery" ? customer.zip_code : null,
+        },
+        delivery_type: orderType === "delivery" ? "DELIVERY" : "TAKEOUT",
+        items: items.map((item) => ({
+          menu_item_id: item.itemId,
+          name: item.name,
+          quantity: item.quantity,
+          unit_price: item.basePrice,
+          plu: item.plu || "",
+          shepherd_pos_id: item.shepherd_pos_id || "",
+          modifiers: (item.modifiers || []).map((mod) => ({
+            group_id: mod.group_id || "default",
+            group_name: mod.group_name || "Modifier",
+            option_id: mod.option_id || "default",
+            option_name: mod.option_name || mod.name || "Option",
+            price: mod.price || 0,
+            plu: mod.plu || "",
+            shepherd_pos_id: mod.shepherd_pos_id || "",
+          })),
+          special_instructions: item.specialInstructions || null,
+        })),
+        payment: {
+          method: "mock_card",
+          amount: total,
+          tip,
+          status: "pending",
+        },
+        order_timing: orderTiming === "asap" ? "ASAP" : "FUTURE",
+        scheduled_date: orderTiming === "asap" ? null : scheduledDate,
+        scheduled_time: orderTiming === "asap" ? null : scheduledTime,
+        notes: notes || null,
+      };
+
+      const res = await apiService.createOrder(orderData);
+      clearCart();
+      toast.success("Order placed successfully");
+      navigate(
+        `/order-confirmation?orderId=${encodeURIComponent(res.data.id)}&merchantSlug=${encodeURIComponent(slug)}`,
+      );
+    } catch (err) {
+      console.error("Failed to place order:", err);
+      let msg = "Failed to place order";
+      const detail = err.response?.data?.detail;
+      if (typeof detail === "string") msg = detail;
+      if (Array.isArray(detail) && detail.length > 0) {
+        msg = detail
+          .map((e) => e.msg || e.message || "Validation error")
+          .join(", ");
+      }
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#fdfbf6_0%,_#f4f1ea_55%,_#ece7dc_100%)]">
+      <div className="max-w-4xl mx-auto px-6 py-10">
+        <button
+          onClick={() => navigate(`/order/${slug}/cart`)}
+          className="mb-6 inline-flex items-center gap-2 text-sm text-black/70 hover:text-black"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Cart
+        </button>
+
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+          <div className="vantage-surface p-6 md:p-7 bg-[linear-gradient(110deg,_#fffdf8_0%,_#f7f2e7_100%)]">
+            <p className="text-xs uppercase tracking-[0.18em] text-black/50">
+              Vantage Express
+            </p>
+            <h1 className="text-4xl md:text-5xl font-light tracking-wide mt-2">
+              Minimal Checkout
+            </h1>
+            <p className="text-black/60 mt-2 max-w-2xl">
+              Elevated, calm, and streamlined. Confirm details below and place
+              your order in one focused flow.
+            </p>
+          </div>
+        </motion.div>
+
+        <div className="vantage-surface mt-8 p-6 md:p-8 space-y-6 shadow-[0_15px_45px_rgba(20,20,20,0.08)]">
+          <div className="grid grid-cols-3 gap-2 text-xs uppercase tracking-wider text-black/55">
+            <div className="h-1.5 rounded-full bg-[var(--vantage-accent)]" />
+            <div className="h-1.5 rounded-full bg-[var(--vantage-accent)]" />
+            <div className="h-1.5 rounded-full bg-black/20" />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>Name *</Label>
+              <Input
+                value={customer.name}
+                onChange={(e) =>
+                  setCustomer({ ...customer, name: e.target.value })
+                }
+              />
+            </div>
+            <div>
+              <Label>Phone *</Label>
+              <Input
+                value={customer.phone}
+                onChange={(e) =>
+                  setCustomer({ ...customer, phone: e.target.value })
+                }
+              />
+            </div>
+            <div className="md:col-span-2">
+              <Label>Email</Label>
+              <Input
+                value={customer.email}
+                onChange={(e) =>
+                  setCustomer({ ...customer, email: e.target.value })
+                }
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              type="button"
+              variant={orderType === "pickup" ? "default" : "outline"}
+              onClick={() => setOrderType("pickup")}
+              className="rounded-full"
+            >
+              Pickup
+            </Button>
+            <Button
+              type="button"
+              variant={orderType === "delivery" ? "default" : "outline"}
+              onClick={() => setOrderType("delivery")}
+              className="rounded-full"
+            >
+              Delivery
+            </Button>
+          </div>
+
+          {orderType === "delivery" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <Label>Address *</Label>
+                <Input
+                  value={customer.address_line1}
+                  onChange={(e) =>
+                    setCustomer({ ...customer, address_line1: e.target.value })
+                  }
+                />
+              </div>
+              <div>
+                <Label>City *</Label>
+                <Input
+                  value={customer.city}
+                  onChange={(e) =>
+                    setCustomer({ ...customer, city: e.target.value })
+                  }
+                />
+              </div>
+              <div>
+                <Label>ZIP *</Label>
+                <Input
+                  value={customer.zip_code}
+                  onChange={(e) =>
+                    setCustomer({ ...customer, zip_code: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              type="button"
+              variant={orderTiming === "asap" ? "default" : "outline"}
+              onClick={() => setOrderTiming("asap")}
+              className="rounded-full"
+            >
+              ASAP
+            </Button>
+            <Button
+              type="button"
+              variant={orderTiming === "future" ? "default" : "outline"}
+              onClick={() => setOrderTiming("future")}
+              className="rounded-full"
+            >
+              Schedule
+            </Button>
+          </div>
+
+          {orderTiming === "future" && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Date</Label>
+                <select
+                  className="w-full h-10 px-3 border rounded-md bg-white text-sm"
+                  value={scheduledDate}
+                  onChange={(e) => setScheduledDate(e.target.value)}
+                >
+                  <option value="">Select date</option>
+                  {dateOptions.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label>Time</Label>
+                <select
+                  className="w-full h-10 px-3 border rounded-md bg-white text-sm"
+                  value={scheduledTime}
+                  onChange={(e) => setScheduledTime(e.target.value)}
+                >
+                  <option value="">Select time</option>
+                  {timeOptions.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          <div>
+            <Label>Tip</Label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={tip}
+              onChange={(e) => setTip(parseFloat(e.target.value) || 0)}
+            />
+          </div>
+
+          <div>
+            <Label>Notes</Label>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+            />
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between text-black/65">
+              <span>Subtotal</span>
+              <span>${subtotal.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-black/65">
+              <span>Tax</span>
+              <span>${tax.toFixed(2)}</span>
+            </div>
+            {orderType === "delivery" && (
+              <div className="flex justify-between text-black/65">
+                <span>Delivery Fee</span>
+                <span>${deliveryFee.toFixed(2)}</span>
+              </div>
+            )}
+            {tip > 0 && (
+              <div className="flex justify-between text-black/65">
+                <span>Tip</span>
+                <span>${tip.toFixed(2)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-lg font-semibold pt-2">
+              <span>Total</span>
+              <span>${total.toFixed(2)}</span>
+            </div>
+          </div>
+
+          <Button
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="w-full rounded-full h-11"
+          >
+            {submitting ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Processing
+              </span>
+            ) : (
+              `Place Order • $${total.toFixed(2)}`
+            )}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default VantageCheckoutPage;
