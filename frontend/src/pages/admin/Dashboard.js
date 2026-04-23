@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { AdminLayout } from "../../layouts/Layout";
 import { useAuth, apiService } from "../../context/AppContext";
+import { Checkbox } from "../../components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -49,6 +50,8 @@ import {
   Trophy,
   Flame,
   Zap,
+  ChevronDown,
+  Filter,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -154,6 +157,14 @@ const AdminDashboard = () => {
     avgLTV: 0,
   });
   const [ordersPerMinute, setOrdersPerMinute] = useState(0);
+
+  // Merchant multi-select filter
+  const [allOrders, setAllOrders] = useState([]);
+  const [merchants, setMerchants] = useState([]);
+  const [selectedMerchantIds, setSelectedMerchantIds] = useState([]);
+  const [merchantSelectorOpen, setMerchantSelectorOpen] = useState(false);
+  const [filteredStats, setFilteredStats] = useState(null);
+  const selectorRef = useRef(null);
 
   const computeAnalytics = useCallback(
     (orders) => {
@@ -406,8 +417,12 @@ const AdminDashboard = () => {
 
         // Load stats based on role
         if (user?.role === "super_admin") {
-          const statsRes = await apiService.getAdminStats();
+          const [statsRes, merchantsRes] = await Promise.all([
+            apiService.getAdminStats(),
+            apiService.getMerchants(),
+          ]);
           setStats(statsRes.data);
+          setMerchants(merchantsRes.data || []);
         } else {
           const statsRes = await apiService.getStats(user?.merchant_id);
           setStats(statsRes.data);
@@ -418,6 +433,7 @@ const AdminDashboard = () => {
         const ordersRes = await apiService.getOrders(orderParams);
         const ordersData = ordersRes.data.orders || ordersRes.data;
 
+        setAllOrders(ordersData);
         setRecentOrders(ordersData.slice(0, 5));
 
         // Compute analytics from orders
@@ -488,6 +504,52 @@ const AdminDashboard = () => {
     }
   };
 
+  // Re-filter whenever selection or allOrders changes
+  useEffect(() => {
+    if (allOrders.length === 0) return;
+    const filtered =
+      selectedMerchantIds.length === 0
+        ? allOrders
+        : allOrders.filter((o) => selectedMerchantIds.includes(o.merchant_id));
+    setRecentOrders(filtered.slice(0, 5));
+    computeAnalytics(filtered);
+    if (selectedMerchantIds.length > 0) {
+      setFilteredStats({
+        total_orders: filtered.length,
+        total_revenue: filtered.reduce((s, o) => s + (o.total || 0), 0),
+        active_orders: filtered.filter(
+          (o) => !["delivered", "cancelled"].includes(o.status),
+        ).length,
+        total_merchants: new Set(filtered.map((o) => o.merchant_id)).size,
+      });
+    } else {
+      setFilteredStats(null);
+    }
+  }, [selectedMerchantIds, allOrders, computeAnalytics]);
+
+  // Close selector on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (selectorRef.current && !selectorRef.current.contains(e.target)) {
+        setMerchantSelectorOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const toggleMerchant = (id) => {
+    setSelectedMerchantIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  };
+
+  const selectAllMerchants = () => {
+    setSelectedMerchantIds([]);
+    setMerchantSelectorOpen(false);
+  };
+
+  const displayStats = filteredStats || stats;
   const isSuperAdmin = user?.role === "super_admin";
 
   return (
@@ -501,15 +563,136 @@ const AdminDashboard = () => {
             </h1>
             <p className="text-gray-500 mt-1">Welcome back, {user?.name}</p>
           </div>
-          <Button
-            className="bg-primary hover:bg-primary-hover"
-            onClick={() => navigate("/admin/orders")}
-            data-testid="view-all-orders-btn"
-          >
-            View All Orders
-            <ArrowUpRight className="w-4 h-4 ml-2" />
-          </Button>
+          <div className="flex items-center gap-3 flex-wrap justify-end">
+            {/* Merchant Multi-Select Filter (super_admin only) */}
+            {isSuperAdmin && merchants.length > 0 && (
+              <div className="relative" ref={selectorRef}>
+                <button
+                  onClick={() => setMerchantSelectorOpen((o) => !o)}
+                  className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md border transition-colors ${
+                    selectedMerchantIds.length > 0
+                      ? "border-primary bg-primary/5 text-primary font-semibold"
+                      : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                  }`}
+                >
+                  <Filter className="w-4 h-4" />
+                  {selectedMerchantIds.length === 0
+                    ? "All Merchants"
+                    : selectedMerchantIds.length === 1
+                      ? merchants.find((m) => m.id === selectedMerchantIds[0])
+                          ?.name || "1 Merchant"
+                      : `${selectedMerchantIds.length} Merchants`}
+                  <ChevronDown
+                    className={`w-4 h-4 transition-transform ${
+                      merchantSelectorOpen ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+
+                {merchantSelectorOpen && (
+                  <div className="absolute right-0 top-full mt-1 z-50 w-72 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+                    {/* ALL option */}
+                    <div
+                      className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 border-b border-gray-100 ${
+                        selectedMerchantIds.length === 0 ? "bg-primary/5" : ""
+                      }`}
+                      onClick={selectAllMerchants}
+                    >
+                      <Checkbox
+                        checked={selectedMerchantIds.length === 0}
+                        onCheckedChange={selectAllMerchants}
+                      />
+                      <span className="text-sm font-semibold text-gray-800">
+                        All Merchants
+                      </span>
+                      <span className="ml-auto text-xs text-gray-400">
+                        {merchants.length} total
+                      </span>
+                    </div>
+
+                    {/* Merchant list */}
+                    <div className="max-h-64 overflow-y-auto">
+                      {merchants.map((m) => (
+                        <div
+                          key={m.id}
+                          className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-gray-50 ${
+                            selectedMerchantIds.includes(m.id)
+                              ? "bg-primary/5"
+                              : ""
+                          }`}
+                          onClick={() => toggleMerchant(m.id)}
+                        >
+                          <Checkbox
+                            checked={selectedMerchantIds.includes(m.id)}
+                            onCheckedChange={() => toggleMerchant(m.id)}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-gray-800 truncate">
+                              {m.name}
+                            </p>
+                            <p className="text-xs text-gray-400 truncate">
+                              {m.slug}
+                            </p>
+                          </div>
+                          {m.is_active ? (
+                            <span className="w-2 h-2 rounded-full bg-green-400 shrink-0" />
+                          ) : (
+                            <span className="w-2 h-2 rounded-full bg-gray-300 shrink-0" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Footer */}
+                    {selectedMerchantIds.length > 0 && (
+                      <div className="border-t border-gray-100 px-4 py-2 flex justify-between items-center bg-gray-50">
+                        <span className="text-xs text-gray-500">
+                          {selectedMerchantIds.length} selected
+                        </span>
+                        <button
+                          className="text-xs text-primary font-semibold hover:underline"
+                          onClick={selectAllMerchants}
+                        >
+                          Clear all
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <Button
+              className="bg-primary hover:bg-primary-hover"
+              onClick={() => navigate("/admin/orders")}
+              data-testid="view-all-orders-btn"
+            >
+              View All Orders
+              <ArrowUpRight className="w-4 h-4 ml-2" />
+            </Button>
+          </div>
         </div>
+
+        {/* Active filter banner */}
+        {isSuperAdmin && selectedMerchantIds.length > 0 && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-primary/5 border border-primary/20 rounded-lg text-sm">
+            <Filter className="w-4 h-4 text-primary" />
+            <span className="text-gray-700">
+              Showing data for{" "}
+              <span className="font-semibold text-primary">
+                {selectedMerchantIds.length === 1
+                  ? merchants.find((m) => m.id === selectedMerchantIds[0])?.name
+                  : `${selectedMerchantIds.length} merchants`}
+              </span>
+            </span>
+            <button
+              className="ml-auto text-xs text-primary font-semibold hover:underline"
+              onClick={selectAllMerchants}
+            >
+              Show all
+            </button>
+          </div>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -517,28 +700,30 @@ const AdminDashboard = () => {
             <>
               <StatCard
                 title="Total Merchants"
-                value={stats?.total_merchants || 0}
+                value={
+                  displayStats?.total_merchants ?? stats?.total_merchants ?? 0
+                }
                 icon={Store}
                 color="info"
                 loading={loading}
               />
               <StatCard
                 title="Total Orders"
-                value={stats?.total_orders || 0}
+                value={displayStats?.total_orders ?? 0}
                 icon={ShoppingCart}
                 color="success"
                 loading={loading}
               />
               <StatCard
                 title="Total Revenue"
-                value={`$${(stats?.total_revenue || 0).toLocaleString()}`}
+                value={`$${(displayStats?.total_revenue || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
                 icon={DollarSign}
                 color="warning"
                 loading={loading}
               />
               <StatCard
                 title="Active Orders"
-                value={stats?.active_orders || 0}
+                value={displayStats?.active_orders ?? 0}
                 icon={Activity}
                 color="primary"
                 loading={loading}

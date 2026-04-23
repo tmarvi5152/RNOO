@@ -414,6 +414,7 @@ class MerchantBase(BaseModel):
     description: Optional[str] = None
     price_bump_percentage: float = 0.0
     price_bump_fixed: float = 0.0
+    frontend_template: str = "classic"
 
 class MerchantCreate(MerchantBase):
     reseller_id: str

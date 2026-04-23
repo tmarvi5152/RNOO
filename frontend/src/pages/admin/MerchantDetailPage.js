@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AdminLayout } from "../../layouts/Layout";
 import { api } from "../../context/AppContext";
+import { TEMPLATE_LIST, DEFAULT_TEMPLATE } from "../../templates/registry";
 import {
   Card,
   CardContent,
@@ -750,6 +751,10 @@ const MerchantDetailPage = () => {
   const [cgValue, setCgValue] = useState("");
   const [savingCg, setSavingCg] = useState(false);
 
+  // Frontend template state
+  const [templateValue, setTemplateValue] = useState(DEFAULT_TEMPLATE);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+
   const loadMerchantDetails = useCallback(async () => {
     try {
       setLoading(true);
@@ -782,6 +787,9 @@ const MerchantDetailPage = () => {
     } else {
       setCgValue("");
     }
+    setTemplateValue(
+      merchantData?.local_merchant?.frontend_template || DEFAULT_TEMPLATE,
+    );
   }, [merchantData]);
 
   const handleSyncMenu = async () => {
@@ -828,6 +836,22 @@ const MerchantDetailPage = () => {
       toast.error(err.response?.data?.detail || "Failed to save CG value");
     } finally {
       setSavingCg(false);
+    }
+  };
+
+  const handleSaveTemplate = async () => {
+    try {
+      setSavingTemplate(true);
+      await api.patch(`/merchants/${merchantId}`, {
+        frontend_template: templateValue,
+      });
+      toast.success("Frontend template updated");
+      loadMerchantDetails();
+    } catch (err) {
+      console.error("Failed to save template:", err);
+      toast.error(err.response?.data?.detail || "Failed to save template");
+    } finally {
+      setSavingTemplate(false);
     }
   };
 
@@ -1088,6 +1112,48 @@ const MerchantDetailPage = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Frontend Template Selector */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Settings className="w-4 h-4" />
+              Frontend Template
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="flex-1 min-w-[200px]">
+                <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 block mb-1">
+                  Consumer Storefront Template
+                </label>
+                <select
+                  className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  value={templateValue}
+                  onChange={(e) => setTemplateValue(e.target.value)}
+                >
+                  {TEMPLATE_LIST.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                      {t.description ? ` — ${t.description}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Button
+                size="sm"
+                onClick={handleSaveTemplate}
+                disabled={
+                  savingTemplate ||
+                  templateValue ===
+                    (local_merchant?.frontend_template || DEFAULT_TEMPLATE)
+                }
+              >
+                {savingTemplate ? "Saving…" : "Save Template"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {!shepherd_linked ? (
           <Card>

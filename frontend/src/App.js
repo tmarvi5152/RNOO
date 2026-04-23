@@ -16,12 +16,14 @@ import MerchantDetailPage from "./pages/admin/MerchantDetailPage";
 import LogsPage from "./pages/admin/LogsPage";
 import ShepherdPage from "./pages/admin/ShepherdPage";
 
-// Consumer Pages
-import FuturisticMenuPage from "./pages/consumer/FuturisticMenuPage";
-import CartPage from "./pages/consumer/CartPage";
-import CheckoutPage from "./pages/consumer/CheckoutPage";
-import OrderTrackingPage from "./pages/consumer/OrderTrackingPage";
-import OrderConfirmationPage from "./pages/consumer/OrderConfirmationPage";
+// Consumer Pages — routed through template system
+import {
+  TemplateMenuPage,
+  TemplateCartPage,
+  TemplateCheckoutPage,
+  TemplateOrderTrackingPage,
+  TemplateOrderConfirmationPage,
+} from "./templates/TemplateRouter";
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -53,20 +55,21 @@ function AppRoutes() {
       <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<LoginPage />} />
 
-      {/* Consumer Routes */}
-      <Route path="/order/:slug" element={<FuturisticMenuPage />} />
-      <Route path="/order/:slug/cart" element={<CartPage />} />
-      <Route path="/checkout/:slug" element={<CheckoutPage />} />
-      <Route path="/track/:orderId" element={<OrderTrackingPage />} />
-      <Route path="/order-confirmation" element={<OrderConfirmationPage />} />
+      {/* Consumer Routes — template-aware */}
+      <Route path="/order/:slug" element={<TemplateMenuPage />} />
+      <Route path="/order/:slug/cart" element={<TemplateCartPage />} />
+      <Route path="/checkout/:slug" element={<TemplateCheckoutPage />} />
+      <Route path="/track/:orderId" element={<TemplateOrderTrackingPage />} />
+      <Route
+        path="/order-confirmation"
+        element={<TemplateOrderConfirmationPage />}
+      />
 
       {/* Admin Routes */}
       <Route
         path="/admin"
         element={
-          <ProtectedRoute
-            allowedRoles={["super_admin", "merchant"]}
-          >
+          <ProtectedRoute allowedRoles={["super_admin", "merchant"]}>
             <AdminDashboard />
           </ProtectedRoute>
         }
@@ -74,9 +77,7 @@ function AppRoutes() {
       <Route
         path="/admin/orders"
         element={
-          <ProtectedRoute
-            allowedRoles={["super_admin", "merchant"]}
-          >
+          <ProtectedRoute allowedRoles={["super_admin", "merchant"]}>
             <OrdersPage />
           </ProtectedRoute>
         }
@@ -92,9 +93,7 @@ function AppRoutes() {
       <Route
         path="/admin/merchants/:merchantId"
         element={
-          <ProtectedRoute
-            allowedRoles={["super_admin", "merchant"]}
-          >
+          <ProtectedRoute allowedRoles={["super_admin", "merchant"]}>
             <MerchantDetailPage />
           </ProtectedRoute>
         }
