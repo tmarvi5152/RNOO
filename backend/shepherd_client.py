@@ -807,8 +807,11 @@ def build_shepherd_order(order: dict, merchant_shepherd_config: dict) -> dict:
         ticket["need_dt"] = order["need_datetime"]
     
     # Build the complete shepherd order
-    # Generate unique reference: RNOO-{order_number}-{timestamp}
-    order_ref = f"RNOO-{order.get('order_number', 0)}-{order.get('id', '')[:8]}"
+    merchant_id = str(order.get("merchant_id", ""))
+    merchant_id_digits = "".join(ch for ch in merchant_id if ch.isdigit())
+    merchant_id_suffix = merchant_id_digits[:5] or merchant_id[:5]
+    order_date = datetime.now(timezone.utc).strftime("%d-%m-%y")
+    order_ref = f"R-{order.get('order_number', 0)}-{merchant_id_suffix}-{order_date}"
     
     shepherd_order = {
         "ref": order_ref,

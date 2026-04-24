@@ -1736,8 +1736,12 @@ async def submit_order_to_shepherd_async(order_id: str, order_dict: dict, mercha
             shepherd_order=shepherd_order
         )
         
-        # Generate order reference
-        order_ref = f"RNOO-{order_dict.get('order_number', 0)}-{order_id[:8]}"
+        # Generate order reference to match the payload sent to Shepherd
+        merchant_id = str(order_dict.get("merchant_id", ""))
+        merchant_id_digits = "".join(ch for ch in merchant_id if ch.isdigit())
+        merchant_id_suffix = merchant_id_digits[:5] or merchant_id[:5]
+        order_date = datetime.now(timezone.utc).strftime("%d-%m-%y")
+        order_ref = f"R-{order_dict.get('order_number', 0)}-{merchant_id_suffix}-{order_date}"
         
         logger.info(f"Order {order_id}: Submitting to Shepherd merchant {shepherd_merchant_id} with ref {order_ref}")
         
