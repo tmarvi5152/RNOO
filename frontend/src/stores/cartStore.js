@@ -1,6 +1,10 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+const roundMoney = (value) => {
+  return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+};
+
 export const useCartStore = create(
   persist(
     (set, get) => ({
@@ -40,7 +44,9 @@ export const useCartStore = create(
         // Calculate item total
         const modifierTotal =
           modifiers?.reduce((sum, m) => sum + (m.price || 0), 0) || 0;
-        cartItem.totalPrice = (item.price + modifierTotal) * quantity;
+        cartItem.totalPrice = roundMoney(
+          (item.price + modifierTotal) * quantity,
+        );
 
         set((state) => ({
           items: [...state.items, cartItem],
@@ -66,7 +72,9 @@ export const useCartStore = create(
               return {
                 ...item,
                 quantity,
-                totalPrice: (item.basePrice + modifierTotal) * quantity,
+                totalPrice: roundMoney(
+                  (item.basePrice + modifierTotal) * quantity,
+                ),
               };
             }
             return item;
@@ -86,7 +94,9 @@ export const useCartStore = create(
               return {
                 ...item,
                 modifiers: nextModifiers,
-                totalPrice: (item.basePrice + modifierTotal) * item.quantity,
+                totalPrice: roundMoney(
+                  (item.basePrice + modifierTotal) * item.quantity,
+                ),
               };
             }
             return item;
@@ -132,16 +142,22 @@ export const useCartStore = create(
       },
 
       getSubtotal: () => {
-        return get().items.reduce((sum, item) => sum + item.totalPrice, 0);
+        const subtotal = get().items.reduce(
+          (sum, item) => sum + Number(item.totalPrice || 0),
+          0,
+        );
+        return roundMoney(subtotal);
       },
 
       getTax: (rate = 0.0825) => {
-        return get().getSubtotal() * rate;
+        const subtotal = get().getSubtotal();
+        return roundMoney(subtotal * rate);
       },
 
       getTotal: (rate = 0.0825) => {
         const subtotal = get().getSubtotal();
-        return subtotal + subtotal * rate;
+        const tax = get().getTax(rate);
+        return roundMoney(subtotal + tax);
       },
     }),
     {

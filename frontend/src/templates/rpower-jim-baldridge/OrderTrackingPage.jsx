@@ -7,7 +7,11 @@ import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { AlertCircle, ArrowLeft, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { useRpowerJimBaldridgeTheme } from "./Theme";
+import {
+  getPersistedRpowerJimBaldridgeLegacyMode,
+  persistRpowerJimBaldridgeLegacyMode,
+  useRpowerJimBaldridgeTheme,
+} from "./Theme";
 import LegacyLockup from "./LegacyLockup";
 
 const STATUS_STEPS = [
@@ -19,12 +23,16 @@ const STATUS_STEPS = [
 ];
 
 const RpowerJimBaldridgeOrderTrackingPage = () => {
-  useRpowerJimBaldridgeTheme();
   const { orderId } = useParams();
   const navigate = useNavigate();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [legacyMode, setLegacyMode] = useState(
+    getPersistedRpowerJimBaldridgeLegacyMode(),
+  );
+
+  useRpowerJimBaldridgeTheme(legacyMode);
 
   const { isConnected } = useOrderWebSocket({
     onOrderUpdate: (updatedOrder) => {
@@ -34,20 +42,23 @@ const RpowerJimBaldridgeOrderTrackingPage = () => {
     },
   });
 
-  const loadOrder = useCallback(async (silent = false) => {
-    try {
-      if (silent) setRefreshing(true);
-      else setLoading(true);
-      const res = await apiService.getOrderPublic(orderId);
-      setOrder(res.data);
-    } catch (err) {
-      console.error("Failed to load order:", err);
-      if (!silent) toast.error("Order not found");
-    } finally {
-      if (silent) setRefreshing(false);
-      else setLoading(false);
-    }
-  }, [orderId]);
+  const loadOrder = useCallback(
+    async (silent = false) => {
+      try {
+        if (silent) setRefreshing(true);
+        else setLoading(true);
+        const res = await apiService.getOrderPublic(orderId);
+        setOrder(res.data);
+      } catch (err) {
+        console.error("Failed to load order:", err);
+        if (!silent) toast.error("Order not found");
+      } finally {
+        if (silent) setRefreshing(false);
+        else setLoading(false);
+      }
+    },
+    [orderId],
+  );
 
   useEffect(() => {
     loadOrder();
@@ -59,6 +70,36 @@ const RpowerJimBaldridgeOrderTrackingPage = () => {
     }, 10000);
     return () => clearInterval(intervalId);
   }, [loadOrder]);
+
+  useEffect(() => {
+    const merchantId = order?.merchant_id;
+    if (!merchantId) {
+      return;
+    }
+
+    let cancelled = false;
+    const loadMerchantThemeMode = async () => {
+      try {
+        const merchantRes = await apiService.getMerchant(merchantId);
+        const enabled = Boolean(
+          merchantRes.data?.shepherd_config?.rjb_legacy_mode,
+        );
+        if (!cancelled) {
+          setLegacyMode(enabled);
+          persistRpowerJimBaldridgeLegacyMode(enabled);
+        }
+      } catch {
+        if (!cancelled) {
+          setLegacyMode(getPersistedRpowerJimBaldridgeLegacyMode());
+        }
+      }
+    };
+
+    loadMerchantThemeMode();
+    return () => {
+      cancelled = true;
+    };
+  }, [order?.merchant_id]);
 
   const activeIdx = useMemo(() => {
     if (!order) return 0;
@@ -128,7 +169,9 @@ const RpowerJimBaldridgeOrderTrackingPage = () => {
               className="rounded-full"
               onClick={() => loadOrder(true)}
             >
-              <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
+              <RefreshCw
+                className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`}
+              />
               Refresh
             </Button>
           </div>

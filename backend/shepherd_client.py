@@ -10,6 +10,7 @@ import time
 from typing import Optional, Dict, List, Any
 from datetime import datetime, timezone
 import os
+from decimal import Decimal, ROUND_HALF_UP
 
 logger = logging.getLogger(__name__)
 
@@ -690,9 +691,23 @@ def build_shepherd_order(order: dict, merchant_shepherd_config: dict) -> dict:
     if addr:
         addr["cc"] = "US"
     
-    # Helper function to format price as "$US10.50"
+    def normalize_payment_method(value: Any) -> str:
+        """Normalize payment method values from strings/enums/documents."""
+        if isinstance(value, dict):
+            value = value.get("value") or value.get("method") or ""
+        raw = str(value or "").strip().lower()
+        if "." in raw:
+            raw = raw.split(".")[-1]
+        raw = raw.replace("-", "_").replace(" ", "_")
+        return raw
+
+    # Helper function to format price as "$US10.50" with half-up cent rounding
     def format_price(amount: float) -> str:
-        return f"$US{amount:.2f}"
+        rounded = Decimal(str(amount or 0)).quantize(
+            Decimal("0.01"),
+            rounding=ROUND_HALF_UP,
+        )
+        return f"$US{rounded:.2f}"
     
     # Build items with proper format
     items = []
@@ -758,12 +773,20 @@ def build_shepherd_order(order: dict, merchant_shepherd_config: dict) -> dict:
             "mods": []
         })
     
-    # Build payment info
+    payment_method = (order.get("payment", {}) or {}).get("method", "")
+    normalized_payment_method = normalize_payment_method(payment_method)
+    include_payments = normalized_payment_method not in {
+        "pay_at_store",
+        "cash",
+        "payinstore",
+    }
+
+    # Build payment info only for non pay-at-store orders
     payments = [{
         "pmid": "ONLINE",
         "pm": "Online Payment",
         "amt": format_price(order.get("total", 0))
-    }]
+    }] if include_payments else []
     
     # Map delivery type (RNOO uses DELIVERY, TAKEOUT, DINEIN)
     delivery_type = order.get("delivery_type", "TAKEOUT")
@@ -774,8 +797,10 @@ def build_shepherd_order(order: dict, merchant_shepherd_config: dict) -> dict:
     ticket = {
         "dlvt": delivery_type,
         "items": items,
-        "payments": payments
     }
+
+    if include_payments:
+        ticket["payments"] = payments
     
     # Add need_dt (scheduled time) if not ASAP order
     if order.get("need_datetime"):

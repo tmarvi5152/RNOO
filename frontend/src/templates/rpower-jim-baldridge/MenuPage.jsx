@@ -18,11 +18,17 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useRpowerJimBaldridgeTheme } from "./Theme";
+import {
+  persistRpowerJimBaldridgeLegacyMode,
+  useRpowerJimBaldridgeTheme,
+} from "./Theme";
 import LegacyLockup from "./LegacyLockup";
+import RpowerBannerBadge from "../../components/consumer/RpowerBannerBadge";
+
+const LEGACY_WIN98_CLOUD_BANNER =
+  "https://images.pexels.com/photos/531756/pexels-photo-531756.jpeg?auto=compress&cs=tinysrgb&w=2200";
 
 const RpowerJimBaldridgeMenuPage = () => {
-  useRpowerJimBaldridgeTheme();
   const { slug } = useParams();
   const navigate = useNavigate();
   const {
@@ -51,6 +57,12 @@ const RpowerJimBaldridgeMenuPage = () => {
   const cartTax = getTax();
   const cartTotal = getTotal();
   const legacyMode = Boolean(merchant?.shepherd_config?.rjb_legacy_mode);
+  const bannerImageSrc = legacyMode
+    ? LEGACY_WIN98_CLOUD_BANNER
+    : merchant?.branding?.banner_url ||
+      "https://images.pexels.com/photos/1639562/pexels-photo-1639562.jpeg?auto=compress&cs=tinysrgb&w=2000";
+
+  useRpowerJimBaldridgeTheme(legacyMode);
 
   const loadMenuData = useCallback(async () => {
     try {
@@ -88,6 +100,12 @@ const RpowerJimBaldridgeMenuPage = () => {
     }
   }, [selectedItem]);
 
+  useEffect(() => {
+    if (merchant) {
+      persistRpowerJimBaldridgeLegacyMode(legacyMode);
+    }
+  }, [merchant, legacyMode]);
+
   const filteredItems = useMemo(() => {
     return menuItems.filter((item) => {
       const inCategory =
@@ -121,12 +139,9 @@ const RpowerJimBaldridgeMenuPage = () => {
 
   return (
     <div className="min-h-screen bg-[#0f1115] text-white">
-      <header className="relative h-[44vh] min-h-[330px] overflow-hidden border-b border-[#f6c45344]">
+      <header className="relative h-[30vh] min-h-[220px] overflow-hidden border-b border-[#f6c45344]">
         <img
-          src={
-            merchant?.branding?.banner_url ||
-            "https://images.pexels.com/photos/1639562/pexels-photo-1639562.jpeg?auto=compress&cs=tinysrgb&w=2000"
-          }
+          src={bannerImageSrc}
           alt={merchant?.name}
           className="absolute inset-0 w-full h-full object-cover"
         />
@@ -135,21 +150,23 @@ const RpowerJimBaldridgeMenuPage = () => {
         <motion.div
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative z-10 h-full max-w-7xl mx-auto px-6 flex flex-col justify-end pb-10 text-white"
+          className="relative z-10 h-full max-w-7xl mx-auto px-6 flex flex-col justify-end pb-6 text-white"
         >
-          <Badge className="w-fit rjb-pill text-[#f6c453] border-[#f6c45377] bg-[#f6c45314] mb-4 uppercase tracking-[0.18em]">
+          <Badge className="w-fit rjb-pill text-[#f6c453] border-[#f6c45377] bg-[#f6c45314] mb-2 uppercase tracking-[0.18em]">
             {legacyMode ? "RPOWER Legacy Mode" : "RPOWER Classic Tribute"}
           </Badge>
-          <h1 className="text-4xl md:text-6xl font-light tracking-[0.06em]">
+          <h1 className="text-3xl md:text-5xl font-light tracking-[0.04em]">
             {merchant?.name}
           </h1>
-          <p className="mt-3 max-w-3xl text-white/80 text-sm md:text-base">
+          <p className="mt-2 max-w-3xl text-white/80 text-xs md:text-sm">
             {legacyMode
               ? "A formal memorial storefront preserving the original RPOWER service tone."
               : "A classic tribute storefront honoring Jim Baldridge through timeless hospitality design."}
           </p>
-          {legacyMode ? <LegacyLockup className="mt-4" compact /> : null}
+          {legacyMode ? <LegacyLockup className="mt-2" compact /> : null}
         </motion.div>
+
+        <RpowerBannerBadge />
       </header>
 
       <div className="sticky top-0 z-30 bg-[#11151b]/95 backdrop-blur-lg border-b border-[#f6c45333]">
@@ -204,38 +221,49 @@ const RpowerJimBaldridgeMenuPage = () => {
                 onClick={() => setSelectedItem(item)}
                 className="text-left rjb-surface rjb-card-hover overflow-hidden"
               >
-                {item.image_url && !failedImages[item.id] && (
-                  <div className="h-48 overflow-hidden bg-black/30">
-                    <img
-                      src={item.image_url}
-                      alt={item.name}
-                      className="w-full h-full object-cover"
-                      onError={() =>
-                        setFailedImages((prev) => ({
-                          ...prev,
-                          [item.id]: true,
-                        }))
-                      }
-                    />
+                <div className="flex items-start gap-3 p-3">
+                  <div className="w-[130px] h-[130px] shrink-0 overflow-hidden rounded-md border border-[#e8ba533a] bg-black/30">
+                    {item.image_url && !failedImages[item.id] ? (
+                      <img
+                        src={item.image_url}
+                        alt={item.name}
+                        className="w-full h-full object-cover"
+                        onError={() =>
+                          setFailedImages((prev) => ({
+                            ...prev,
+                            [item.id]: true,
+                          }))
+                        }
+                      />
+                    ) : (
+                      <div className="w-full h-full grid place-items-center text-white/40 text-xs px-2 text-center">
+                        No image
+                      </div>
+                    )}
                   </div>
-                )}
-                <div className="p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="text-lg font-medium">{item.name}</h3>
-                    <span className="text-sm font-semibold text-[#f6c453]">
-                      ${item.price?.toFixed(2)}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-sm text-white/65 line-clamp-2">
-                    {item.description || "Crafted fresh and made to order."}
-                  </p>
-                  <div className="mt-4 flex items-center text-xs text-white/60">
-                    <Sparkles className="w-3.5 h-3.5 mr-1.5 text-[#f6c453]" />
-                    {item.modifier_groups?.length
-                      ? `${item.modifier_groups.length} customization group${
-                          item.modifier_groups.length === 1 ? "" : "s"
-                        }`
-                      : "Quick add available"}
+
+                  <div className="flex-1 min-w-0 h-[130px] flex flex-col">
+                    <div className="flex items-start justify-between gap-3">
+                      <h3 className="text-base font-medium leading-tight pr-2">
+                        {item.name}
+                      </h3>
+                      <span className="text-sm font-semibold text-[#f6c453] shrink-0">
+                        ${item.price?.toFixed(2)}
+                      </span>
+                    </div>
+
+                    <p className="mt-1.5 text-xs text-white/65 line-clamp-3">
+                      {item.description || "Crafted fresh and made to order."}
+                    </p>
+
+                    <div className="mt-auto pt-2 flex items-center text-[11px] text-white/60">
+                      <Sparkles className="w-3.5 h-3.5 mr-1.5 text-[#f6c453]" />
+                      {item.modifier_groups?.length
+                        ? `${item.modifier_groups.length} customization group${
+                            item.modifier_groups.length === 1 ? "" : "s"
+                          }`
+                        : "Quick add available"}
+                    </div>
                   </div>
                 </div>
               </motion.button>
@@ -275,7 +303,7 @@ const RpowerJimBaldridgeMenuPage = () => {
       </footer>
 
       {cartCount > 0 && !selectedItem && (
-        <div className="fixed right-4 bottom-5 z-40 w-[min(430px,calc(100%-1rem))]">
+        <div className="rjb-floating-cart fixed right-4 bottom-5 z-40 w-[min(430px,calc(100%-1rem))]">
           <motion.button
             type="button"
             initial={{ y: 30, opacity: 0 }}
@@ -283,7 +311,7 @@ const RpowerJimBaldridgeMenuPage = () => {
             whileHover={{ y: -2 }}
             whileTap={{ y: 0 }}
             onClick={() => setCartOpen((v) => !v)}
-            className="w-full rounded-[22px] border border-[#e8ba5388] bg-[linear-gradient(180deg,#252f3f_0%,#151b24_46%,#0e1218_100%)] shadow-[0_18px_40px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-8px_18px_rgba(0,0,0,0.35)] px-5 py-4 text-left"
+            className="rjb-floating-toggle w-full rounded-[22px] border border-[#e8ba5388] bg-[linear-gradient(180deg,#252f3f_0%,#151b24_46%,#0e1218_100%)] shadow-[0_18px_40px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-8px_18px_rgba(0,0,0,0.35)] px-5 py-4 text-left"
           >
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 min-w-0">
@@ -316,7 +344,7 @@ const RpowerJimBaldridgeMenuPage = () => {
                 initial={{ y: 24, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: 20, opacity: 0 }}
-                className="mt-3 rounded-2xl border border-[#e8ba5366] bg-[linear-gradient(180deg,#18202c_0%,#121821_100%)] shadow-[0_24px_44px_rgba(0,0,0,0.55)]"
+                className="rjb-floating-drawer mt-3 rounded-2xl border border-[#e8ba5366] bg-[linear-gradient(180deg,#18202c_0%,#121821_100%)] shadow-[0_24px_44px_rgba(0,0,0,0.55)]"
               >
                 <div className="p-4 flex items-center justify-between border-b border-[#e8ba5333]">
                   <div>

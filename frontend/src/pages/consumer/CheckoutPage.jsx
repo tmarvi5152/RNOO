@@ -73,15 +73,17 @@ const CheckoutPage = () => {
   const [scheduledTime, setScheduledTime] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [tipAmount, setTipAmount] = useState(0);
-  const [tipPercentage, setTipPercentage] = useState(null); // null, 15, 18, 20, or 'custom'
+  const [tipPercentage, setTipPercentage] = useState(null); // null, 10, 15, 20, or 'custom'
   const [customTipInput, setCustomTipInput] = useState("");
   const [customTipModalOpen, setCustomTipModalOpen] = useState(false);
   const [failedImages, setFailedImages] = useState({});
 
+  const isCardPayment = paymentMethod === "demo_card";
+  const effectiveTipAmount = isCardPayment ? tipAmount : 0;
   const subtotal = getSubtotal();
   const tax = getTax();
   const deliveryFee = orderType === "delivery" ? 4.99 : 0;
-  const total = getTotal() + deliveryFee + tipAmount;
+  const total = getTotal() + deliveryFee + effectiveTipAmount;
 
   const hasValidImage = (item) => Boolean(item.image && !failedImages[item.id]);
 
@@ -125,6 +127,15 @@ const CheckoutPage = () => {
   useEffect(() => {
     loadMerchant();
   }, [loadMerchant]);
+
+  useEffect(() => {
+    if (paymentMethod !== "demo_card") {
+      setTipAmount(0);
+      setTipPercentage(null);
+      setCustomTipInput("");
+      setCustomTipModalOpen(false);
+    }
+  }, [paymentMethod]);
 
   // Generate time slots
   const generateTimeSlots = () => {
@@ -236,7 +247,7 @@ const CheckoutPage = () => {
       const paymentMethodMap = {
         demo_card: "mock_card",
         cash: "cash",
-        pay_at_store: "cash",
+        pay_at_store: "pay_at_store",
       };
 
       const orderData = {
@@ -274,7 +285,7 @@ const CheckoutPage = () => {
         payment: {
           method: paymentMethodMap[paymentMethod] || "cash",
           amount: total,
-          tip: tipAmount,
+          tip: effectiveTipAmount,
           status: "pending",
         },
         order_timing: orderTimingMap[orderTiming],
@@ -298,10 +309,9 @@ const CheckoutPage = () => {
       clearCart();
 
       // Show success with order ID
-      toast.success(
-        `Order placed successfully! Order ID: ${res.data.id}`,
-        { duration: 5000 }
-      );
+      toast.success(`Order placed successfully! Order ID: ${res.data.id}`, {
+        duration: 5000,
+      });
 
       navigate(
         `/order-confirmation?orderId=${encodeURIComponent(res.data.id)}&merchantSlug=${encodeURIComponent(slug)}&paymentMethod=${encodeURIComponent(paymentMethod)}`,
@@ -833,8 +843,11 @@ const CheckoutPage = () => {
                         label: "Demo Credit Card",
                         icon: CreditCard,
                       },
-                      { id: "cash", label: "Cash", icon: DollarSign },
-                      { id: "pay_at_store", label: "Pay at Store", icon: Store },
+                      {
+                        id: "pay_at_store",
+                        label: "Pay at Store",
+                        icon: Store,
+                      },
                     ].map((method) => (
                       <button
                         key={method.id}
@@ -882,31 +895,36 @@ const CheckoutPage = () => {
                   )}
 
                   {/* Tip Section */}
-                  <div className="space-y-3">
-                    <label className="text-sm text-zinc-400">
-                      Add a tip for the staff
-                    </label>
-                    <div className="grid grid-cols-4 gap-2">
-                      {[
-                        { value: 15, label: "15%" },
-                        { value: 18, label: "18%" },
-                        { value: 20, label: "20%" },
-                        { value: "custom", label: "Custom" },
-                      ].map((tip) => (
-                        <button
-                          key={tip.value}
-                          onClick={() => {
-                            setTipPercentage(tip.value);
-                            if (tip.value !== "custom") {
-                              const calculatedTip =
-                                (getSubtotal() * tip.value) / 100;
-                              setTipAmount(calculatedTip);
-                              setCustomTipInput("");
-                            } else {
-                              setCustomTipModalOpen(true);
-                            }
-                          }}
-                          className={`
+                  {isCardPayment && (
+                    <div className="space-y-3">
+                      <label className="text-sm text-zinc-400">
+                        Add a tip for the staff
+                      </label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {[
+                          { value: 10, label: "10%" },
+                          { value: 15, label: "15%" },
+                          { value: 20, label: "20%" },
+                          { value: "custom", label: "Custom" },
+                        ].map((tip) => (
+                          <button
+                            key={tip.value}
+                            onClick={() => {
+                              setTipPercentage(tip.value);
+                              if (tip.value !== "custom") {
+                                const calculatedTip =
+                                  Math.round(
+                                    ((subtotal * tip.value) / 100 +
+                                      Number.EPSILON) *
+                                      100,
+                                  ) / 100;
+                                setTipAmount(calculatedTip);
+                                setCustomTipInput("");
+                              } else {
+                                setCustomTipModalOpen(true);
+                              }
+                            }}
+                            className={`
                             p-3 rounded-xl border transition-all
                             ${
                               tipPercentage === tip.value
@@ -914,51 +932,76 @@ const CheckoutPage = () => {
                                 : "bg-white/5 border-white/10 text-zinc-400 hover:border-white/30"
                             }
                           `}
-                        >
-                          <div className="font-medium">{tip.label}</div>
-                          {tip.value !== "custom" && (
-                            <div className="text-xs text-zinc-500 mt-1">
-                              ${((getSubtotal() * tip.value) / 100).toFixed(2)}
-                            </div>
-                          )}
-                        </button>
-                      ))}
-                    </div>
+                          >
+                            <div className="font-medium">{tip.label}</div>
+                            {tip.value !== "custom" && (
+                              <div className="text-xs text-zinc-500 mt-1">
+                                ${((subtotal * tip.value) / 100).toFixed(2)}
+                              </div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
 
-                    {/* Custom Tip Modal */}
-                    <Dialog
-                      open={customTipModalOpen}
-                      onOpenChange={setCustomTipModalOpen}
-                    >
-                      <DialogContent className="bg-zinc-900 border-white/10 text-white max-w-md">
-                        <DialogHeader>
-                          <DialogTitle className="text-xl font-bold">
-                            Enter Custom Tip
-                          </DialogTitle>
-                          <DialogDescription className="text-zinc-400">
-                            Enter the amount you'd like to tip the staff
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="py-4 space-y-4">
-                          {/* Display */}
-                          <div className="relative">
-                            <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-zinc-400" />
-                            <div className="w-full pl-14 pr-4 py-4 bg-white/5 border-2 border-orange-500/30 rounded-xl text-white text-3xl font-bold text-center">
-                              {customTipInput || "0.00"}
+                      {/* Custom Tip Modal */}
+                      <Dialog
+                        open={customTipModalOpen}
+                        onOpenChange={setCustomTipModalOpen}
+                      >
+                        <DialogContent className="bg-zinc-900 border-white/10 text-white max-w-md">
+                          <DialogHeader>
+                            <DialogTitle className="text-xl font-bold">
+                              Enter Custom Tip
+                            </DialogTitle>
+                            <DialogDescription className="text-zinc-400">
+                              Enter the amount you'd like to tip the staff
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="py-4 space-y-4">
+                            {/* Display */}
+                            <div className="relative">
+                              <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-zinc-400" />
+                              <div className="w-full pl-14 pr-4 py-4 bg-white/5 border-2 border-orange-500/30 rounded-xl text-white text-3xl font-bold text-center">
+                                {customTipInput || "0.00"}
+                              </div>
                             </div>
-                          </div>
-                          <p className="text-xs text-zinc-500 text-center">
-                            Order subtotal: ${getSubtotal().toFixed(2)}
-                          </p>
+                            <p className="text-xs text-zinc-500 text-center">
+                              Order subtotal: ${subtotal.toFixed(2)}
+                            </p>
 
-                          {/* Number Pad */}
-                          <div className="grid grid-cols-3 gap-2">
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                            {/* Number Pad */}
+                            <div className="grid grid-cols-3 gap-2">
+                              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                                <button
+                                  key={num}
+                                  onClick={() => {
+                                    const newValue =
+                                      customTipInput + num.toString();
+                                    // Prevent more than 2 decimal places
+                                    if (customTipInput.includes(".")) {
+                                      const parts = customTipInput.split(".");
+                                      if (parts[1]?.length >= 2) return;
+                                    }
+                                    setCustomTipInput(newValue);
+                                  }}
+                                  className="h-14 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white text-xl font-semibold transition-all active:scale-95"
+                                >
+                                  {num}
+                                </button>
+                              ))}
                               <button
-                                key={num}
                                 onClick={() => {
-                                  const newValue =
-                                    customTipInput + num.toString();
+                                  if (!customTipInput.includes(".")) {
+                                    setCustomTipInput(customTipInput + ".");
+                                  }
+                                }}
+                                className="h-14 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white text-xl font-semibold transition-all active:scale-95"
+                              >
+                                .
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const newValue = customTipInput + "0";
                                   // Prevent more than 2 decimal places
                                   if (customTipInput.includes(".")) {
                                     const parts = customTipInput.split(".");
@@ -968,89 +1011,67 @@ const CheckoutPage = () => {
                                 }}
                                 className="h-14 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white text-xl font-semibold transition-all active:scale-95"
                               >
-                                {num}
+                                0
                               </button>
-                            ))}
-                            <button
+                              <button
+                                onClick={() => {
+                                  setCustomTipInput(
+                                    customTipInput.slice(0, -1),
+                                  );
+                                }}
+                                className="h-14 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-xl text-white transition-all active:scale-95 flex items-center justify-center"
+                              >
+                                <Delete className="w-5 h-5" />
+                              </button>
+                            </div>
+                          </div>
+                          <DialogFooter className="gap-2">
+                            <Button
+                              variant="outline"
                               onClick={() => {
-                                if (!customTipInput.includes(".")) {
-                                  setCustomTipInput(customTipInput + ".");
+                                setCustomTipModalOpen(false);
+                                setTipPercentage(null);
+                                setCustomTipInput("");
+                                setTipAmount(0);
+                              }}
+                              className="bg-white/5 border-white/10 text-white hover:bg-white/10"
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                const amount = parseFloat(customTipInput) || 0;
+                                setTipAmount(amount);
+                                setCustomTipModalOpen(false);
+                                if (amount > 0) {
+                                  toast.success(
+                                    `Custom tip of $${amount.toFixed(2)} added!`,
+                                  );
                                 }
                               }}
-                              className="h-14 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white text-xl font-semibold transition-all active:scale-95"
+                              className="bg-orange-500 hover:bg-orange-600 text-white"
                             >
-                              .
-                            </button>
-                            <button
-                              onClick={() => {
-                                const newValue = customTipInput + "0";
-                                // Prevent more than 2 decimal places
-                                if (customTipInput.includes(".")) {
-                                  const parts = customTipInput.split(".");
-                                  if (parts[1]?.length >= 2) return;
-                                }
-                                setCustomTipInput(newValue);
-                              }}
-                              className="h-14 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white text-xl font-semibold transition-all active:scale-95"
-                            >
-                              0
-                            </button>
-                            <button
-                              onClick={() => {
-                                setCustomTipInput(customTipInput.slice(0, -1));
-                              }}
-                              className="h-14 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded-xl text-white transition-all active:scale-95 flex items-center justify-center"
-                            >
-                              <Delete className="w-5 h-5" />
-                            </button>
+                              Apply Tip
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+
+                      {/* Thank you message for any tip */}
+                      {effectiveTipAmount > 0 && (
+                        <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-xl">
+                          <div className="flex items-center justify-between text-green-400">
+                            <span className="text-sm">
+                              Thank you for your tip!
+                            </span>
+                            <span className="font-semibold">
+                              ${effectiveTipAmount.toFixed(2)}
+                            </span>
                           </div>
                         </div>
-                        <DialogFooter className="gap-2">
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              setCustomTipModalOpen(false);
-                              setTipPercentage(null);
-                              setCustomTipInput("");
-                              setTipAmount(0);
-                            }}
-                            className="bg-white/5 border-white/10 text-white hover:bg-white/10"
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            onClick={() => {
-                              const amount = parseFloat(customTipInput) || 0;
-                              setTipAmount(amount);
-                              setCustomTipModalOpen(false);
-                              if (amount > 0) {
-                                toast.success(
-                                  `Custom tip of $${amount.toFixed(2)} added!`,
-                                );
-                              }
-                            }}
-                            className="bg-orange-500 hover:bg-orange-600 text-white"
-                          >
-                            Apply Tip
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-
-                    {/* Thank you message for any tip */}
-                    {tipAmount > 0 && (
-                      <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-xl">
-                        <div className="flex items-center justify-between text-green-400">
-                          <span className="text-sm">
-                            Thank you for your tip!
-                          </span>
-                          <span className="font-semibold">
-                            ${tipAmount.toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
 
                   <div className="flex gap-3">
                     <button
@@ -1260,11 +1281,11 @@ const CheckoutPage = () => {
                   <span className="text-zinc-400">Tax</span>
                   <span>${tax.toFixed(2)}</span>
                 </div>
-                {tipAmount > 0 && (
+                {effectiveTipAmount > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-zinc-400">Tip</span>
                     <span className="text-green-400">
-                      ${tipAmount.toFixed(2)}
+                      ${effectiveTipAmount.toFixed(2)}
                     </span>
                   </div>
                 )}

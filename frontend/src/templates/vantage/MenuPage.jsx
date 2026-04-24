@@ -10,6 +10,7 @@ import { RadioGroup, RadioGroupItem } from "../../components/ui/radio-group";
 import { Label } from "../../components/ui/label";
 import { Textarea } from "../../components/ui/textarea";
 import { Skeleton } from "../../components/ui/skeleton";
+import RpowerBannerBadge from "../../components/consumer/RpowerBannerBadge";
 import { Minus, Plus, Search, ShoppingBag, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 import { useVantageTheme } from "./VantageTheme";
@@ -377,7 +378,7 @@ const VantageMenuPage = () => {
 
   return (
     <div className="min-h-screen bg-[#f8f8f5] text-[#141414]">
-      <header className="relative h-[44vh] min-h-[330px] overflow-hidden">
+      <header className="relative h-[30vh] min-h-[220px] overflow-hidden">
         <img
           src={
             merchant?.branding?.banner_url ||
@@ -391,19 +392,21 @@ const VantageMenuPage = () => {
         <motion.div
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative z-10 h-full max-w-7xl mx-auto px-6 flex flex-col justify-end pb-10 text-white"
+          className="relative z-10 h-full max-w-7xl mx-auto px-6 flex flex-col justify-end pb-6 text-white"
         >
-          <Badge className="w-fit bg-white/20 text-white border-white/40 mb-4 uppercase tracking-[0.18em]">
+          <Badge className="w-fit bg-white/20 text-white border-white/40 mb-2 uppercase tracking-[0.18em]">
             Vantage
           </Badge>
-          <h1 className="text-4xl md:text-6xl font-light uppercase tracking-[0.08em]">
+          <h1 className="text-3xl md:text-5xl font-light uppercase tracking-[0.08em]">
             {merchant?.name}
           </h1>
-          <p className="mt-3 max-w-2xl text-white/85 italic text-sm md:text-base">
+          <p className="mt-2 max-w-2xl text-white/85 italic text-xs md:text-sm">
             {merchant?.description ||
               "A premium, image-forward menu experience curated for fast, elegant ordering."}
           </p>
         </motion.div>
+
+        <RpowerBannerBadge />
       </header>
 
       <div className="sticky top-0 z-30 bg-[#f4f1ea]/95 backdrop-blur-lg border-b border-black/10">

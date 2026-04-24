@@ -11,6 +11,7 @@ import ProductCard from "../../components/consumer/ProductCard";
 import ProductModal from "../../components/consumer/ProductModal";
 import CategoryNav from "../../components/consumer/CategoryNav";
 import FloatingCart from "../../components/consumer/FloatingCart";
+import RpowerBannerBadge from "../../components/consumer/RpowerBannerBadge";
 import { toast } from "sonner";
 import {
   MapPin,
@@ -45,7 +46,7 @@ const HeroSection = ({ merchant, scrollY }) => {
   return (
     <motion.div
       style={{ y }}
-      className="relative h-[70vh] min-h-[500px] overflow-hidden"
+      className="relative h-[30vh] min-h-[220px] overflow-hidden"
     >
       {/* Background Image with Parallax */}
       <motion.div style={{ scale }} className="absolute inset-0">
@@ -62,7 +63,7 @@ const HeroSection = ({ merchant, scrollY }) => {
       {/* Hero Content */}
       <motion.div
         style={{ opacity }}
-        className="relative h-full flex flex-col justify-end p-6 md:p-12 max-w-7xl mx-auto"
+        className="relative h-full flex flex-col justify-end p-5 md:p-6 max-w-7xl mx-auto"
       >
         {/* Logo */}
         {merchant?.branding?.logo_url && (
@@ -70,9 +71,9 @@ const HeroSection = ({ merchant, scrollY }) => {
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.2, type: "spring" }}
-            className="mb-6"
+            className="mb-3"
           >
-            <div className="w-20 h-20 md:w-28 md:h-28 rounded-2xl overflow-hidden bg-white/10 backdrop-blur-sm border border-white/20 shadow-2xl">
+            <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden bg-white/10 backdrop-blur-sm border border-white/20 shadow-2xl">
               <img
                 src={merchant.branding.logo_url}
                 alt={merchant.name}
@@ -87,7 +88,7 @@ const HeroSection = ({ merchant, scrollY }) => {
           initial={{ y: 30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="text-4xl md:text-6xl font-bold text-white mb-4"
+          className="text-3xl md:text-5xl font-bold text-white mb-2"
         >
           {merchant?.name}
         </motion.h1>
@@ -97,7 +98,7 @@ const HeroSection = ({ merchant, scrollY }) => {
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.4 }}
-          className="text-lg md:text-xl text-zinc-300 mb-6 max-w-2xl"
+          className="text-sm md:text-base text-zinc-300 mb-3 max-w-2xl"
         >
           {merchant?.description ||
             "Discover our carefully crafted menu made with passion and the finest ingredients."}
@@ -108,7 +109,7 @@ const HeroSection = ({ merchant, scrollY }) => {
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="flex flex-wrap items-center gap-4 text-sm"
+          className="flex flex-wrap items-center gap-3 text-xs"
         >
           {merchant?.city && (
             <div className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/10">
@@ -151,6 +152,8 @@ const HeroSection = ({ merchant, scrollY }) => {
           </motion.div>
         </motion.div>
       </motion.div>
+
+      <RpowerBannerBadge />
     </motion.div>
   );
 };

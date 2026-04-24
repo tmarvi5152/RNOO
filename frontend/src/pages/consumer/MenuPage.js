@@ -25,6 +25,7 @@ import { RadioGroup, RadioGroupItem } from "../../components/ui/radio-group";
 import { Label } from "../../components/ui/label";
 import { Textarea } from "../../components/ui/textarea";
 import { toast } from "sonner";
+import RpowerBannerBadge from "../../components/consumer/RpowerBannerBadge";
 import { Plus, Minus, ShoppingCart, X, Clock } from "lucide-react";
 
 // Helper component for menu images with fallback - only show if image exists
@@ -257,22 +258,24 @@ const MenuPage = () => {
     <ConsumerLayout merchant={merchant}>
       {/* Hero Banner */}
       <div
-        className="relative h-48 md:h-64 bg-cover bg-center"
+        className="relative h-[30vh] min-h-[220px] bg-cover bg-center"
         style={{
           backgroundImage: `url(${merchant?.branding?.banner_url || "https://images.pexels.com/photos/2271107/pexels-photo-2271107.jpeg"})`,
         }}
       >
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 p-6">
+        <div className="absolute bottom-0 left-0 right-0 p-4 md:p-5">
           <div className="max-w-7xl mx-auto">
-            <h1 className="text-3xl md:text-4xl font-heading font-bold text-white">
+            <h1 className="text-2xl md:text-3xl font-heading font-bold text-white">
               {merchant?.name}
             </h1>
-            <p className="text-white/80 mt-2 max-w-xl">
+            <p className="text-white/80 mt-1.5 max-w-xl text-sm">
               {merchant?.description}
             </p>
           </div>
         </div>
+
+        <RpowerBannerBadge />
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-6">

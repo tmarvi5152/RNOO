@@ -33,20 +33,23 @@ const VantageOrderTrackingPage = () => {
     },
   });
 
-  const loadOrder = useCallback(async (silent = false) => {
-    try {
-      if (silent) setRefreshing(true);
-      else setLoading(true);
-      const res = await apiService.getOrderPublic(orderId);
-      setOrder(res.data);
-    } catch (err) {
-      console.error("Failed to load order:", err);
-      if (!silent) toast.error("Order not found");
-    } finally {
-      if (silent) setRefreshing(false);
-      else setLoading(false);
-    }
-  }, [orderId]);
+  const loadOrder = useCallback(
+    async (silent = false) => {
+      try {
+        if (silent) setRefreshing(true);
+        else setLoading(true);
+        const res = await apiService.getOrderPublic(orderId);
+        setOrder(res.data);
+      } catch (err) {
+        console.error("Failed to load order:", err);
+        if (!silent) toast.error("Order not found");
+      } finally {
+        if (silent) setRefreshing(false);
+        else setLoading(false);
+      }
+    },
+    [orderId],
+  );
 
   useEffect(() => {
     loadOrder();
@@ -125,7 +128,9 @@ const VantageOrderTrackingPage = () => {
               className="rounded-full"
               onClick={() => loadOrder(true)}
             >
-              <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
+              <RefreshCw
+                className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`}
+              />
               Refresh
             </Button>
           </div>

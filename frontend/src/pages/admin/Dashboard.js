@@ -129,6 +129,70 @@ const RecentOrderRow = ({ order }) => {
   );
 };
 
+const getMerchantLocationName = (merchant, merchantId) => {
+  if (!merchant) {
+    return merchantId ? `Merchant ${String(merchantId).slice(-4)}` : "Unknown";
+  }
+
+  return (
+    merchant.license_name ||
+    merchant.licenseName ||
+    merchant.LicenseName ||
+    merchant.location_name ||
+    merchant.locationName ||
+    merchant.LocationName ||
+    merchant.location ||
+    merchant.Location ||
+    merchant.store_name ||
+    merchant.storeName ||
+    merchant.StoreName ||
+    merchant.name ||
+    merchant.Name ||
+    (merchantId ? `Merchant ${String(merchantId).slice(-4)}` : "Unknown")
+  );
+};
+
+const getItemLineRevenue = (item, menuPriceLookup = {}) => {
+  const quantity = Number(item?.quantity) || 0;
+  const modifierTotal = (item?.modifiers || []).reduce(
+    (sum, modifier) => sum + Number(modifier?.price || 0),
+    0,
+  );
+  const explicitUnitPrice = Number(
+    item?.unit_price ?? item?.basePrice ?? item?.price,
+  );
+  const menuUnitPrice = Number(
+    menuPriceLookup[item?.menu_item_id] ?? menuPriceLookup[item?.itemId],
+  );
+  const unitPrice =
+    Number.isFinite(explicitUnitPrice) && explicitUnitPrice > 0
+      ? explicitUnitPrice
+      : Number.isFinite(menuUnitPrice)
+        ? menuUnitPrice
+        : 0;
+  const explicitLineTotal = Number(
+    item?.total_price ?? item?.totalPrice ?? NaN,
+  );
+
+  if (Number.isFinite(explicitLineTotal) && explicitLineTotal > 0) {
+    return explicitLineTotal;
+  }
+
+  return (unitPrice + modifierTotal) * quantity;
+};
+
+const calculateRevenueTrend = (currentRevenue, previousRevenue) => {
+  if (previousRevenue > 0) {
+    return ((currentRevenue - previousRevenue) / previousRevenue) * 100;
+  }
+
+  if (currentRevenue > 0) {
+    return 100;
+  }
+
+  return 0;
+};
+
 const AdminDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -165,9 +229,20 @@ const AdminDashboard = () => {
   const [merchantSelectorOpen, setMerchantSelectorOpen] = useState(false);
   const [filteredStats, setFilteredStats] = useState(null);
   const selectorRef = useRef(null);
+  const menuPriceLookupRef = useRef({});
 
   const computeAnalytics = useCallback(
-    (orders) => {
+    (orders, merchantRecords = []) => {
+      const merchantLookup = merchantRecords.reduce((lookup, merchant) => {
+        lookup[merchant.id] = merchant;
+        return lookup;
+      }, {});
+      const now = new Date();
+      const currentPeriodStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const previousPeriodStart = new Date(
+        currentPeriodStart.getTime() - 7 * 24 * 60 * 60 * 1000,
+      );
+
       // Order status breakdown
       const statusCounts = {
         pending: 0,
@@ -208,7 +283,6 @@ const AdminDashboard = () => {
       });
 
       // Revenue trend based on selected date range
-      const now = new Date();
       let startDate;
       let endDate;
 
@@ -272,12 +346,11 @@ const AdminDashboard = () => {
       const merchantMap = {};
       orders.forEach((order) => {
         const merchantId = order.merchant_id || "unknown";
-        // Get merchant name from order data or use a friendly name
-        const merchantName =
-          order.merchant?.name ||
-          order.merchant?.store_name ||
-          order.merchant?.business_name ||
-          `Store ${merchantId.slice(-4)}`; // Show last 4 chars of ID as fallback
+        const merchantRecord = merchantLookup[merchantId] || order.merchant;
+        const merchantName = getMerchantLocationName(
+          merchantRecord,
+          merchantId,
+        );
 
         if (!merchantMap[merchantId]) {
           merchantMap[merchantId] = {
@@ -286,18 +359,30 @@ const AdminDashboard = () => {
             totalRevenue: 0,
             orderCount: 0,
             avgOrderValue: 0,
-            trend: Math.random() * 30 - 15,
+            currentPeriodRevenue: 0,
+            previousPeriodRevenue: 0,
+            trend: 0,
             rating: 4.5 + Math.random() * 0.5, // Simulated rating
           };
         }
 
         merchantMap[merchantId].totalRevenue += order.total || 0;
         merchantMap[merchantId].orderCount += 1;
+        const orderDate = order.created_at ? new Date(order.created_at) : null;
+        if (orderDate && orderDate >= currentPeriodStart) {
+          merchantMap[merchantId].currentPeriodRevenue += order.total || 0;
+        } else if (orderDate && orderDate >= previousPeriodStart) {
+          merchantMap[merchantId].previousPeriodRevenue += order.total || 0;
+        }
         merchantMap[merchantId].avgOrderValue =
           merchantMap[merchantId].orderCount > 0
             ? merchantMap[merchantId].totalRevenue /
               merchantMap[merchantId].orderCount
             : 0;
+        merchantMap[merchantId].trend = calculateRevenueTrend(
+          merchantMap[merchantId].currentPeriodRevenue,
+          merchantMap[merchantId].previousPeriodRevenue,
+        );
       });
 
       // Sort merchants by total revenue
@@ -310,6 +395,12 @@ const AdminDashboard = () => {
       const itemMap = {};
       orders.forEach((order) => {
         order.items?.forEach((item) => {
+          const quantity = Number(item.quantity) || 0;
+          const lineRevenue = getItemLineRevenue(
+            item,
+            menuPriceLookupRef.current,
+          );
+
           if (!itemMap[item.name]) {
             itemMap[item.name] = {
               name: item.name,
@@ -318,17 +409,17 @@ const AdminDashboard = () => {
               avgPrice: 0,
             };
           }
-          itemMap[item.name].count += 1;
-          // Ensure we have a valid price
-          const itemPrice = item.price || item.total || 0;
-          itemMap[item.name].revenue += itemPrice;
+          itemMap[item.name].count += quantity;
+          itemMap[item.name].revenue += lineRevenue;
         });
       });
 
       const topItemsList = Object.values(itemMap)
         .map((item) => ({
           ...item,
-          avgPrice: item.count > 0 ? item.revenue / item.count : 0,
+          revenue: Number(item.revenue.toFixed(2)),
+          avgPrice:
+            item.count > 0 ? Number((item.revenue / item.count).toFixed(2)) : 0,
         }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 8);
@@ -423,6 +514,41 @@ const AdminDashboard = () => {
           ]);
           setStats(statsRes.data);
           setMerchants(merchantsRes.data || []);
+
+          const orderParams = { limit: 200 };
+          const ordersRes = await apiService.getOrders(orderParams);
+          const ordersData = ordersRes.data.orders || ordersRes.data;
+          const merchantIds = [
+            ...new Set(ordersData.map((o) => o.merchant_id)),
+          ].filter(Boolean);
+          const menuResponses = await Promise.all(
+            merchantIds.map(async (merchantId) => {
+              try {
+                const response = await apiService.getMenuItems(merchantId);
+                return response.data || [];
+              } catch (error) {
+                console.error(
+                  `Failed to load menu items for merchant ${merchantId}:`,
+                  error,
+                );
+                return [];
+              }
+            }),
+          );
+
+          menuPriceLookupRef.current = menuResponses
+            .flat()
+            .reduce((lookup, item) => {
+              if (item?.id) {
+                lookup[item.id] = Number(item.price) || 0;
+              }
+              return lookup;
+            }, {});
+
+          setAllOrders(ordersData);
+          setRecentOrders(ordersData.slice(0, 5));
+          computeAnalytics(ordersData, merchantsRes.data || []);
+          return;
         } else {
           const statsRes = await apiService.getStats(user?.merchant_id);
           setStats(statsRes.data);
@@ -437,7 +563,7 @@ const AdminDashboard = () => {
         setRecentOrders(ordersData.slice(0, 5));
 
         // Compute analytics from orders
-        computeAnalytics(ordersData);
+        computeAnalytics(ordersData, merchants);
       } catch (err) {
         console.error("Failed to load dashboard:", err);
         toast.error("Failed to load dashboard data");
@@ -512,7 +638,7 @@ const AdminDashboard = () => {
         ? allOrders
         : allOrders.filter((o) => selectedMerchantIds.includes(o.merchant_id));
     setRecentOrders(filtered.slice(0, 5));
-    computeAnalytics(filtered);
+    computeAnalytics(filtered, merchants);
     if (selectedMerchantIds.length > 0) {
       setFilteredStats({
         total_orders: filtered.length,
@@ -579,8 +705,12 @@ const AdminDashboard = () => {
                   {selectedMerchantIds.length === 0
                     ? "All Merchants"
                     : selectedMerchantIds.length === 1
-                      ? merchants.find((m) => m.id === selectedMerchantIds[0])
-                          ?.name || "1 Merchant"
+                      ? getMerchantLocationName(
+                          merchants.find(
+                            (m) => m.id === selectedMerchantIds[0],
+                          ),
+                          selectedMerchantIds[0],
+                        ) || "1 Merchant"
                       : `${selectedMerchantIds.length} Merchants`}
                   <ChevronDown
                     className={`w-4 h-4 transition-transform ${
@@ -628,7 +758,7 @@ const AdminDashboard = () => {
                           />
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium text-gray-800 truncate">
-                              {m.name}
+                              {getMerchantLocationName(m, m.id)}
                             </p>
                             <p className="text-xs text-gray-400 truncate">
                               {m.slug}
@@ -681,7 +811,10 @@ const AdminDashboard = () => {
               Showing data for{" "}
               <span className="font-semibold text-primary">
                 {selectedMerchantIds.length === 1
-                  ? merchants.find((m) => m.id === selectedMerchantIds[0])?.name
+                  ? getMerchantLocationName(
+                      merchants.find((m) => m.id === selectedMerchantIds[0]),
+                      selectedMerchantIds[0],
+                    )
                   : `${selectedMerchantIds.length} merchants`}
               </span>
             </span>
@@ -890,17 +1023,27 @@ const AdminDashboard = () => {
                           initial={{ opacity: 0, x: -10 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: 0.3 + idx * 0.1 }}
-                          className="flex items-center justify-between p-3 bg-gradient-to-r from-gray-50 to-gray-25 rounded-lg border border-gray-100 hover:border-yellow-300 transition-colors"
+                          className={`flex items-center justify-between rounded-xl border transition-colors ${
+                            idx === 0
+                              ? "p-4 bg-gradient-to-r from-amber-50 via-yellow-50 to-white border-yellow-300 shadow-sm"
+                              : "p-3 bg-gradient-to-r from-gray-50 to-gray-25 border-gray-100 hover:border-yellow-300"
+                          }`}
                         >
                           <div className="flex items-center gap-3 flex-1">
-                            <Badge className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-white font-bold">
+                            <Badge className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-white font-bold px-2.5 py-1">
                               #{idx + 1}
                             </Badge>
                             <div className="min-w-0 flex-1">
-                              <p className="font-semibold text-sm truncate">
+                              <p
+                                className={`truncate text-gray-900 ${
+                                  idx === 0
+                                    ? "text-base font-bold"
+                                    : "text-sm font-semibold"
+                                }`}
+                              >
                                 {merchant.name}
                               </p>
-                              <p className="text-xs text-gray-500">
+                              <p className="text-xs text-gray-500 mt-0.5">
                                 {merchant.orderCount} orders • Avg: $
                                 {(
                                   merchant.totalRevenue / merchant.orderCount
@@ -909,10 +1052,15 @@ const AdminDashboard = () => {
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="font-bold text-sm">
+                            <p
+                              className={`font-bold text-gray-900 ${
+                                idx === 0 ? "text-2xl leading-none" : "text-lg"
+                              }`}
+                            >
                               $
                               {merchant.totalRevenue.toLocaleString("en-US", {
-                                maximumFractionDigits: 0,
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
                               })}
                             </p>
                             <p
@@ -971,10 +1119,11 @@ const AdminDashboard = () => {
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="font-bold text-sm text-green-600">
+                            <p className="font-bold text-lg text-green-600">
                               $
                               {item.revenue.toLocaleString("en-US", {
-                                maximumFractionDigits: 0,
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
                               })}
                             </p>
                             <p className="text-xs text-gray-500">

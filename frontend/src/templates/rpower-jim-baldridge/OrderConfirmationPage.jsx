@@ -1,21 +1,30 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
+import { apiService } from "../../context/AppContext";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { CheckCircle2, Copy, Mail, Share2 } from "lucide-react";
 import { toast } from "sonner";
-import { useRpowerJimBaldridgeTheme } from "./Theme";
+import {
+  getPersistedRpowerJimBaldridgeLegacyMode,
+  persistRpowerJimBaldridgeLegacyMode,
+  useRpowerJimBaldridgeTheme,
+} from "./Theme";
 import LegacyLockup from "./LegacyLockup";
 
 const RpowerJimBaldridgeOrderConfirmationPage = () => {
-  useRpowerJimBaldridgeTheme();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [copied, setCopied] = useState(false);
+  const [legacyMode, setLegacyMode] = useState(
+    getPersistedRpowerJimBaldridgeLegacyMode(),
+  );
   const orderId = searchParams.get("orderId") || "";
   const merchantSlug = searchParams.get("merchantSlug") || "";
   const paymentMethod = searchParams.get("paymentMethod") || "";
+
+  useRpowerJimBaldridgeTheme(legacyMode);
 
   const paymentMethodLabelMap = {
     demo_card: "Demo Credit Card",
@@ -27,6 +36,36 @@ const RpowerJimBaldridgeOrderConfirmationPage = () => {
   const trackingLink = useMemo(() => {
     return `${window.location.origin}/track/${orderId}`;
   }, [orderId]);
+
+  useEffect(() => {
+    if (!merchantSlug) {
+      setLegacyMode(getPersistedRpowerJimBaldridgeLegacyMode());
+      return;
+    }
+
+    let cancelled = false;
+    const loadMerchantThemeMode = async () => {
+      try {
+        const merchantRes = await apiService.getMerchantBySlug(merchantSlug);
+        const enabled = Boolean(
+          merchantRes.data?.shepherd_config?.rjb_legacy_mode,
+        );
+        if (!cancelled) {
+          setLegacyMode(enabled);
+          persistRpowerJimBaldridgeLegacyMode(enabled);
+        }
+      } catch {
+        if (!cancelled) {
+          setLegacyMode(getPersistedRpowerJimBaldridgeLegacyMode());
+        }
+      }
+    };
+
+    loadMerchantThemeMode();
+    return () => {
+      cancelled = true;
+    };
+  }, [merchantSlug]);
 
   const handleCopy = async () => {
     try {

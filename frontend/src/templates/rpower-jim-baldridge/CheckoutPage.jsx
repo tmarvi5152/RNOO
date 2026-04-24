@@ -11,18 +11,19 @@ import { Separator } from "../../components/ui/separator";
 import {
   ArrowLeft,
   CreditCard,
-  DollarSign,
   Loader2,
   ShieldCheck,
   Store,
   Ticket,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useRpowerJimBaldridgeTheme } from "./Theme";
+import {
+  persistRpowerJimBaldridgeLegacyMode,
+  useRpowerJimBaldridgeTheme,
+} from "./Theme";
 import LegacyLockup from "./LegacyLockup";
 
 const RpowerJimBaldridgeCheckoutPage = () => {
-  useRpowerJimBaldridgeTheme();
   const { slug } = useParams();
   const navigate = useNavigate();
   const { items, merchantId, getSubtotal, getTax, clearCart } = useCartStore();
@@ -35,6 +36,8 @@ const RpowerJimBaldridgeCheckoutPage = () => {
   const [scheduledTime, setScheduledTime] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [tip, setTip] = useState(0);
+  const [tipSelection, setTipSelection] = useState(null);
+  const [customTipInput, setCustomTipInput] = useState("");
   const [notes, setNotes] = useState("");
   const [customer, setCustomer] = useState({
     name: "",
@@ -50,8 +53,12 @@ const RpowerJimBaldridgeCheckoutPage = () => {
   const subtotal = getSubtotal();
   const tax = getTax();
   const deliveryFee = orderType === "delivery" ? 4.99 : 0;
-  const total = subtotal + tax + deliveryFee + tip;
+  const isCardPayment = paymentMethod === "demo_card";
+  const effectiveTip = isCardPayment ? tip : 0;
+  const total = subtotal + tax + deliveryFee + effectiveTip;
   const legacyMode = Boolean(merchant?.shepherd_config?.rjb_legacy_mode);
+
+  useRpowerJimBaldridgeTheme(legacyMode);
 
   const loadMerchant = useCallback(async () => {
     try {
@@ -65,6 +72,12 @@ const RpowerJimBaldridgeCheckoutPage = () => {
   useEffect(() => {
     loadMerchant();
   }, [loadMerchant]);
+
+  useEffect(() => {
+    if (merchant) {
+      persistRpowerJimBaldridgeLegacyMode(legacyMode);
+    }
+  }, [merchant, legacyMode]);
 
   const dateOptions = useMemo(() => {
     return Array.from({ length: 7 }).map((_, idx) => {
@@ -116,7 +129,7 @@ const RpowerJimBaldridgeCheckoutPage = () => {
       const paymentMethodMap = {
         demo_card: "mock_card",
         cash: "cash",
-        pay_at_store: "cash",
+        pay_at_store: "pay_at_store",
       };
 
       const orderData = {
@@ -155,7 +168,7 @@ const RpowerJimBaldridgeCheckoutPage = () => {
         payment: {
           method: paymentMethodMap[paymentMethod] || "cash",
           amount: total,
-          tip,
+          tip: effectiveTip,
           status: "pending",
         },
         order_timing: orderTiming === "asap" ? "ASAP" : "FUTURE",
@@ -386,17 +399,29 @@ const RpowerJimBaldridgeCheckoutPage = () => {
             )}
 
             <div>
-              <p className="text-xs uppercase tracking-[0.14em] text-white/55 mb-2">Payment</p>
+              <p className="text-xs uppercase tracking-[0.14em] text-white/55 mb-2">
+                Payment
+              </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                 {[
-                  { id: "demo_card", label: "Demo Credit Card", icon: CreditCard },
-                  { id: "cash", label: "Cash", icon: DollarSign },
+                  {
+                    id: "demo_card",
+                    label: "Demo Credit Card",
+                    icon: CreditCard,
+                  },
                   { id: "pay_at_store", label: "Pay at Store", icon: Store },
                 ].map((method) => (
                   <button
                     key={method.id}
                     type="button"
-                    onClick={() => setPaymentMethod(method.id)}
+                    onClick={() => {
+                      setPaymentMethod(method.id);
+                      if (method.id !== "demo_card") {
+                        setTip(0);
+                        setTipSelection(null);
+                        setCustomTipInput("");
+                      }
+                    }}
                     className={`h-11 border text-sm tracking-wide inline-flex items-center justify-center gap-2 ${
                       paymentMethod === method.id
                         ? "bg-[#d7ad54] text-black border-[#d7ad54]"
@@ -416,17 +441,65 @@ const RpowerJimBaldridgeCheckoutPage = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>Tip</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={tip}
-                  onChange={(e) => setTip(parseFloat(e.target.value) || 0)}
-                  className="bg-[#101620] border-[#e8ba5350] rounded-sm"
-                />
-              </div>
+              {isCardPayment && (
+                <div className="space-y-2">
+                  <Label>Tip</Label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[10, 15, 20].map((pct) => (
+                      <button
+                        key={pct}
+                        type="button"
+                        onClick={() => {
+                          setTipSelection(pct);
+                          setCustomTipInput("");
+                          setTip(
+                            Math.round(
+                              ((subtotal * pct) / 100 + Number.EPSILON) * 100,
+                            ) / 100,
+                          );
+                        }}
+                        className={`h-10 border text-sm tracking-wide ${
+                          tipSelection === pct
+                            ? "bg-[#d7ad54] text-black border-[#d7ad54]"
+                            : "border-[#e8ba5350] bg-[#101620] text-white/80"
+                        }`}
+                      >
+                        {pct}%
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTipSelection("custom");
+                        setTip(parseFloat(customTipInput) || 0);
+                      }}
+                      className={`h-10 border text-sm tracking-wide ${
+                        tipSelection === "custom"
+                          ? "bg-[#d7ad54] text-black border-[#d7ad54]"
+                          : "border-[#e8ba5350] bg-[#101620] text-white/80"
+                      }`}
+                    >
+                      Custom
+                    </button>
+                  </div>
+                  {tipSelection === "custom" && (
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="Enter custom tip"
+                      value={customTipInput}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setCustomTipInput(value);
+                        setTip(parseFloat(value) || 0);
+                      }}
+                      className="bg-[#101620] border-[#e8ba5350] rounded-sm"
+                    />
+                  )}
+                </div>
+              )}
+
               <div>
                 <Label>Notes</Label>
                 <Textarea
@@ -462,10 +535,10 @@ const RpowerJimBaldridgeCheckoutPage = () => {
                   <span>${deliveryFee.toFixed(2)}</span>
                 </div>
               )}
-              {tip > 0 && (
+              {effectiveTip > 0 && (
                 <div className="flex justify-between text-white/70">
                   <span>Tip</span>
-                  <span>${tip.toFixed(2)}</span>
+                  <span>${effectiveTip.toFixed(2)}</span>
                 </div>
               )}
             </div>

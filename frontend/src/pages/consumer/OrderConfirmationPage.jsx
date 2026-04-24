@@ -140,7 +140,9 @@ const OrderConfirmationPage = () => {
                 className="p-3 bg-zinc-800/50 rounded-xl border border-zinc-700 text-sm"
               >
                 <span className="text-zinc-400">Payment: </span>
-                <span className="text-white font-medium">{paymentMethodLabel}</span>
+                <span className="text-white font-medium">
+                  {paymentMethodLabel}
+                </span>
               </motion.div>
             )}
 

@@ -8,7 +8,7 @@ import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Textarea } from "../../components/ui/textarea";
 import { Separator } from "../../components/ui/separator";
-import { ArrowLeft, CreditCard, DollarSign, Loader2, Store } from "lucide-react";
+import { ArrowLeft, CreditCard, Loader2, Store } from "lucide-react";
 import { toast } from "sonner";
 import { useVantageTheme } from "./VantageTheme";
 
@@ -25,6 +25,8 @@ const VantageCheckoutPage = () => {
   const [scheduledTime, setScheduledTime] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [tip, setTip] = useState(0);
+  const [tipSelection, setTipSelection] = useState(null);
+  const [customTipInput, setCustomTipInput] = useState("");
   const [notes, setNotes] = useState("");
   const [customer, setCustomer] = useState({
     name: "",
@@ -40,7 +42,9 @@ const VantageCheckoutPage = () => {
   const subtotal = getSubtotal();
   const tax = getTax();
   const deliveryFee = orderType === "delivery" ? 4.99 : 0;
-  const total = subtotal + tax + deliveryFee + tip;
+  const isCardPayment = paymentMethod === "demo_card";
+  const effectiveTip = isCardPayment ? tip : 0;
+  const total = subtotal + tax + deliveryFee + effectiveTip;
 
   const dateOptions = useMemo(() => {
     return Array.from({ length: 7 }).map((_, idx) => {
@@ -92,7 +96,7 @@ const VantageCheckoutPage = () => {
       const paymentMethodMap = {
         demo_card: "mock_card",
         cash: "cash",
-        pay_at_store: "cash",
+        pay_at_store: "pay_at_store",
       };
 
       const orderData = {
@@ -131,7 +135,7 @@ const VantageCheckoutPage = () => {
         payment: {
           method: paymentMethodMap[paymentMethod] || "cash",
           amount: total,
-          tip,
+          tip: effectiveTip,
           status: "pending",
         },
         order_timing: orderTiming === "asap" ? "ASAP" : "FUTURE",
@@ -337,14 +341,24 @@ const VantageCheckoutPage = () => {
             <Label>Payment</Label>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
               {[
-                { id: "demo_card", label: "Demo Credit Card", icon: CreditCard },
-                { id: "cash", label: "Cash", icon: DollarSign },
+                {
+                  id: "demo_card",
+                  label: "Demo Credit Card",
+                  icon: CreditCard,
+                },
                 { id: "pay_at_store", label: "Pay at Store", icon: Store },
               ].map((method) => (
                 <button
                   key={method.id}
                   type="button"
-                  onClick={() => setPaymentMethod(method.id)}
+                  onClick={() => {
+                    setPaymentMethod(method.id);
+                    if (method.id !== "demo_card") {
+                      setTip(0);
+                      setTipSelection(null);
+                      setCustomTipInput("");
+                    }
+                  }}
                   className={`h-11 px-3 border rounded-full text-sm inline-flex items-center justify-center gap-2 transition-colors ${
                     paymentMethod === method.id
                       ? "bg-black text-white border-black"
@@ -363,16 +377,64 @@ const VantageCheckoutPage = () => {
             )}
           </div>
 
-          <div>
-            <Label>Tip</Label>
-            <Input
-              type="number"
-              step="0.01"
-              min="0"
-              value={tip}
-              onChange={(e) => setTip(parseFloat(e.target.value) || 0)}
-            />
-          </div>
+          {isCardPayment && (
+            <div className="space-y-3">
+              <Label>Tip</Label>
+              <div className="grid grid-cols-4 gap-2">
+                {[10, 15, 20].map((pct) => (
+                  <button
+                    key={pct}
+                    type="button"
+                    onClick={() => {
+                      setTipSelection(pct);
+                      setCustomTipInput("");
+                      setTip(
+                        Math.round(
+                          ((subtotal * pct) / 100 + Number.EPSILON) * 100,
+                        ) / 100,
+                      );
+                    }}
+                    className={`h-10 px-2 border rounded-full text-sm transition-colors ${
+                      tipSelection === pct
+                        ? "bg-black text-white border-black"
+                        : "bg-white text-black/75 border-black/15 hover:border-black/35"
+                    }`}
+                  >
+                    {pct}%
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTipSelection("custom");
+                    setTip(parseFloat(customTipInput) || 0);
+                  }}
+                  className={`h-10 px-2 border rounded-full text-sm transition-colors ${
+                    tipSelection === "custom"
+                      ? "bg-black text-white border-black"
+                      : "bg-white text-black/75 border-black/15 hover:border-black/35"
+                  }`}
+                >
+                  Custom
+                </button>
+              </div>
+
+              {tipSelection === "custom" && (
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="Enter custom tip"
+                  value={customTipInput}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setCustomTipInput(value);
+                    setTip(parseFloat(value) || 0);
+                  }}
+                />
+              )}
+            </div>
+          )}
 
           <div>
             <Label>Notes</Label>
@@ -400,10 +462,10 @@ const VantageCheckoutPage = () => {
                 <span>${deliveryFee.toFixed(2)}</span>
               </div>
             )}
-            {tip > 0 && (
+            {effectiveTip > 0 && (
               <div className="flex justify-between text-black/65">
                 <span>Tip</span>
-                <span>${tip.toFixed(2)}</span>
+                <span>${effectiveTip.toFixed(2)}</span>
               </div>
             )}
             <div className="flex justify-between text-lg font-semibold pt-2">

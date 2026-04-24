@@ -224,7 +224,7 @@ const RjbProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-3"
+        className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-2"
       >
         <motion.div
           layoutId={`product-${item.id}`}
@@ -233,18 +233,18 @@ const RjbProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
           exit={{ opacity: 0, scale: 0.93, y: 24 }}
           transition={{ type: "spring", stiffness: 280, damping: 30 }}
           onClick={(e) => e.stopPropagation()}
-          className="relative w-full max-w-2xl max-h-[92vh] rounded-[28px] overflow-hidden border border-[#e8ba5366] bg-[linear-gradient(165deg,#111923_0%,#0e141d_60%,#0b1017_100%)] shadow-[0_24px_60px_rgba(0,0,0,0.65)]"
+          className="rjb-modal-shell relative w-full max-w-xl max-h-[84vh] rounded-[20px] overflow-hidden border border-[#e8ba5366] bg-[linear-gradient(165deg,#111923_0%,#0e141d_60%,#0b1017_100%)] shadow-[0_24px_60px_rgba(0,0,0,0.65)]"
         >
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-black/50 border border-[#e8ba5344] flex items-center justify-center hover:bg-black/70 transition-colors"
+            className="rjb-modal-close absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-black/50 border border-[#e8ba5344] flex items-center justify-center hover:bg-black/70 transition-colors"
           >
             <X className="w-5 h-5 text-white" />
           </button>
 
-          <div className="max-h-[92vh] overflow-y-auto">
+          <div className="max-h-[84vh] overflow-y-auto">
             {hasImage ? (
-              <div className="relative h-64 md:h-80">
+              <div className="relative h-44 md:h-56">
                 <motion.img
                   src={item.image_url}
                   alt={item.name}
@@ -255,12 +255,12 @@ const RjbProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                   onError={() => setImageFailed(true)}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0d1219] via-[#0d1219]/60 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-6">
+                <div className="absolute bottom-0 left-0 right-0 p-4">
                   <motion.h2
                     initial={{ y: 14, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: 0.1 }}
-                    className="text-4xl font-light tracking-[0.02em] text-white"
+                    className="rjb-modal-title text-2xl md:text-3xl font-light tracking-[0.02em] text-white"
                     style={{
                       fontFamily:
                         "Palatino Linotype, Book Antiqua, Palatino, Georgia, serif",
@@ -272,7 +272,7 @@ const RjbProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                     initial={{ y: 14, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: 0.18 }}
-                    className="text-white/70 mt-2"
+                    className="rjb-modal-desc text-white/70 mt-2"
                   >
                     {item.description ||
                       "A crafted selection prepared with care."}
@@ -280,9 +280,9 @@ const RjbProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                 </div>
               </div>
             ) : (
-              <div className="p-6 pb-4 border-b border-[#e8ba532a]">
+              <div className="p-4 pb-3 border-b border-[#e8ba532a]">
                 <h2
-                  className="text-4xl font-light tracking-[0.02em] text-white pr-12"
+                  className="rjb-modal-title text-2xl md:text-3xl font-light tracking-[0.02em] text-white pr-12"
                   style={{
                     fontFamily:
                       "Palatino Linotype, Book Antiqua, Palatino, Georgia, serif",
@@ -290,21 +290,21 @@ const RjbProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                 >
                   {item.name}
                 </h2>
-                <p className="text-white/70 mt-2">
+                <p className="rjb-modal-desc text-white/70 mt-2">
                   {item.description ||
                     "A crafted selection prepared with care."}
                 </p>
               </div>
             )}
 
-            <div className="p-6 space-y-6">
+            <div className="rjb-modal-content p-4 space-y-4">
               {item.modifier_groups?.map((group, groupIndex) => (
                 <motion.div
                   key={group.id}
                   initial={{ y: 18, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.08 + groupIndex * 0.05 }}
-                  className="border border-[#e8ba532f] rounded-2xl overflow-hidden"
+                  className="rjb-modifier-group border border-[#e8ba532f] rounded-2xl overflow-hidden"
                 >
                   <button
                     onClick={() =>
@@ -313,7 +313,7 @@ const RjbProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                         [group.id]: !prev[group.id],
                       }))
                     }
-                    className="w-full flex items-center justify-between p-4 bg-[#f5f7fb08] hover:bg-[#f5f7fb12] transition-colors"
+                    className="rjb-modifier-header w-full flex items-center justify-between p-3 bg-[#f5f7fb08] hover:bg-[#f5f7fb12] transition-colors"
                   >
                     <div className="flex items-center gap-3">
                       <span className="text-white font-semibold">
@@ -340,7 +340,7 @@ const RjbProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                         animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.2 }}
-                        className="p-4 space-y-4"
+                        className="p-3 space-y-3"
                       >
                         {(() => {
                           const prefixModifiers = group.options.filter(
@@ -410,7 +410,7 @@ const RjbProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                                               option.allow_duplicates,
                                             )
                                           }
-                                          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#e8ba5312] border border-[#e8ba5358] text-white hover:bg-[#e8ba5320] transition-all"
+                                          className="rjb-prefix-option flex items-center gap-2 px-3 py-2 rounded-lg bg-[#e8ba5312] border border-[#e8ba5358] text-white hover:bg-[#e8ba5320] transition-all"
                                           whileHover={{ scale: 1.04 }}
                                           whileTap={{ scale: 0.95 }}
                                         >
@@ -479,7 +479,7 @@ const RjbProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                                               false,
                                             )
                                           }
-                                          className={`relative flex items-center justify-between p-4 rounded-xl border transition-all duration-200 ${
+                                          className={`rjb-option-button relative flex items-center justify-between p-3 rounded-xl border transition-all duration-200 ${
                                             isSelected
                                               ? "bg-[#e8ba5322] border-[#e8ba53] text-white"
                                               : "bg-[#f5f7fb08] border-[#e8ba532f] text-white/80 hover:border-[#e8ba5370]"
@@ -527,49 +527,49 @@ const RjbProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.28 }}
               >
-                <label className="block text-sm text-white/65 mb-2">
+                <label className="rjb-modal-label block text-xs text-white/65 mb-1.5">
                   Special Instructions
                 </label>
                 <textarea
                   value={specialInstructions}
                   onChange={(e) => setSpecialInstructions(e.target.value)}
                   placeholder="Any allergies or special requests?"
-                  className="w-full h-24 p-4 bg-[#f5f7fb08] border border-[#e8ba532f] rounded-xl text-white placeholder-white/35 focus:outline-none focus:border-[#e8ba53] resize-none"
+                  className="rjb-modal-notes w-full h-20 p-3 bg-[#f5f7fb08] border border-[#e8ba532f] rounded-xl text-sm text-white placeholder-white/35 focus:outline-none focus:border-[#e8ba53] resize-none"
                 />
               </motion.div>
             </div>
 
-            <div className="sticky bottom-0 p-5 bg-[#0f151e]/96 backdrop-blur-xl border-t border-[#e8ba532a]">
+            <div className="rjb-modal-footer sticky bottom-0 p-3 bg-[#0f151e]/96 backdrop-blur-xl border-t border-[#e8ba532a]">
               <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 bg-[#f5f7fb08] rounded-xl p-2 border border-[#e8ba532a]">
+                <div className="rjb-modal-qty-wrap flex items-center gap-1.5 bg-[#f5f7fb08] rounded-xl p-1.5 border border-[#e8ba532a]">
                   <motion.button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-10 h-10 rounded-lg bg-[#1d2633] hover:bg-[#263245] flex items-center justify-center"
+                    className="rjb-modal-qty-btn w-8 h-8 rounded-md bg-[#1d2633] hover:bg-[#263245] flex items-center justify-center"
                     whileTap={{ scale: 0.9 }}
                   >
-                    <Minus className="w-5 h-5 text-white" />
+                    <Minus className="w-4 h-4 text-white" />
                   </motion.button>
-                  <span className="w-8 text-center text-white font-semibold text-lg">
+                  <span className="w-7 text-center text-white font-semibold text-base">
                     {quantity}
                   </span>
                   <motion.button
                     onClick={() => setQuantity(quantity + 1)}
-                    className="w-10 h-10 rounded-lg bg-[#1d2633] hover:bg-[#263245] flex items-center justify-center"
+                    className="rjb-modal-qty-btn w-8 h-8 rounded-md bg-[#1d2633] hover:bg-[#263245] flex items-center justify-center"
                     whileTap={{ scale: 0.9 }}
                   >
-                    <Plus className="w-5 h-5 text-white" />
+                    <Plus className="w-4 h-4 text-white" />
                   </motion.button>
                 </div>
 
                 <motion.button
                   onClick={handleAddToCart}
-                  className="flex-1 py-4 px-6 bg-gradient-to-r from-[#cf2030] to-[#b11928] hover:from-[#d62939] hover:to-[#bf1f2e] text-white font-semibold rounded-xl shadow-lg shadow-[#cf203035] flex items-center justify-center gap-3 transition-all duration-300"
+                  className="rjb-modal-submit flex-1 py-3 px-4 bg-gradient-to-r from-[#cf2030] to-[#b11928] hover:from-[#d62939] hover:to-[#bf1f2e] text-white text-sm font-semibold rounded-lg shadow-lg shadow-[#cf203035] flex items-center justify-center gap-2 transition-all duration-300"
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  <Plus className="w-5 h-5" />
+                  <Plus className="w-4 h-4" />
                   <span>Add to Ticket</span>
-                  <span className="px-3 py-1 bg-black/20 rounded-full text-sm">
+                  <span className="px-2.5 py-0.5 bg-black/20 rounded-full text-xs">
                     ${calculateTotal().toFixed(2)}
                   </span>
                 </motion.button>

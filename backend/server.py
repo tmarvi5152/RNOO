@@ -20,6 +20,7 @@ from enum import Enum
 import httpx
 import xml.etree.ElementTree as ET
 import json
+from decimal import Decimal, ROUND_HALF_UP
 
 # Import Shepherd client
 from shepherd_client import (
@@ -1860,14 +1861,21 @@ async def create_order(data: OrderCreate, background_tasks: BackgroundTasks):
             if not mod.shepherd_pos_id:
                 mod.shepherd_pos_id = option.get("shepherd_pos_id") or option.get("pos_id") or ""
 
-    # Calculate totals
-    subtotal = 0.0
+    # Calculate totals with cent-accurate decimal rounding
+    def money(value: float) -> Decimal:
+        return Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    subtotal_dec = Decimal("0.00")
     for item in data.items:
-        modifier_total = sum(m.price for m in item.modifiers)
-        subtotal += (item.unit_price + modifier_total) * item.quantity
-    
-    tax = subtotal * 0.0825  # 8.25% tax
-    total = subtotal + tax + data.payment.tip
+        unit_price_dec = Decimal(str(item.unit_price))
+        modifier_total_dec = sum((Decimal(str(m.price)) for m in item.modifiers), Decimal("0.00"))
+        line_total_dec = (unit_price_dec + modifier_total_dec) * Decimal(item.quantity)
+        subtotal_dec += line_total_dec
+
+    subtotal_dec = money(float(subtotal_dec))
+    tax_dec = (subtotal_dec * Decimal("0.0825")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    tip_dec = money(data.payment.tip)
+    total_dec = subtotal_dec + tax_dec + tip_dec
     
     order_number = await get_next_order_number(data.merchant_id)
     
@@ -1892,10 +1900,10 @@ async def create_order(data: OrderCreate, background_tasks: BackgroundTasks):
         customer=data.customer,
         delivery_type=data.delivery_type,
         items=data.items,
-        subtotal=round(subtotal, 2),
-        tax=round(tax, 2),
-        tip=data.payment.tip,
-        total=round(total, 2),
+        subtotal=float(subtotal_dec),
+        tax=float(tax_dec),
+        tip=float(tip_dec),
+        total=float(total_dec),
         payment=data.payment,
         order_timing=data.order_timing,
         scheduled_date=data.scheduled_date,
@@ -1905,8 +1913,11 @@ async def create_order(data: OrderCreate, background_tasks: BackgroundTasks):
         status=OrderStatus.PENDING
     )
     
-    # Mock payment processing
-    order.payment.status = PaymentStatus.COMPLETED
+    # Mock payment processing: pay-at-store stays open until settled in store
+    if str(order.payment.method).lower() == "pay_at_store":
+        order.payment.status = PaymentStatus.PENDING
+    else:
+        order.payment.status = PaymentStatus.COMPLETED
     order.payment.amount = order.total
     
     doc = order.model_dump()

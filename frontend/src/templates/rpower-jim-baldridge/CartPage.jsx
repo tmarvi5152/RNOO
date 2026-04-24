@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, useParams } from "react-router-dom";
+import { apiService } from "../../context/AppContext";
 import { useCartStore } from "../../stores/cartStore";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
@@ -14,11 +15,14 @@ import {
   Trash2,
   CreditCard,
 } from "lucide-react";
-import { useRpowerJimBaldridgeTheme } from "./Theme";
+import {
+  getPersistedRpowerJimBaldridgeLegacyMode,
+  persistRpowerJimBaldridgeLegacyMode,
+  useRpowerJimBaldridgeTheme,
+} from "./Theme";
 import LegacyLockup from "./LegacyLockup";
 
 const RpowerJimBaldridgeCartPage = () => {
-  useRpowerJimBaldridgeTheme();
   const { slug } = useParams();
   const navigate = useNavigate();
   const {
@@ -31,6 +35,26 @@ const RpowerJimBaldridgeCartPage = () => {
     removeItem,
   } = useCartStore();
   const [failedImages, setFailedImages] = useState({});
+  const [legacyMode, setLegacyMode] = useState(
+    getPersistedRpowerJimBaldridgeLegacyMode(),
+  );
+
+  useRpowerJimBaldridgeTheme(legacyMode);
+
+  const loadMerchantThemeMode = useCallback(async () => {
+    try {
+      const res = await apiService.getMerchantBySlug(slug);
+      const enabled = Boolean(res.data?.shepherd_config?.rjb_legacy_mode);
+      setLegacyMode(enabled);
+      persistRpowerJimBaldridgeLegacyMode(enabled);
+    } catch {
+      setLegacyMode(getPersistedRpowerJimBaldridgeLegacyMode());
+    }
+  }, [slug]);
+
+  useEffect(() => {
+    loadMerchantThemeMode();
+  }, [loadMerchantThemeMode]);
 
   const itemCount = getItemCount();
   const subtotal = getSubtotal();

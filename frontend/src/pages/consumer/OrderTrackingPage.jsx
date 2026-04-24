@@ -83,33 +83,36 @@ const OrderTrackingPage = () => {
     },
   });
 
-  const loadOrder = useCallback(async (options = {}) => {
-    const { silent = false, suppressError = false } = options;
-    try {
-      if (!silent) {
-        setLoading(true);
-      } else {
-        setRefreshing(true);
+  const loadOrder = useCallback(
+    async (options = {}) => {
+      const { silent = false, suppressError = false } = options;
+      try {
+        if (!silent) {
+          setLoading(true);
+        } else {
+          setRefreshing(true);
+        }
+        if (!silent) {
+          setError(null);
+        }
+        const res = await apiService.getOrderPublic(orderId);
+        setOrder(res.data);
+      } catch (err) {
+        console.error("Failed to load order:", err);
+        if (!suppressError) {
+          setError("Order not found or access denied");
+          toast.error("Failed to load order details");
+        }
+      } finally {
+        if (!silent) {
+          setLoading(false);
+        } else {
+          setRefreshing(false);
+        }
       }
-      if (!silent) {
-        setError(null);
-      }
-      const res = await apiService.getOrderPublic(orderId);
-      setOrder(res.data);
-    } catch (err) {
-      console.error("Failed to load order:", err);
-      if (!suppressError) {
-        setError("Order not found or access denied");
-        toast.error("Failed to load order details");
-      }
-    } finally {
-      if (!silent) {
-        setLoading(false);
-      } else {
-        setRefreshing(false);
-      }
-    }
-  }, [orderId]);
+    },
+    [orderId],
+  );
 
   useEffect(() => {
     loadOrder();
@@ -229,7 +232,9 @@ const OrderTrackingPage = () => {
               onClick={() => loadOrder({ silent: true })}
               className="text-white border-white/20"
             >
-              <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
+              <RefreshCw
+                className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`}
+              />
               Refresh
             </Button>
           </div>
