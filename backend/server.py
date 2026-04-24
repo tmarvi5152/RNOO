@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, APIRouter, WebSocket, Depends, Query, Path, Body, Request, status as http_status, HTTPException, BackgroundTasks
+from starlette.websockets import WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
