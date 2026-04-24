@@ -26,6 +26,7 @@ import {
 } from "../../components/ui/avatar";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
+import { Switch } from "../../components/ui/switch";
 import {
   Table,
   TableBody,
@@ -753,6 +754,7 @@ const MerchantDetailPage = () => {
 
   // Frontend template state
   const [templateValue, setTemplateValue] = useState(DEFAULT_TEMPLATE);
+  const [legacyModeEnabled, setLegacyModeEnabled] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
 
   const loadMerchantDetails = useCallback(async () => {
@@ -789,6 +791,11 @@ const MerchantDetailPage = () => {
     }
     setTemplateValue(
       merchantData?.local_merchant?.frontend_template || DEFAULT_TEMPLATE,
+    );
+    setLegacyModeEnabled(
+      Boolean(
+        merchantData?.local_merchant?.shepherd_config?.rjb_legacy_mode ?? false,
+      ),
     );
   }, [merchantData]);
 
@@ -842,8 +849,14 @@ const MerchantDetailPage = () => {
   const handleSaveTemplate = async () => {
     try {
       setSavingTemplate(true);
+      const existingConfig =
+        merchantData?.local_merchant?.shepherd_config || {};
       await api.patch(`/merchants/${merchantId}`, {
         frontend_template: templateValue,
+        shepherd_config: {
+          ...existingConfig,
+          rjb_legacy_mode: legacyModeEnabled,
+        },
       });
       toast.success("Frontend template updated");
       loadMerchantDetails();
@@ -966,6 +979,13 @@ const MerchantDetailPage = () => {
   const fieldValueClass = "text-sm font-semibold text-gray-900 leading-tight";
   const fieldValueMonoClass =
     "text-sm font-semibold font-mono text-gray-900 leading-tight";
+  const savedTemplate = local_merchant?.frontend_template || DEFAULT_TEMPLATE;
+  const savedLegacyMode = Boolean(
+    local_merchant?.shepherd_config?.rjb_legacy_mode ?? false,
+  );
+  const isTemplateDirty = templateValue !== savedTemplate;
+  const isLegacyDirty = legacyModeEnabled !== savedLegacyMode;
+  const isRpowerLegacyTemplate = templateValue === "rpower_jim_baldridge";
 
   return (
     <AdminLayout>
@@ -1121,9 +1141,9 @@ const MerchantDetailPage = () => {
               Frontend Template
             </CardTitle>
           </CardHeader>
-          <CardContent className="pt-0">
+          <CardContent className="pt-0 space-y-4">
             <div className="flex flex-wrap items-end gap-3">
-              <div className="flex-1 min-w-[200px]">
+              <div className="flex-1 min-w-[220px]">
                 <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 block mb-1">
                   Consumer Storefront Template
                 </label>
@@ -1140,17 +1160,49 @@ const MerchantDetailPage = () => {
                   ))}
                 </select>
               </div>
+              {isTemplateDirty || isLegacyDirty ? (
+                <Badge variant="outline">Unsaved changes</Badge>
+              ) : null}
               <Button
                 size="sm"
                 onClick={handleSaveTemplate}
                 disabled={
-                  savingTemplate ||
-                  templateValue ===
-                    (local_merchant?.frontend_template || DEFAULT_TEMPLATE)
+                  savingTemplate || (!isTemplateDirty && !isLegacyDirty)
                 }
               >
                 {savingTemplate ? "Saving…" : "Save Template"}
               </Button>
+            </div>
+
+            <div className="border rounded-md p-3 bg-gray-50">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <Label
+                    htmlFor="legacy-mode-switch"
+                    className="text-sm font-medium"
+                  >
+                    Legacy Mode
+                  </Label>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Optional merchant setting for the RPOWER Jim Baldridge
+                    storefront treatment.
+                  </p>
+                </div>
+                <Switch
+                  id="legacy-mode-switch"
+                  checked={legacyModeEnabled}
+                  disabled={!isRpowerLegacyTemplate}
+                  onCheckedChange={(checked) =>
+                    setLegacyModeEnabled(Boolean(checked))
+                  }
+                />
+              </div>
+              {!isRpowerLegacyTemplate ? (
+                <p className="text-[11px] text-gray-500 mt-2">
+                  Available when template is set to "RPOWER Jim Baldridge
+                  Version".
+                </p>
+              ) : null}
             </div>
           </CardContent>
         </Card>

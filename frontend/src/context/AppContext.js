@@ -259,13 +259,6 @@ export const apiService = {
   getShepherdMerchants: () => api.get("/shepherd/merchants"),
   getShepherdMerchant: (merchantId) =>
     api.get(`/shepherd/merchants/${merchantId}`),
-  getShepherdBoardingProfile: (merchantId, cg, coreStoreId) =>
-    api.get(`/shepherd/merchants/${merchantId}/boarding-profile`, {
-      params: {
-        ...(cg ? { cg } : {}),
-        ...(coreStoreId ? { core_store_id: coreStoreId } : {}),
-      },
-    }),
 
   // Users
   getUsers: () => api.get("/users"),

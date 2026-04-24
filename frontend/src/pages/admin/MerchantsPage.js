@@ -340,30 +340,20 @@ const MerchantsPage = () => {
     const requestedCoreStoreId = preferredCoreStoreId || selectedCoreStoreId;
 
     try {
-      // Fetch enriched boarding profile from Shepherd + Core API
-      const res = await apiService.getShepherdBoardingProfile(
-        merchantId,
-        cg,
-        requestedCoreStoreId || undefined,
-      );
-      const profile = mergeBoardingProfile(
-        res.data?.merged || {},
-        shepherdMerchant,
-      );
+      // Use direct Shepherd merchant details and local fallback mapping.
+      const detailRes = await apiService.getShepherdMerchant(merchantId);
+      const detailMerchant = detailRes?.data || shepherdMerchant;
+      const profile = mergeBoardingProfile({}, detailMerchant);
       const profileName = profile.name;
 
       const shepherdConfig = {
         merchant_id: merchantId,
         clerk_id: "8888",
         concept_id: "RNOO",
+        rpower_cg: cg,
       };
-      if (res.data?.rpower_cg) {
-        shepherdConfig.rpower_cg = res.data.rpower_cg;
-      } else {
-        shepherdConfig.rpower_cg = cg;
-      }
-      if (res.data?.core_store_id) {
-        shepherdConfig.core_store_id = res.data.core_store_id;
+      if (requestedCoreStoreId) {
+        shepherdConfig.core_store_id = requestedCoreStoreId;
       }
 
       // Auto-populate form from merged profile data (Core preferred)
@@ -383,17 +373,15 @@ const MerchantsPage = () => {
 
       setProfilePreview({
         merchantId,
-        shepherdMerchant,
-        coreLookup: res.data?.core_lookup || "none",
-        cgUsed: res.data?.rpower_cg || onboardingCg.trim() || "",
-        source: res.data?.source || {},
+        shepherdMerchant: detailMerchant,
+        coreLookup: "disabled",
+        cgUsed: onboardingCg.trim() || "",
+        source: {},
         merged: profile,
-        coreStoreId: res.data?.core_store_id || "",
-        candidates: res.data?.core_store_candidates || [],
+        coreStoreId: requestedCoreStoreId || "",
+        candidates: [],
       });
-      setSelectedCoreStoreId(
-        res.data?.core_store_id || requestedCoreStoreId || "",
-      );
+      setSelectedCoreStoreId(requestedCoreStoreId || "");
 
       toast.success(`Loaded profile for ${profileName}`);
     } catch (err) {
@@ -449,26 +437,20 @@ const MerchantsPage = () => {
 
     try {
       setPreviewLoadingMerchantId(merchantId);
-      const res = await apiService.getShepherdBoardingProfile(
-        merchantId,
-        cg,
-        selectedCoreStoreId || undefined,
-      );
-      const merged = mergeBoardingProfile(
-        res.data?.merged || {},
-        shepherdMerchant,
-      );
+      const detailRes = await apiService.getShepherdMerchant(merchantId);
+      const detailMerchant = detailRes?.data || shepherdMerchant;
+      const merged = mergeBoardingProfile({}, detailMerchant);
       setProfilePreview({
         merchantId,
-        shepherdMerchant,
-        coreLookup: res.data?.core_lookup || "none",
-        cgUsed: res.data?.rpower_cg || cg,
-        source: res.data?.source || {},
+        shepherdMerchant: detailMerchant,
+        coreLookup: "disabled",
+        cgUsed: cg,
+        source: {},
         merged,
-        coreStoreId: res.data?.core_store_id || "",
-        candidates: res.data?.core_store_candidates || [],
+        coreStoreId: selectedCoreStoreId || "",
+        candidates: [],
       });
-      setSelectedCoreStoreId(res.data?.core_store_id || "");
+      setSelectedCoreStoreId(selectedCoreStoreId || "");
       toast.success(
         `Information fetched for ${getShepherdDisplayName(shepherdMerchant)}`,
       );

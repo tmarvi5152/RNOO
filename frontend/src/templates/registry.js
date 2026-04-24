@@ -13,6 +13,11 @@ import VantageCartPage from "./vantage/CartPage";
 import VantageCheckoutPage from "./vantage/CheckoutPage";
 import VantageOrderTrackingPage from "./vantage/OrderTrackingPage";
 import VantageOrderConfirmationPage from "./vantage/OrderConfirmationPage";
+import RpowerJimBaldridgeMenuPage from "./rpower-jim-baldridge/MenuPage";
+import RpowerJimBaldridgeCartPage from "./rpower-jim-baldridge/CartPage";
+import RpowerJimBaldridgeCheckoutPage from "./rpower-jim-baldridge/CheckoutPage";
+import RpowerJimBaldridgeOrderTrackingPage from "./rpower-jim-baldridge/OrderTrackingPage";
+import RpowerJimBaldridgeOrderConfirmationPage from "./rpower-jim-baldridge/OrderConfirmationPage";
 
 export const DEFAULT_TEMPLATE = "classic";
 
@@ -35,6 +40,16 @@ export const TEMPLATES = {
     CheckoutPage: VantageCheckoutPage,
     OrderTrackingPage: VantageOrderTrackingPage,
     OrderConfirmationPage: VantageOrderConfirmationPage,
+  },
+  rpower_jim_baldridge: {
+    label: "RPOWER Jim Baldridge Version",
+    description:
+      "A legacy tribute theme inspired by RPOWER heritage with a premium dark presentation and memorial tone.",
+    MenuPage: RpowerJimBaldridgeMenuPage,
+    CartPage: RpowerJimBaldridgeCartPage,
+    CheckoutPage: RpowerJimBaldridgeCheckoutPage,
+    OrderTrackingPage: RpowerJimBaldridgeOrderTrackingPage,
+    OrderConfirmationPage: RpowerJimBaldridgeOrderConfirmationPage,
   },
   // Future templates go here, e.g.:
   // modern: { label: "Modern", MenuPage: ..., ... }

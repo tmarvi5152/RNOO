@@ -3,12 +3,13 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
-import { CheckCircle2, Copy, Share2, Mail } from "lucide-react";
+import { CheckCircle2, Copy, Mail, Share2 } from "lucide-react";
 import { toast } from "sonner";
-import { useVantageTheme } from "./VantageTheme";
+import { useRpowerJimBaldridgeTheme } from "./Theme";
+import LegacyLockup from "./LegacyLockup";
 
-const VantageOrderConfirmationPage = () => {
-  useVantageTheme();
+const RpowerJimBaldridgeOrderConfirmationPage = () => {
+  useRpowerJimBaldridgeTheme();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [copied, setCopied] = useState(false);
@@ -58,8 +59,8 @@ const VantageOrderConfirmationPage = () => {
 
   if (!orderId) {
     return (
-      <div className="min-h-screen bg-[#f8f8f5] px-6 py-12">
-        <div className="max-w-2xl mx-auto vantage-surface p-10 text-center">
+      <div className="min-h-screen bg-[#0f1115] px-6 py-12 text-white">
+        <div className="max-w-2xl mx-auto rjb-surface p-10 text-center">
           <h1 className="text-2xl font-light">Missing order details</h1>
           <Button className="mt-4 rounded-full" onClick={() => navigate("/")}>
             Back Home
@@ -70,26 +71,27 @@ const VantageOrderConfirmationPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(160deg,_#fdfbf6_0%,_#f2ede3_55%,_#e8dfcf_100%)] px-6 py-12">
+    <div className="min-h-screen bg-[#0f1115] px-6 py-12 text-white">
       <div className="max-w-2xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
-          className="vantage-surface p-8 md:p-10 text-center shadow-[0_20px_55px_rgba(20,20,20,0.1)]"
+          className="rjb-surface p-8 md:p-10 text-center"
         >
-          <p className="text-xs uppercase tracking-[0.18em] text-black/50">
-            Vantage Receipt
+          <p className="text-xs uppercase tracking-[0.18em] text-[#f6c453]/80">
+            RPOWER Legacy Receipt
           </p>
-          <CheckCircle2 className="w-16 h-16 text-black mx-auto" />
+          <CheckCircle2 className="w-16 h-16 text-[#f6c453] mx-auto mt-2" />
           <h1 className="mt-5 text-4xl md:text-5xl font-light tracking-wide">
             Thank You
           </h1>
-          <p className="mt-3 text-black/65">
+          <p className="mt-3 text-white/65">
             Your order is confirmed and has been sent to the kitchen.
           </p>
+          <LegacyLockup className="mt-3" compact />
 
-          <div className="mt-7 p-4 rounded-2xl bg-[linear-gradient(120deg,_rgba(255,255,255,0.8)_0%,_rgba(246,239,227,0.85)_100%)] border border-black/10">
-            <p className="text-xs uppercase tracking-[0.14em] text-black/50">
+          <div className="mt-7 p-4 rounded-2xl bg-black/30 border border-[#f6c45333]">
+            <p className="text-xs uppercase tracking-[0.14em] text-white/50">
               Order ID
             </p>
             <p className="text-xl font-mono mt-2 break-all">{orderId}</p>
@@ -104,14 +106,14 @@ const VantageOrderConfirmationPage = () => {
           </div>
 
           <div className="mt-5 flex flex-wrap justify-center gap-2">
-            <Badge variant="outline" className="vantage-pill px-3 py-1">
-              Vantage Receipt
+            <Badge variant="outline" className="rjb-pill px-3 py-1">
+              Legacy Theme
             </Badge>
-            <Badge variant="outline" className="vantage-pill px-3 py-1">
+            <Badge variant="outline" className="rjb-pill px-3 py-1">
               Ready for Tracking
             </Badge>
             {paymentMethodLabel && (
-              <Badge variant="outline" className="vantage-pill px-3 py-1">
+              <Badge variant="outline" className="rjb-pill px-3 py-1">
                 {paymentMethodLabel}
               </Badge>
             )}
@@ -119,7 +121,7 @@ const VantageOrderConfirmationPage = () => {
 
           <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Button
-              className="rounded-full"
+              className="rounded-full bg-[#d72638] hover:bg-[#bd1f2f]"
               onClick={() => navigate(`/track/${orderId}`)}
             >
               Track Order
@@ -161,4 +163,4 @@ const VantageOrderConfirmationPage = () => {
   );
 };
 
-export default VantageOrderConfirmationPage;
+export default RpowerJimBaldridgeOrderConfirmationPage;

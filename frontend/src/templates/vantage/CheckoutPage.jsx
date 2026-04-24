@@ -8,7 +8,7 @@ import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Textarea } from "../../components/ui/textarea";
 import { Separator } from "../../components/ui/separator";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, CreditCard, DollarSign, Loader2, Store } from "lucide-react";
 import { toast } from "sonner";
 import { useVantageTheme } from "./VantageTheme";
 
@@ -23,6 +23,7 @@ const VantageCheckoutPage = () => {
   const [orderTiming, setOrderTiming] = useState("asap");
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
   const [tip, setTip] = useState(0);
   const [notes, setNotes] = useState("");
   const [customer, setCustomer] = useState({
@@ -73,6 +74,7 @@ const VantageCheckoutPage = () => {
     if (orderTiming !== "asap" && (!scheduledDate || !scheduledTime)) {
       return "Please select date and time";
     }
+    if (!paymentMethod) return "Please select a payment option";
     if (!items.length) return "Your cart is empty";
     if (!merchantId) return "Merchant context missing";
     return null;
@@ -87,6 +89,12 @@ const VantageCheckoutPage = () => {
 
     setSubmitting(true);
     try {
+      const paymentMethodMap = {
+        demo_card: "mock_card",
+        cash: "cash",
+        pay_at_store: "cash",
+      };
+
       const orderData = {
         merchant_id: merchantId,
         customer: {
@@ -121,7 +129,7 @@ const VantageCheckoutPage = () => {
           special_instructions: item.specialInstructions || null,
         })),
         payment: {
-          method: "mock_card",
+          method: paymentMethodMap[paymentMethod] || "cash",
           amount: total,
           tip,
           status: "pending",
@@ -136,7 +144,7 @@ const VantageCheckoutPage = () => {
       clearCart();
       toast.success("Order placed successfully");
       navigate(
-        `/order-confirmation?orderId=${encodeURIComponent(res.data.id)}&merchantSlug=${encodeURIComponent(slug)}`,
+        `/order-confirmation?orderId=${encodeURIComponent(res.data.id)}&merchantSlug=${encodeURIComponent(slug)}&paymentMethod=${encodeURIComponent(paymentMethod)}`,
       );
     } catch (err) {
       console.error("Failed to place order:", err);
@@ -165,7 +173,10 @@ const VantageCheckoutPage = () => {
           Back to Cart
         </button>
 
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
           <div className="vantage-surface p-6 md:p-7 bg-[linear-gradient(110deg,_#fffdf8_0%,_#f7f2e7_100%)]">
             <p className="text-xs uppercase tracking-[0.18em] text-black/50">
               Vantage Express
@@ -321,6 +332,36 @@ const VantageCheckoutPage = () => {
               </div>
             </div>
           )}
+
+          <div className="space-y-3">
+            <Label>Payment</Label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              {[
+                { id: "demo_card", label: "Demo Credit Card", icon: CreditCard },
+                { id: "cash", label: "Cash", icon: DollarSign },
+                { id: "pay_at_store", label: "Pay at Store", icon: Store },
+              ].map((method) => (
+                <button
+                  key={method.id}
+                  type="button"
+                  onClick={() => setPaymentMethod(method.id)}
+                  className={`h-11 px-3 border rounded-full text-sm inline-flex items-center justify-center gap-2 transition-colors ${
+                    paymentMethod === method.id
+                      ? "bg-black text-white border-black"
+                      : "bg-white text-black/75 border-black/15 hover:border-black/35"
+                  }`}
+                >
+                  <method.icon className="w-4 h-4" />
+                  {method.label}
+                </button>
+              ))}
+            </div>
+            {paymentMethod === "demo_card" && (
+              <p className="text-xs text-black/55">
+                Demo mode only. No real card data is collected.
+              </p>
+            )}
+          </div>
 
           <div>
             <Label>Tip</Label>

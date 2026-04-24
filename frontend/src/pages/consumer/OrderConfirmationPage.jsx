@@ -11,7 +11,15 @@ const OrderConfirmationPage = () => {
   const navigate = useNavigate();
   const orderId = searchParams.get("orderId");
   const merchantSlug = searchParams.get("merchantSlug");
+  const paymentMethod = searchParams.get("paymentMethod") || "";
   const [copied, setCopied] = useState(false);
+
+  const paymentMethodLabelMap = {
+    demo_card: "Demo Credit Card",
+    cash: "Cash",
+    pay_at_store: "Pay at Store",
+  };
+  const paymentMethodLabel = paymentMethodLabelMap[paymentMethod] || "";
 
   useEffect(() => {
     if (!orderId) {
@@ -123,6 +131,18 @@ const OrderConfirmationPage = () => {
                 received your order and will begin preparation shortly.
               </div>
             </motion.div>
+
+            {paymentMethodLabel && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.65 }}
+                className="p-3 bg-zinc-800/50 rounded-xl border border-zinc-700 text-sm"
+              >
+                <span className="text-zinc-400">Payment: </span>
+                <span className="text-white font-medium">{paymentMethodLabel}</span>
+              </motion.div>
+            )}
 
             {/* Action Buttons */}
             <motion.div

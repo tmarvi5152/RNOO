@@ -68,12 +68,13 @@ const OrderTrackingPage = () => {
   const navigate = useNavigate();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
   // WebSocket connection for real-time updates
   const { isConnected } = useOrderWebSocket({
     onOrderUpdate: (updatedOrder) => {
-      if (updatedOrder.id === orderId) {
+      if (String(updatedOrder.id) === String(orderId)) {
         setOrder(updatedOrder);
         toast.success(
           `Order status updated: ${getStatusLabel(updatedOrder.status)}`,
@@ -82,23 +83,43 @@ const OrderTrackingPage = () => {
     },
   });
 
-  const loadOrder = useCallback(async () => {
+  const loadOrder = useCallback(async (options = {}) => {
+    const { silent = false, suppressError = false } = options;
     try {
-      setLoading(true);
-      setError(null);
+      if (!silent) {
+        setLoading(true);
+      } else {
+        setRefreshing(true);
+      }
+      if (!silent) {
+        setError(null);
+      }
       const res = await apiService.getOrderPublic(orderId);
       setOrder(res.data);
     } catch (err) {
       console.error("Failed to load order:", err);
-      setError("Order not found or access denied");
-      toast.error("Failed to load order details");
+      if (!suppressError) {
+        setError("Order not found or access denied");
+        toast.error("Failed to load order details");
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      } else {
+        setRefreshing(false);
+      }
     }
   }, [orderId]);
 
   useEffect(() => {
     loadOrder();
+  }, [loadOrder]);
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      loadOrder({ silent: true, suppressError: true });
+    }, 10000);
+    return () => clearInterval(intervalId);
   }, [loadOrder]);
 
   const getStatusLabel = (status) => {
@@ -205,10 +226,10 @@ const OrderTrackingPage = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={loadOrder}
+              onClick={() => loadOrder({ silent: true })}
               className="text-white border-white/20"
             >
-              <RefreshCw className="w-4 h-4 mr-2" />
+              <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
               Refresh
             </Button>
           </div>

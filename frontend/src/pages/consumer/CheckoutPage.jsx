@@ -27,9 +27,9 @@ import {
   Sparkles,
   AlertCircle,
   Loader2,
-  Gift,
   Calendar,
   Home,
+  Store,
   Zap,
   DollarSign,
   Delete,
@@ -71,7 +71,7 @@ const CheckoutPage = () => {
   const [orderTiming, setOrderTiming] = useState("asap"); // asap, advance, future
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("card");
+  const [paymentMethod, setPaymentMethod] = useState("");
   const [tipAmount, setTipAmount] = useState(0);
   const [tipPercentage, setTipPercentage] = useState(null); // null, 15, 18, 20, or 'custom'
   const [customTipInput, setCustomTipInput] = useState("");
@@ -176,6 +176,12 @@ const CheckoutPage = () => {
       return;
     }
 
+    if (!paymentMethod) {
+      toast.error("Please select a payment option");
+      setStep(2);
+      return;
+    }
+
     // Validate delivery address if delivery
     if (
       orderType === "delivery" &&
@@ -227,6 +233,12 @@ const CheckoutPage = () => {
       };
 
       // Prepare order data matching backend OrderCreate model
+      const paymentMethodMap = {
+        demo_card: "mock_card",
+        cash: "cash",
+        pay_at_store: "cash",
+      };
+
       const orderData = {
         merchant_id: merchantId,
         customer: {
@@ -260,7 +272,7 @@ const CheckoutPage = () => {
           special_instructions: item.specialInstructions || null,
         })),
         payment: {
-          method: paymentMethod === "card" ? "mock_card" : "cash",
+          method: paymentMethodMap[paymentMethod] || "cash",
           amount: total,
           tip: tipAmount,
           status: "pending",
@@ -291,10 +303,9 @@ const CheckoutPage = () => {
         { duration: 5000 }
       );
 
-      // Navigate back to merchant page after a brief delay
-      setTimeout(() => {
-        navigate(`/order/${slug}`);
-      }, 2000);
+      navigate(
+        `/order-confirmation?orderId=${encodeURIComponent(res.data.id)}&merchantSlug=${encodeURIComponent(slug)}&paymentMethod=${encodeURIComponent(paymentMethod)}`,
+      );
     } catch (err) {
       console.error("Failed to place order:", err);
 
@@ -818,11 +829,12 @@ const CheckoutPage = () => {
                   <div className="space-y-3">
                     {[
                       {
-                        id: "card",
-                        label: "Credit/Debit Card",
+                        id: "demo_card",
+                        label: "Demo Credit Card",
                         icon: CreditCard,
                       },
-                      { id: "cash", label: "Pay at Pickup", icon: Gift },
+                      { id: "cash", label: "Cash", icon: DollarSign },
+                      { id: "pay_at_store", label: "Pay at Store", icon: Store },
                     ].map((method) => (
                       <button
                         key={method.id}
@@ -852,7 +864,7 @@ const CheckoutPage = () => {
                     ))}
                   </div>
 
-                  {paymentMethod === "card" && (
+                  {paymentMethod === "demo_card" && (
                     <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl">
                       <div className="flex items-start gap-3">
                         <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
@@ -1049,6 +1061,7 @@ const CheckoutPage = () => {
                     </button>
                     <button
                       onClick={() => setStep(3)}
+                      disabled={!paymentMethod}
                       className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-white font-semibold rounded-2xl flex items-center justify-center gap-2 transition-all"
                     >
                       Review Order
@@ -1195,7 +1208,7 @@ const CheckoutPage = () => {
                     </button>
                     <button
                       onClick={handleSubmit}
-                      disabled={loading}
+                      disabled={loading || !paymentMethod}
                       className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 disabled:from-zinc-700 disabled:to-zinc-700 text-white font-semibold rounded-2xl flex items-center justify-center gap-2 transition-all"
                     >
                       {loading ? (

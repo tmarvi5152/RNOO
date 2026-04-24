@@ -28,17 +28,11 @@ Use Shepherd API to:
 
 - Returns detailed Shepherd merchant payload.
 
-3. `GET /api/shepherd/merchants/{shepherd_merchant_id}/boarding-profile`
-
-- New endpoint combining Shepherd + Core API data for onboarding.
-- Optional query: `cg` (Customer Group for Core API lookup).
-- Returns merged profile with source attribution per field.
-
-4. `POST /api/shepherd/sync-menu/{merchant_id}`
+3. `POST /api/shepherd/sync-menu/{merchant_id}`
 
 - Syncs menu/schedules/tax rates into local DB for a boarded merchant.
 
-5. `GET /api/merchants/{merchant_id}/shepherd-details`
+4. `GET /api/merchants/{merchant_id}/shepherd-details`
 
 - Detailed combined view for already-boarded merchant.
 
@@ -47,19 +41,18 @@ Use Shepherd API to:
 - `frontend/src/pages/admin/MerchantsPage.js`
   - Lists Shepherd merchants
   - Selects merchant
-  - Calls `boarding-profile` endpoint
+  - Calls Shepherd merchant detail endpoint
   - Submits merchant create with linked `shepherd_config`
 
 - `frontend/src/context/AppContext.js`
   - `getShepherdMerchants`
   - `getShepherdMerchant`
-  - `getShepherdBoardingProfile`
 
 ## Boarding flow summary (current)
 
 1. Open Add Merchant dialog.
 2. Optionally enter CG.
 3. Select merchant from Shepherd list.
-4. Backend builds merged profile (Core preferred, Shepherd fallback).
+4. Frontend loads Shepherd merchant details and applies local fallback mapping.
 5. Admin confirms/edit fields and submits create.
 6. Merchant is created and linked via `shepherd_config.merchant_id`.
