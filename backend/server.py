@@ -9,6 +9,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 import asyncio
+import re
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from typing import List, Optional, Dict, Any, Set
@@ -323,24 +324,36 @@ class PaymentStatus(str, Enum):
 class UserBase(BaseModel):
     model_config = ConfigDict(extra="ignore")
     email: EmailStr
-    name: str
+    first_name: str
+    last_name: str
     role: UserRole
-    phone: Optional[str] = None
+    phone: str
+    name: Optional[str] = None
 
 class UserCreate(UserBase):
     password: str
     reseller_id: Optional[str] = None
     merchant_id: Optional[str] = None
+    merchant_ids: Optional[List[str]] = None
 
 class User(UserBase):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     reseller_id: Optional[str] = None
     merchant_id: Optional[str] = None
+    merchant_ids: Optional[List[str]] = None
     is_active: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class UserLogin(BaseModel):
     email: EmailStr
+    password: str
+
+class PasswordResetRequest(BaseModel):
+    password: str
+
+
+class AdminPasswordResetRequest(BaseModel):
+    user_id: str
     password: str
 
 class TokenResponse(BaseModel):
@@ -624,6 +637,56 @@ class AuditLog(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 # ============== AUTH HELPERS ==============
+PASSWORD_POLICY_MESSAGE = "Password must be at least 8 characters and include 1 uppercase letter, 1 number, and 1 special character"
+
+
+def build_full_name(first_name: str, last_name: str) -> str:
+    return f"{(first_name or '').strip()} {(last_name or '').strip()}".strip()
+
+
+def split_name(full_name: Optional[str]) -> tuple[str, str]:
+    parts = str(full_name or "").strip().split()
+    if not parts:
+        return "", ""
+    if len(parts) == 1:
+        return parts[0], ""
+    return parts[0], " ".join(parts[1:])
+
+
+def enforce_required_user_profile_fields(first_name: str, last_name: str, phone: str):
+    if not (first_name or "").strip():
+        raise HTTPException(status_code=400, detail="First name is required")
+    if not (last_name or "").strip():
+        raise HTTPException(status_code=400, detail="Last name is required")
+    if not (phone or "").strip():
+        raise HTTPException(status_code=400, detail="Phone number is required")
+
+
+def normalize_merchant_ids(raw_ids: Optional[List[str]]) -> List[str]:
+    ids: List[str] = []
+    for value in raw_ids or []:
+        normalized = str(value or "").strip()
+        if normalized and normalized not in ids:
+            ids.append(normalized)
+    return ids
+
+
+async def get_all_merchant_ids() -> List[str]:
+    merchants = await db.merchants.find({}, {"_id": 0, "id": 1}).to_list(5000)
+    return [str(merchant.get("id")) for merchant in merchants if merchant.get("id")]
+
+
+def enforce_password_policy(password: str):
+    if len(password or "") < 8:
+        raise HTTPException(status_code=400, detail=PASSWORD_POLICY_MESSAGE)
+    if not re.search(r"[A-Z]", password):
+        raise HTTPException(status_code=400, detail=PASSWORD_POLICY_MESSAGE)
+    if not re.search(r"\d", password):
+        raise HTTPException(status_code=400, detail=PASSWORD_POLICY_MESSAGE)
+    if not re.search(r"[^A-Za-z0-9]", password):
+        raise HTTPException(status_code=400, detail=PASSWORD_POLICY_MESSAGE)
+
+
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
@@ -777,10 +840,18 @@ async def get_accessible_merchant_ids(user: dict) -> Optional[List[str]]:
     if role == UserRole.SUPER_ADMIN.value:
         return None
 
-    if role == UserRole.MERCHANT.value:
-        return user.get("merchant_ids", [])
+    if role in [UserRole.MERCHANT.value, UserRole.CONSUMER.value]:
+        ids = normalize_merchant_ids(user.get("merchant_ids") or [])
+        single_id = str(user.get("merchant_id") or "").strip()
+        if single_id and single_id not in ids:
+            ids.append(single_id)
+        return ids
 
     if role == UserRole.RESELLER.value:
+        explicit_ids = normalize_merchant_ids(user.get("merchant_ids") or [])
+        if explicit_ids:
+            return explicit_ids
+
         reseller_merchants = await db.merchants.find(
             {"reseller_id": user.get("reseller_id")},
             {"_id": 0, "id": 1}
@@ -823,11 +894,54 @@ def build_order_integration_log_payload(
 # ============== AUTH ENDPOINTS ==============
 @api_router.post("/auth/register", response_model=TokenResponse)
 async def register(user_data: UserCreate):
-    existing = await db.users.find_one({"email": user_data.email})
+    normalized_email = str(user_data.email).strip().lower()
+    existing = await db.users.find_one({"email": normalized_email})
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
+
+    enforce_required_user_profile_fields(
+        user_data.first_name,
+        user_data.last_name,
+        user_data.phone,
+    )
+    enforce_password_policy(user_data.password)
     
     user_dict = user_data.model_dump()
+    user_dict["email"] = normalized_email
+    user_dict["first_name"] = user_data.first_name.strip()
+    user_dict["last_name"] = user_data.last_name.strip()
+    user_dict["phone"] = user_data.phone.strip()
+    user_dict["name"] = build_full_name(user_data.first_name, user_data.last_name)
+
+    merchant_ids = normalize_merchant_ids(user_data.merchant_ids)
+    if user_data.merchant_id:
+        single_merchant_id = str(user_data.merchant_id).strip()
+        if single_merchant_id and single_merchant_id not in merchant_ids:
+            merchant_ids.append(single_merchant_id)
+
+    if user_data.role == UserRole.SUPER_ADMIN:
+        all_merchant_ids = await get_all_merchant_ids()
+        user_dict["merchant_ids"] = all_merchant_ids
+        user_dict["merchant_id"] = all_merchant_ids[0] if all_merchant_ids else None
+    else:
+        if merchant_ids:
+            existing_merchants = await db.merchants.find({"id": {"$in": merchant_ids}}, {"_id": 0, "id": 1}).to_list(1000)
+            if len(existing_merchants) != len(merchant_ids):
+                raise HTTPException(status_code=400, detail="One or more selected merchants were not found")
+
+    if user_data.role == UserRole.MERCHANT:
+        if not merchant_ids:
+            raise HTTPException(status_code=400, detail="Merchant users must be assigned to at least one merchant")
+        user_dict["merchant_ids"] = merchant_ids
+        user_dict["merchant_id"] = merchant_ids[0]
+    elif user_data.role != UserRole.SUPER_ADMIN:
+        user_dict["merchant_ids"] = merchant_ids
+        user_dict["merchant_id"] = merchant_ids[0] if merchant_ids else None
+
+    if user_data.role not in [UserRole.SUPER_ADMIN, UserRole.MERCHANT, UserRole.RESELLER, UserRole.CONSUMER]:
+        user_dict["merchant_ids"] = []
+        user_dict["merchant_id"] = None
+
     user_dict["password"] = hash_password(user_data.password)
     user_dict["id"] = str(uuid.uuid4())
     user_dict["is_active"] = True
@@ -850,7 +964,8 @@ async def register(user_data: UserCreate):
 
 @api_router.post("/auth/login", response_model=TokenResponse)
 async def login(credentials: UserLogin):
-    user = await db.users.find_one({"email": credentials.email}, {"_id": 0})
+    normalized_email = str(credentials.email).strip().lower()
+    user = await db.users.find_one({"email": normalized_email}, {"_id": 0})
     if not user or not verify_password(credentials.password, user["password"]):
         # Log failed login attempt
         await log_audit(
@@ -910,11 +1025,50 @@ async def create_user(
     admin_user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))
 ):
     """Create a new user - admin only"""
-    existing = await db.users.find_one({"email": data.email})
+    normalized_email = str(data.email).strip().lower()
+    existing = await db.users.find_one({"email": normalized_email})
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
+
+    enforce_required_user_profile_fields(data.first_name, data.last_name, data.phone)
+    enforce_password_policy(data.password)
     
     user_dict = data.model_dump()
+    user_dict["email"] = normalized_email
+    user_dict["first_name"] = data.first_name.strip()
+    user_dict["last_name"] = data.last_name.strip()
+    user_dict["phone"] = data.phone.strip()
+    user_dict["name"] = build_full_name(data.first_name, data.last_name)
+
+    merchant_ids = normalize_merchant_ids(data.merchant_ids)
+    if data.merchant_id:
+        single_merchant_id = str(data.merchant_id).strip()
+        if single_merchant_id and single_merchant_id not in merchant_ids:
+            merchant_ids.append(single_merchant_id)
+
+    if data.role == UserRole.SUPER_ADMIN:
+        all_merchant_ids = await get_all_merchant_ids()
+        user_dict["merchant_ids"] = all_merchant_ids
+        user_dict["merchant_id"] = all_merchant_ids[0] if all_merchant_ids else None
+    else:
+        if merchant_ids:
+            existing_merchants = await db.merchants.find({"id": {"$in": merchant_ids}}, {"_id": 0, "id": 1}).to_list(1000)
+            if len(existing_merchants) != len(merchant_ids):
+                raise HTTPException(status_code=400, detail="One or more selected merchants were not found")
+
+    if data.role == UserRole.MERCHANT:
+        if not merchant_ids:
+            raise HTTPException(status_code=400, detail="Merchant users must be assigned to at least one merchant")
+        user_dict["merchant_ids"] = merchant_ids
+        user_dict["merchant_id"] = merchant_ids[0]
+    elif data.role != UserRole.SUPER_ADMIN:
+        user_dict["merchant_ids"] = merchant_ids
+        user_dict["merchant_id"] = merchant_ids[0] if merchant_ids else None
+
+    if data.role not in [UserRole.SUPER_ADMIN, UserRole.MERCHANT, UserRole.RESELLER, UserRole.CONSUMER]:
+        user_dict["merchant_ids"] = []
+        user_dict["merchant_id"] = None
+
     user_dict["password"] = hash_password(data.password)
     user_dict["id"] = str(uuid.uuid4())
     user_dict["is_active"] = True
@@ -948,6 +1102,83 @@ async def update_user(
     protected_fields = ["id", "created_at", "password"]
     for field in protected_fields:
         updates.pop(field, None)
+
+    if "email" in updates:
+        new_email = str(updates.get("email") or "").strip().lower()
+        if not new_email:
+            raise HTTPException(status_code=400, detail="Email is required")
+        if new_email != str(user.get("email") or "").lower():
+            existing_email_user = await db.users.find_one({"email": new_email}, {"_id": 0, "id": 1})
+            if existing_email_user and existing_email_user.get("id") != user_id:
+                raise HTTPException(status_code=400, detail="Email already registered")
+        updates["email"] = new_email
+
+    if "first_name" in updates:
+        updates["first_name"] = str(updates.get("first_name") or "").strip()
+    if "last_name" in updates:
+        updates["last_name"] = str(updates.get("last_name") or "").strip()
+    if "phone" in updates:
+        updates["phone"] = str(updates.get("phone") or "").strip()
+
+    if "merchant_ids" in updates:
+        updates["merchant_ids"] = normalize_merchant_ids(updates.get("merchant_ids") or [])
+    if "merchant_id" in updates:
+        updates["merchant_id"] = str(updates.get("merchant_id") or "").strip() or None
+
+    existing_first_name = user.get("first_name")
+    existing_last_name = user.get("last_name")
+    if not existing_first_name or not existing_last_name:
+        fallback_first, fallback_last = split_name(user.get("name"))
+        existing_first_name = existing_first_name or fallback_first
+        existing_last_name = existing_last_name or fallback_last
+
+    final_first_name = updates.get("first_name", existing_first_name)
+    final_last_name = updates.get("last_name", existing_last_name)
+    final_phone = updates.get("phone", user.get("phone"))
+    enforce_required_user_profile_fields(final_first_name, final_last_name, final_phone)
+    updates["name"] = build_full_name(final_first_name, final_last_name)
+
+    current_merchant_ids = normalize_merchant_ids(user.get("merchant_ids") or [])
+    current_single_merchant_id = str(user.get("merchant_id") or "").strip()
+    if current_single_merchant_id and current_single_merchant_id not in current_merchant_ids:
+        current_merchant_ids.append(current_single_merchant_id)
+
+    final_role = updates.get("role", user.get("role"))
+    final_merchant_ids = updates.get("merchant_ids", current_merchant_ids)
+
+    if updates.get("merchant_id"):
+        selected_single = updates["merchant_id"]
+        final_merchant_ids = [selected_single] + [m for m in final_merchant_ids if m != selected_single]
+
+    final_merchant_ids = normalize_merchant_ids(final_merchant_ids)
+
+    if final_role == UserRole.SUPER_ADMIN.value:
+        all_merchant_ids = await get_all_merchant_ids()
+        updates["merchant_ids"] = all_merchant_ids
+        updates["merchant_id"] = all_merchant_ids[0] if all_merchant_ids else None
+    else:
+        if final_merchant_ids:
+            existing_merchants = await db.merchants.find({"id": {"$in": final_merchant_ids}}, {"_id": 0, "id": 1}).to_list(1000)
+            if len(existing_merchants) != len(final_merchant_ids):
+                raise HTTPException(status_code=400, detail="One or more selected merchants were not found")
+
+    if final_role == UserRole.MERCHANT.value:
+        if not final_merchant_ids:
+            raise HTTPException(status_code=400, detail="Merchant users must be assigned to at least one merchant")
+        updates["merchant_ids"] = final_merchant_ids
+        updates["merchant_id"] = final_merchant_ids[0]
+    elif final_role != UserRole.SUPER_ADMIN.value:
+        updates["merchant_ids"] = final_merchant_ids
+        updates["merchant_id"] = final_merchant_ids[0] if final_merchant_ids else None
+
+    if final_role not in [
+        UserRole.SUPER_ADMIN.value,
+        UserRole.MERCHANT.value,
+        UserRole.RESELLER.value,
+        UserRole.CONSUMER.value,
+    ]:
+        updates["merchant_ids"] = []
+        updates["merchant_id"] = None
     
     result = await db.users.update_one(
         {"id": user_id},
@@ -967,6 +1198,135 @@ async def update_user(
     
     updated_user = await db.users.find_one({"id": user_id}, {"_id": 0, "password": 0})
     return updated_user
+
+
+async def _reset_user_password_internal(user_id: str, password: str, admin_user: dict):
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    enforce_password_policy(password)
+
+    if verify_password(password, user["password"]):
+        raise HTTPException(status_code=400, detail="New password must be different from current password")
+
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {
+            "password": hash_password(password),
+            "password_updated_at": datetime.now(timezone.utc).isoformat(),
+        }}
+    )
+
+    await log_audit(
+        action="user_password_reset",
+        endpoint=f"/api/users/{user_id}/reset-password",
+        user=admin_user,
+        request_data={"target_user_id": user_id, "target_email": user.get("email")}
+    )
+
+    return {"message": "Password reset successfully"}
+
+
+@api_router.post("/users/{user_id}/reset-password")
+async def reset_user_password(
+    user_id: str,
+    payload: PasswordResetRequest,
+    admin_user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))
+):
+    """Reset user password - admin only"""
+    return await _reset_user_password_internal(user_id, payload.password, admin_user)
+
+
+@api_router.post("/users/reset-password")
+async def reset_user_password_by_body(
+    payload: AdminPasswordResetRequest,
+    admin_user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))
+):
+    """Reset user password via body payload - admin only."""
+    return await _reset_user_password_internal(payload.user_id, payload.password, admin_user)
+
+
+@api_router.post("/users/migrate-required-fields")
+async def migrate_user_required_fields(
+    admin_user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))
+):
+    """Backfill first/last name and normalize email for legacy user records."""
+    users_list = await db.users.find({}, {"_id": 0}).to_list(5000)
+    all_merchant_ids = await get_all_merchant_ids()
+    updated_count = 0
+    missing_phone_user_ids = []
+
+    for user in users_list:
+        user_id = user.get("id")
+        if not user_id:
+            continue
+
+        updates = {}
+
+        existing_first_name = str(user.get("first_name") or "").strip()
+        existing_last_name = str(user.get("last_name") or "").strip()
+
+        if not existing_first_name or not existing_last_name:
+            fallback_first, fallback_last = split_name(user.get("name"))
+            if not existing_first_name and fallback_first:
+                updates["first_name"] = fallback_first
+                existing_first_name = fallback_first
+            if not existing_last_name and fallback_last:
+                updates["last_name"] = fallback_last
+                existing_last_name = fallback_last
+
+        full_name = build_full_name(existing_first_name, existing_last_name)
+        if full_name and str(user.get("name") or "").strip() != full_name:
+            updates["name"] = full_name
+
+        email = str(user.get("email") or "").strip()
+        normalized_email = email.lower()
+        if email and normalized_email != email:
+            updates["email"] = normalized_email
+
+        phone = str(user.get("phone") or "").strip()
+        if not phone:
+            missing_phone_user_ids.append(user_id)
+
+        merchant_ids = normalize_merchant_ids(user.get("merchant_ids") or [])
+        single_merchant_id = str(user.get("merchant_id") or "").strip()
+        if single_merchant_id and single_merchant_id not in merchant_ids:
+            merchant_ids.append(single_merchant_id)
+        if merchant_ids != normalize_merchant_ids(user.get("merchant_ids") or []):
+            updates["merchant_ids"] = merchant_ids
+
+        if user.get("role") == UserRole.SUPER_ADMIN.value:
+            updates["merchant_ids"] = all_merchant_ids
+            updates["merchant_id"] = all_merchant_ids[0] if all_merchant_ids else None
+        elif user.get("role") != UserRole.MERCHANT.value:
+            if user.get("merchant_id") is not None:
+                updates["merchant_id"] = None
+            if user.get("merchant_ids") not in ([], None):
+                updates["merchant_ids"] = []
+        elif merchant_ids:
+            updates["merchant_id"] = merchant_ids[0]
+
+        if updates:
+            await db.users.update_one({"id": user_id}, {"$set": updates})
+            updated_count += 1
+
+    await log_audit(
+        action="users_required_fields_migrated",
+        endpoint="/api/users/migrate-required-fields",
+        user=admin_user,
+        request_data={
+            "updated_count": updated_count,
+            "missing_phone_count": len(missing_phone_user_ids),
+        },
+    )
+
+    return {
+        "message": "User profile migration completed",
+        "updated_count": updated_count,
+        "missing_phone_count": len(missing_phone_user_ids),
+        "missing_phone_user_ids": missing_phone_user_ids,
+    }
 
 @api_router.delete("/users/{user_id}")
 async def delete_user(
@@ -3440,7 +3800,10 @@ async def seed_database():
     await db.users.insert_one({
         "id": admin_id,
         "email": "admin@rpower.com",
+        "first_name": "RPOWER",
+        "last_name": "Admin",
         "name": "RPOWER Admin",
+        "phone": "555-0101",
         "role": UserRole.SUPER_ADMIN.value,
         "password": hash_password("admin123"),
         "is_active": True,
@@ -3465,7 +3828,10 @@ async def seed_database():
     await db.users.insert_one({
         "id": reseller_user_id,
         "email": "reseller@demo.com",
+        "first_name": "Demo",
+        "last_name": "Reseller",
         "name": "Demo Reseller",
+        "phone": "555-0100",
         "role": UserRole.RESELLER.value,
         "reseller_id": reseller_id,
         "password": hash_password("reseller123"),
@@ -3513,7 +3879,10 @@ async def seed_database():
     await db.users.insert_one({
         "id": merchant_user_id,
         "email": "merchant@demo.com",
+        "first_name": "Demo",
+        "last_name": "Merchant",
         "name": "Demo Merchant",
+        "phone": "555-0102",
         "role": UserRole.MERCHANT.value,
         "merchant_id": merchant_id,
         "password": hash_password("merchant123"),

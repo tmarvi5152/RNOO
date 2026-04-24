@@ -265,6 +265,10 @@ export const apiService = {
   getUser: (id) => api.get(`/users/${id}`),
   createUser: (data) => api.post("/users", data),
   updateUser: (id, data) => api.put(`/users/${id}`, data),
+  resetUserPassword: (id, data) =>
+    api.post(`/users/${id}/reset-password`, data),
+  resetUserPasswordByBody: (data) => api.post("/users/reset-password", data),
+  migrateUserRequiredFields: () => api.post("/users/migrate-required-fields"),
   deleteUser: (id) => api.delete(`/users/${id}`),
 
   // Logs

@@ -1,42 +1,52 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { useAuth } from '../context/AppContext';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { toast } from 'sonner';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import React, { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { motion } from "framer-motion";
+import { useAuth } from "../context/AppContext";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
+import { toast } from "sonner";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 const LoginPage = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email || !password) {
-      toast.error('Please fill in all fields');
+      toast.error("Please fill in all fields");
       return;
     }
 
     setLoading(true);
     try {
       const user = await login(email, password);
-      toast.success(`Welcome back, ${user.name}!`);
-      
+      const displayName =
+        `${user.first_name || ""} ${user.last_name || ""}`.trim() ||
+        user.name ||
+        user.email;
+      toast.success(`Welcome back, ${displayName}!`);
+
       // Redirect based on role
-      if (['super_admin', 'reseller', 'merchant'].includes(user.role)) {
-        navigate('/admin');
+      if (["super_admin", "reseller", "merchant"].includes(user.role)) {
+        navigate("/admin");
       } else {
-        navigate('/');
+        navigate("/");
       }
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Login failed');
+      toast.error(err.response?.data?.detail || "Login failed");
     } finally {
       setLoading(false);
     }
@@ -54,10 +64,14 @@ const LoginPage = () => {
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-3">
             <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center">
-              <span className="font-heading font-bold text-2xl text-white">R</span>
+              <span className="font-heading font-bold text-2xl text-white">
+                R
+              </span>
             </div>
             <div className="text-left">
-              <h1 className="font-heading font-bold text-xl text-white">RPOWER</h1>
+              <h1 className="font-heading font-bold text-xl text-white">
+                RPOWER
+              </h1>
               <p className="text-sm text-gray-400">Online Ordering</p>
             </div>
           </div>
@@ -65,7 +79,9 @@ const LoginPage = () => {
 
         <Card className="border-0 shadow-2xl">
           <CardHeader className="text-center">
-            <CardTitle className="font-heading text-2xl">Welcome Back</CardTitle>
+            <CardTitle className="font-heading text-2xl">
+              Welcome Back
+            </CardTitle>
             <CardDescription>Sign in to access your account</CardDescription>
           </CardHeader>
           <CardContent>
@@ -88,7 +104,7 @@ const LoginPage = () => {
                 <div className="relative">
                   <Input
                     id="password"
-                    type={showPassword ? 'text' : 'password'}
+                    type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -100,7 +116,11 @@ const LoginPage = () => {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    {showPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -117,7 +137,7 @@ const LoginPage = () => {
                     Signing in...
                   </>
                 ) : (
-                  'Sign In'
+                  "Sign In"
                 )}
               </Button>
             </form>
