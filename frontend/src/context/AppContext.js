@@ -239,7 +239,8 @@ export const apiService = {
   createOrder: (data) => api.post("/orders", data),
   getOrders: (params) => api.get("/orders", { params }),
   getOrder: (id) => api.get(`/orders/${id}`),
-  getOrderPublic: (id) => api.get(`/orders/public/${id}`),
+  getOrderPublic: (id, params = {}) =>
+    api.get(`/orders/public/${id}`, { params }),
   updateOrderStatus: (id, status) =>
     api.patch(`/orders/${id}/status`, null, { params: { status } }),
 

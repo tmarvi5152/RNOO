@@ -18,6 +18,17 @@ const VantageCheckoutPage = () => {
   const navigate = useNavigate();
   const { items, merchantId, getSubtotal, getTax, clearCart } = useCartStore();
 
+  const initialCustomer = {
+    name: "",
+    email: "",
+    phone: "",
+    address_line1: "",
+    address_line2: "",
+    city: "",
+    state: "",
+    zip_code: "",
+  };
+
   const [submitting, setSubmitting] = useState(false);
   const [orderType, setOrderType] = useState("pickup");
   const [orderTiming, setOrderTiming] = useState("asap");
@@ -28,16 +39,7 @@ const VantageCheckoutPage = () => {
   const [tipSelection, setTipSelection] = useState(null);
   const [customTipInput, setCustomTipInput] = useState("");
   const [notes, setNotes] = useState("");
-  const [customer, setCustomer] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    address_line1: "",
-    address_line2: "",
-    city: "",
-    state: "",
-    zip_code: "",
-  });
+  const [customer, setCustomer] = useState(initialCustomer);
 
   const subtotal = getSubtotal();
   const tax = getTax();
@@ -146,10 +148,19 @@ const VantageCheckoutPage = () => {
 
       const res = await apiService.createOrder(orderData);
       clearCart();
+      setCustomer(initialCustomer);
+      setNotes("");
+      setOrderTiming("asap");
+      setScheduledDate("");
+      setScheduledTime("");
+      setPaymentMethod("");
+      setTip(0);
+      setTipSelection(null);
+      setCustomTipInput("");
       toast.success("Order placed successfully");
-      navigate(
-        `/order-confirmation?orderId=${encodeURIComponent(res.data.id)}&merchantSlug=${encodeURIComponent(slug)}&paymentMethod=${encodeURIComponent(paymentMethod)}`,
-      );
+      const trackingPath = `/track/${encodeURIComponent(res.data.id)}`;
+      window.open(trackingPath, "_blank", "noopener,noreferrer");
+      navigate(`/order/${slug}`);
     } catch (err) {
       console.error("Failed to place order:", err);
       let msg = "Failed to place order";

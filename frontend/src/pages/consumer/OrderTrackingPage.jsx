@@ -70,11 +70,13 @@ const OrderTrackingPage = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const trackingMerchantId = order?.merchant_id;
 
   // WebSocket connection for real-time updates
   const { isConnected } = useOrderWebSocket({
+    merchantId: trackingMerchantId,
     onOrderUpdate: (updatedOrder) => {
-      if (String(updatedOrder.id) === String(orderId)) {
+      if (updatedOrder && String(updatedOrder.id) === String(orderId)) {
         setOrder(updatedOrder);
         toast.success(
           `Order status updated: ${getStatusLabel(updatedOrder.status)}`,
@@ -95,7 +97,9 @@ const OrderTrackingPage = () => {
         if (!silent) {
           setError(null);
         }
-        const res = await apiService.getOrderPublic(orderId);
+        const res = await apiService.getOrderPublic(orderId, {
+          _ts: Date.now(),
+        });
         setOrder(res.data);
       } catch (err) {
         console.error("Failed to load order:", err);

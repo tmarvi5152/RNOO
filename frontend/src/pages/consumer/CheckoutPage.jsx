@@ -45,22 +45,28 @@ const CheckoutPage = () => {
   const [loading, setLoading] = useState(false);
   const [merchant, setMerchant] = useState(null);
 
-  // Form state
-  const [customerInfo, setCustomerInfo] = useState({
+  const initialCustomerInfo = {
     name: "",
     email: "",
     phone: "",
-  });
+  };
 
-  // Delivery address state
-  const [deliveryAddress, setDeliveryAddress] = useState({
+  const initialDeliveryAddress = {
     street: "",
     apt: "",
     city: "",
     state: "",
     zip: "",
     instructions: "",
-  });
+  };
+
+  // Form state
+  const [customerInfo, setCustomerInfo] = useState(initialCustomerInfo);
+
+  // Delivery address state
+  const [deliveryAddress, setDeliveryAddress] = useState(
+    initialDeliveryAddress,
+  );
 
   // Saved addresses from localStorage
   const [savedAddresses, setSavedAddresses] = useState([]);
@@ -308,14 +314,19 @@ const CheckoutPage = () => {
       // Clear cart
       clearCart();
 
+      // Clear customer data so the next order starts fresh.
+      setCustomerInfo(initialCustomerInfo);
+      setDeliveryAddress(initialDeliveryAddress);
+      localStorage.removeItem("rnoo_customer_info");
+
       // Show success with order ID
       toast.success(`Order placed successfully! Order ID: ${res.data.id}`, {
         duration: 5000,
       });
 
-      navigate(
-        `/order-confirmation?orderId=${encodeURIComponent(res.data.id)}&merchantSlug=${encodeURIComponent(slug)}&paymentMethod=${encodeURIComponent(paymentMethod)}`,
-      );
+      const trackingPath = `/track/${encodeURIComponent(res.data.id)}`;
+      window.open(trackingPath, "_blank", "noopener,noreferrer");
+      navigate(`/order/${slug}`);
     } catch (err) {
       console.error("Failed to place order:", err);
 
@@ -459,7 +470,9 @@ const CheckoutPage = () => {
                         >
                           <div className="flex items-center gap-3">
                             <type.icon className="w-4 h-4" />
-                            <span className="text-sm font-medium">{type.label}</span>
+                            <span className="text-sm font-medium">
+                              {type.label}
+                            </span>
                           </div>
                         </button>
                       ))}
@@ -869,7 +882,9 @@ const CheckoutPage = () => {
                         >
                           <method.icon className="w-4 h-4" />
                         </div>
-                        <span className="text-sm font-medium">{method.label}</span>
+                        <span className="text-sm font-medium">
+                          {method.label}
+                        </span>
                         {paymentMethod === method.id && (
                           <Check className="w-4 h-4 ml-auto text-orange-400" />
                         )}
@@ -933,7 +948,9 @@ const CheckoutPage = () => {
                             }
                           `}
                           >
-                            <div className="text-xs font-medium">{tip.label}</div>
+                            <div className="text-xs font-medium">
+                              {tip.label}
+                            </div>
                             {tip.value !== "custom" && (
                               <div className="text-[10px] text-zinc-500 mt-1">
                                 ${((subtotal * tip.value) / 100).toFixed(2)}
@@ -1181,7 +1198,7 @@ const CheckoutPage = () => {
                         key={item.id}
                         className="flex gap-2.5 p-2.5 bg-white/5 rounded-lg"
                       >
-                            <div className="w-12 h-12 rounded-lg bg-zinc-800 flex items-center justify-center overflow-hidden">
+                        <div className="w-12 h-12 rounded-lg bg-zinc-800 flex items-center justify-center overflow-hidden">
                           {hasValidImage(item) ? (
                             <img
                               src={item.image}
@@ -1234,12 +1251,12 @@ const CheckoutPage = () => {
                     >
                       {loading ? (
                         <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
+                          <Loader2 className="w-4 h-4 animate-spin" />
                           Processing...
                         </>
                       ) : (
                         <>
-                            <Sparkles className="w-4 h-4" />
+                          <Sparkles className="w-4 h-4" />
                           Place Order
                         </>
                       )}

@@ -24,10 +24,12 @@ const VantageOrderTrackingPage = () => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const trackingMerchantId = order?.merchant_id;
 
   const { isConnected } = useOrderWebSocket({
+    merchantId: trackingMerchantId,
     onOrderUpdate: (updatedOrder) => {
-      if (String(updatedOrder.id) === String(orderId)) {
+      if (updatedOrder && String(updatedOrder.id) === String(orderId)) {
         setOrder(updatedOrder);
       }
     },
@@ -38,7 +40,9 @@ const VantageOrderTrackingPage = () => {
       try {
         if (silent) setRefreshing(true);
         else setLoading(true);
-        const res = await apiService.getOrderPublic(orderId);
+        const res = await apiService.getOrderPublic(orderId, {
+          _ts: Date.now(),
+        });
         setOrder(res.data);
       } catch (err) {
         console.error("Failed to load order:", err);
