@@ -45,7 +45,7 @@ const ProductCard = ({ item, onSelect, index }) => {
           relative group
           bg-gradient-to-r from-zinc-900/80 via-zinc-900/70 to-zinc-900/60
           border border-white/10 hover:border-orange-500/40
-          rounded-2xl p-4 sm:p-5
+          rounded-xl p-2.5 sm:p-3
           transition-all duration-300
         "
         whileHover={{
@@ -54,10 +54,10 @@ const ProductCard = ({ item, onSelect, index }) => {
         }}
         whileTap={{ scale: 0.99 }}
       >
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start justify-between gap-2.5">
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <h3 className="text-base sm:text-lg font-semibold text-white line-clamp-1 group-hover:text-orange-300 transition-colors">
+            <div className="flex flex-wrap items-center gap-1.5 mb-1">
+              <h3 className="text-sm sm:text-base font-semibold text-white line-clamp-1 group-hover:text-orange-300 transition-colors">
                 {item.name}
               </h3>
               {item.is_popular && (
@@ -73,24 +73,24 @@ const ProductCard = ({ item, onSelect, index }) => {
               )}
             </div>
 
-            <p className="text-sm text-zinc-400 line-clamp-1 pr-2">
+            <p className="text-xs text-zinc-400 line-clamp-1 pr-1">
               {item.description || 'Tap to customize this item.'}
             </p>
 
             {item.prep_time && (
-              <div className="flex items-center gap-1 mt-2 text-xs text-zinc-500">
+              <div className="flex items-center gap-1 mt-1.5 text-[11px] text-zinc-500">
                 <Clock className="w-3 h-3" />
                 <span>{item.prep_time} min</span>
               </div>
             )}
           </div>
 
-          <div className="shrink-0 flex flex-col items-end gap-2">
-            <span className="text-xl sm:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-orange-500">
+          <div className="shrink-0 flex flex-col items-end gap-1.5">
+            <span className="text-base sm:text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-orange-500">
               ${item.price.toFixed(2)}
             </span>
-            <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-orange-500/90 text-white shadow-md shadow-orange-500/20 group-hover:bg-orange-400 transition-colors">
-              <Plus className="w-5 h-5" />
+            <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-orange-500/90 text-white shadow-md shadow-orange-500/20 group-hover:bg-orange-400 transition-colors">
+              <Plus className="w-4 h-4" />
             </span>
           </div>
         </div>
@@ -133,7 +133,7 @@ const ProductCard = ({ item, onSelect, index }) => {
       />
       
       {/* Image Section */}
-      <div className="relative h-48 overflow-hidden">
+      <div className="relative h-32 overflow-hidden">
         <>
           <motion.img
             src={item.image_url}
@@ -151,12 +151,12 @@ const ProductCard = ({ item, onSelect, index }) => {
         </>
         
         {/* Badges */}
-        <div className="absolute top-3 left-3 flex flex-wrap gap-2">
+          <div className="absolute top-2 left-2 flex flex-wrap gap-1.5">
           {item.is_popular && (
             <motion.span 
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              className="px-3 py-1 bg-orange-500/90 backdrop-blur-sm rounded-full text-xs font-medium text-white flex items-center gap-1"
+              className="px-2 py-0.5 bg-orange-500/90 backdrop-blur-sm rounded-full text-[10px] font-medium text-white flex items-center gap-1"
             >
               <Star className="w-3 h-3" fill="currentColor" />
               Popular
@@ -167,7 +167,7 @@ const ProductCard = ({ item, onSelect, index }) => {
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 }}
-              className="px-3 py-1 bg-red-500/90 backdrop-blur-sm rounded-full text-xs font-medium text-white flex items-center gap-1"
+              className="px-2 py-0.5 bg-red-500/90 backdrop-blur-sm rounded-full text-[10px] font-medium text-white flex items-center gap-1"
             >
               <Flame className="w-3 h-3" />
               Spicy
@@ -183,8 +183,8 @@ const ProductCard = ({ item, onSelect, index }) => {
             scale: isHovered ? 1 : 0.8 
           }}
           className="
-            absolute bottom-3 right-3
-            w-12 h-12 rounded-2xl
+            absolute bottom-2 right-2
+            w-8 h-8 rounded-xl
             bg-orange-500 hover:bg-orange-400
             shadow-lg shadow-orange-500/30
             flex items-center justify-center
@@ -193,20 +193,20 @@ const ProductCard = ({ item, onSelect, index }) => {
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
         >
-          <Plus className="w-6 h-6 text-white" />
+          <Plus className="w-4 h-4 text-white" />
         </motion.button>
       </div>
 
       {/* Content */}
-      <div className="p-5">
+      <div className="p-3.5">
         {/* Title */}
-        <h3 className="text-lg font-semibold text-white mb-2 line-clamp-1 group-hover:text-orange-300 transition-colors">
+        <h3 className="text-sm font-semibold text-white mb-1.5 line-clamp-1 group-hover:text-orange-300 transition-colors">
           {item.name}
         </h3>
         
         {/* Description */}
         <motion.p 
-          className="text-sm text-zinc-400 line-clamp-2 mb-4"
+          className="text-xs text-zinc-400 line-clamp-2 mb-2.5"
           animate={{ 
             height: isHovered ? 'auto' : '2.5rem',
             opacity: isHovered ? 1 : 0.7
@@ -218,13 +218,13 @@ const ProductCard = ({ item, onSelect, index }) => {
         {/* Price & CTA */}
         <div className="flex items-center justify-between">
           <div>
-            <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-orange-500">
+            <span className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-orange-500">
               ${item.price.toFixed(2)}
             </span>
           </div>
 
           <motion.span 
-            className="text-xs text-orange-400 font-medium uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity"
+            className="text-[10px] text-orange-400 font-medium uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity"
           >
             Customize →
           </motion.span>
@@ -232,8 +232,8 @@ const ProductCard = ({ item, onSelect, index }) => {
 
         {/* Prep Time (if available) */}
         {item.prep_time && (
-          <div className="flex items-center gap-1 mt-3 text-xs text-zinc-500">
-            <Clock className="w-3 h-3" />
+          <div className="flex items-center gap-1 mt-2 text-[11px] text-zinc-500">
+            <Clock className="w-2.5 h-2.5" />
             <span>{item.prep_time} min</span>
           </div>
         )}

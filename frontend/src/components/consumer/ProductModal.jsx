@@ -276,9 +276,9 @@ const ProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
           onClick={(e) => e.stopPropagation()}
           className="
-            relative w-full max-w-2xl max-h-[90vh]
+            relative w-full max-w-[820px] max-h-[82vh]
             bg-zinc-900 border border-white/10
-            rounded-3xl overflow-hidden
+            rounded-2xl overflow-hidden
             shadow-2xl shadow-black/50
           "
         >
@@ -286,22 +286,22 @@ const ProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
           <button
             onClick={onClose}
             className="
-              absolute top-4 right-4 z-20
-              w-10 h-10 rounded-full
+              absolute top-3 right-3 z-20
+              w-8 h-8 rounded-full
               bg-black/50 backdrop-blur-sm
               border border-white/10
               flex items-center justify-center
               hover:bg-white/10 transition-colors
             "
           >
-            <X className="w-5 h-5 text-white" />
+            <X className="w-4 h-4 text-white" />
           </button>
 
           {/* Scrollable Content */}
-          <div className="max-h-[90vh] overflow-y-auto">
+          <div className="max-h-[82vh] overflow-y-auto">
             {/* Hero Image */}
             {hasImage ? (
-              <div className="relative h-64 md:h-80">
+              <div className="relative h-44 md:h-52">
                 <motion.img
                   src={item.image_url}
                   alt={item.name}
@@ -314,12 +314,12 @@ const ProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                 <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-zinc-900/50 to-transparent" />
 
                 {/* Item Name Overlay */}
-                <div className="absolute bottom-0 left-0 right-0 p-6">
+                <div className="absolute bottom-0 left-0 right-0 p-4">
                   <motion.h2
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: 0.1 }}
-                    className="text-3xl font-bold text-white mb-2"
+                    className="text-2xl font-bold text-white mb-1"
                   >
                     {item.name}
                   </motion.h2>
@@ -340,7 +340,7 @@ const ProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                   initial={{ y: 12, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.05 }}
-                  className="text-3xl font-bold text-white mb-2 pr-12"
+                  className="text-2xl font-bold text-white mb-1 pr-10"
                 >
                   {item.name}
                 </motion.h2>
@@ -357,7 +357,7 @@ const ProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
             )}
 
             {/* Content */}
-            <div className="p-6 space-y-6">
+            <div className="p-4 space-y-4">
               {/* Modifier Groups */}
               {item.modifier_groups?.map((group, groupIndex) => (
                 <motion.div
@@ -365,7 +365,7 @@ const ProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.1 + groupIndex * 0.05 }}
-                  className="border border-white/10 rounded-2xl overflow-hidden"
+                  className="border border-white/10 rounded-xl overflow-hidden"
                 >
                   {/* Group Header */}
                   <button
@@ -375,7 +375,7 @@ const ProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                         [group.id]: !prev[group.id],
                       }))
                     }
-                    className="w-full flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 transition-colors"
+                    className="w-full flex items-center justify-between p-3 bg-white/5 hover:bg-white/10 transition-colors"
                   >
                     <div className="flex items-center gap-3">
                       <span className="text-white font-semibold">
@@ -391,7 +391,7 @@ const ProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                       animate={{ rotate: expandedGroups[group.id] ? 180 : 0 }}
                       transition={{ duration: 0.2 }}
                     >
-                      <ChevronDown className="w-5 h-5 text-zinc-400" />
+                      <ChevronDown className="w-4 h-4 text-zinc-400" />
                     </motion.div>
                   </button>
 
@@ -403,7 +403,7 @@ const ProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                         animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.2 }}
-                        className="p-4 space-y-4"
+                        className="p-3 space-y-3"
                       >
                         {/* Separate prefix modifiers from regular options */}
                         {(() => {
@@ -476,11 +476,11 @@ const ProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                                               option.allow_duplicates,
                                             )
                                           }
-                                          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/50 text-white hover:bg-blue-500/20 hover:border-blue-500 transition-all"
+                                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/50 text-white hover:bg-blue-500/20 hover:border-blue-500 transition-all"
                                           whileHover={{ scale: 1.05 }}
                                           whileTap={{ scale: 0.95 }}
                                         >
-                                          <Plus className="w-4 h-4 text-blue-400" />
+                                          <Plus className="w-3.5 h-3.5 text-blue-400" />
                                           <span className="font-medium">
                                             {option.name}
                                           </span>
@@ -491,9 +491,9 @@ const ProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                                               </span>
                                               <button
                                                 onClick={handleRemoveOne}
-                                                className="w-5 h-5 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center transition-colors"
+                                                className="w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center transition-colors"
                                               >
-                                                <Minus className="w-3 h-3 text-white" />
+                                                <Minus className="w-2.5 h-2.5 text-white" />
                                               </button>
                                             </>
                                           )}
@@ -526,7 +526,7 @@ const ProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                                     </p>
                                   )}
 
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                                     {regularOptions.map((option) => {
                                       const isSelected = isOptionSelected(
                                         group.id,
@@ -547,7 +547,7 @@ const ProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                                             )
                                           }
                                           className={`
-                                            relative flex items-center justify-between p-4 rounded-xl
+                                            relative flex items-center justify-between p-2.5 rounded-lg
                                             border transition-all duration-200
                                             ${
                                               isSelected
@@ -561,22 +561,22 @@ const ProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                                           <div className="flex items-center gap-3">
                                             <div
                                               className={`
-                                                w-5 h-5 rounded-full border-2 flex items-center justify-center
+                                                w-4 h-4 rounded-full border-2 flex items-center justify-center
                                                 ${isSelected ? "border-orange-500 bg-orange-500" : "border-zinc-500"}
                                               `}
                                             >
                                               {isSelected && (
-                                                <Check className="w-3 h-3 text-white" />
+                                                <Check className="w-2.5 h-2.5 text-white" />
                                               )}
                                             </div>
-                                            <span className="font-medium">
+                                            <span className="font-medium text-sm">
                                               {option.name}
                                             </span>
                                           </div>
 
                                           {option.price > 0 && (
                                             <span
-                                              className={`text-sm ${isSelected ? "text-orange-300" : "text-zinc-500"}`}
+                                              className={`text-xs ${isSelected ? "text-orange-300" : "text-zinc-500"}`}
                                             >
                                               +${option.price.toFixed(2)}
                                             </span>
@@ -610,9 +610,9 @@ const ProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                   onChange={(e) => setSpecialInstructions(e.target.value)}
                   placeholder="Any allergies or special requests?"
                   className="
-                    w-full h-24 p-4
+                    w-full h-16 p-3
                     bg-white/5 border border-white/10
-                    rounded-xl text-white placeholder-zinc-500
+                    rounded-lg text-sm text-white placeholder-zinc-500
                     focus:outline-none focus:border-orange-500/50
                     resize-none
                   "
@@ -621,26 +621,26 @@ const ProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
             </div>
 
             {/* Footer - Sticky */}
-            <div className="sticky bottom-0 p-6 bg-zinc-900/95 backdrop-blur-xl border-t border-white/10">
+            <div className="sticky bottom-0 p-4 bg-zinc-900/95 backdrop-blur-xl border-t border-white/10">
               <div className="flex items-center justify-between gap-4">
                 {/* Quantity Selector */}
-                <div className="flex items-center gap-3 bg-white/5 rounded-2xl p-2">
+                <div className="flex items-center gap-2 bg-white/5 rounded-xl p-1.5">
                   <motion.button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                    className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
                     whileTap={{ scale: 0.9 }}
                   >
-                    <Minus className="w-5 h-5 text-white" />
+                    <Minus className="w-4 h-4 text-white" />
                   </motion.button>
-                  <span className="w-8 text-center text-white font-semibold text-lg">
+                  <span className="w-7 text-center text-white font-semibold text-base">
                     {quantity}
                   </span>
                   <motion.button
                     onClick={() => setQuantity(quantity + 1)}
-                    className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                    className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
                     whileTap={{ scale: 0.9 }}
                   >
-                    <Plus className="w-5 h-5 text-white" />
+                    <Plus className="w-4 h-4 text-white" />
                   </motion.button>
                 </div>
 
@@ -648,10 +648,10 @@ const ProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                 <motion.button
                   onClick={handleAddToCart}
                   className="
-                    flex-1 py-4 px-6
+                    flex-1 py-2.5 px-4
                     bg-gradient-to-r from-orange-500 to-orange-600
                     hover:from-orange-400 hover:to-orange-500
-                    text-white font-semibold rounded-2xl
+                    text-sm text-white font-semibold rounded-xl
                     shadow-lg shadow-orange-500/25
                     flex items-center justify-center gap-3
                     transition-all duration-300
@@ -659,9 +659,9 @@ const ProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  <Plus className="w-5 h-5" />
+                  <Plus className="w-4 h-4" />
                   <span>Add to Order</span>
-                  <span className="px-3 py-1 bg-white/20 rounded-full text-sm">
+                  <span className="px-2 py-0.5 bg-white/20 rounded-full text-xs">
                     ${calculateTotal().toFixed(2)}
                   </span>
                 </motion.button>

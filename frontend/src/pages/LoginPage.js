@@ -122,14 +122,6 @@ const LoginPage = () => {
               </Button>
             </form>
 
-            <div className="mt-6 text-center text-sm text-gray-500">
-              <p>Demo Credentials:</p>
-              <div className="mt-2 space-y-1 text-xs">
-                <p><strong>Admin:</strong> admin@rpower.com / admin123</p>
-                <p><strong>Merchant:</strong> merchant@demo.com / merchant123</p>
-              </div>
-            </div>
-
             <div className="mt-6 text-center">
               <Link to="/" className="text-sm text-primary hover:underline">
                 ← Back to Home

@@ -353,27 +353,27 @@ const CheckoutPage = () => {
     <div className="min-h-screen bg-zinc-950 text-white">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-zinc-950/90 backdrop-blur-xl border-b border-white/10">
-        <div className="max-w-4xl mx-auto px-4 py-4">
+        <div className="max-w-3xl mx-auto px-3 py-2.5">
           <div className="flex items-center justify-between">
             <button
               onClick={() => navigate(`/order/${slug}`)}
               className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-4 h-4" />
               <span>Back to Menu</span>
             </button>
 
             <div className="flex items-center gap-2">
-              <ShoppingBag className="w-5 h-5 text-orange-400" />
-              <span className="font-semibold">${total.toFixed(2)}</span>
+              <ShoppingBag className="w-4 h-4 text-orange-400" />
+              <span className="text-sm font-semibold">${total.toFixed(2)}</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Progress Steps */}
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-12">
+      <div className="max-w-3xl mx-auto px-3 py-5">
+        <div className="flex items-center justify-between mb-7">
           {steps.map((s, index) => (
             <React.Fragment key={s.id}>
               <motion.div
@@ -384,7 +384,7 @@ const CheckoutPage = () => {
               >
                 <div
                   className={`
-                  w-12 h-12 rounded-2xl flex items-center justify-center
+                  w-8 h-8 rounded-xl flex items-center justify-center
                   transition-all duration-300
                   ${
                     step >= s.id
@@ -394,14 +394,14 @@ const CheckoutPage = () => {
                 `}
                 >
                   {step > s.id ? (
-                    <Check className="w-5 h-5" />
+                    <Check className="w-4 h-4" />
                   ) : (
-                    <s.icon className="w-5 h-5" />
+                    <s.icon className="w-4 h-4" />
                   )}
                 </div>
                 <span
                   className={`
-                  mt-2 text-sm font-medium
+                  mt-1.5 text-xs font-medium
                   ${step >= s.id ? "text-white" : "text-zinc-500"}
                 `}
                 >
@@ -412,7 +412,7 @@ const CheckoutPage = () => {
               {index < steps.length - 1 && (
                 <div
                   className={`
-                  flex-1 h-0.5 mx-4
+                  flex-1 h-0.5 mx-2
                   ${step > s.id ? "bg-orange-500" : "bg-white/10"}
                   transition-colors duration-300
                 `}
@@ -422,9 +422,9 @@ const CheckoutPage = () => {
           ))}
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
+        <div className="grid lg:grid-cols-3 gap-5">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4">
             <AnimatePresence mode="wait">
               {/* Step 1: Customer Info */}
               {step === 1 && (
@@ -433,14 +433,14 @@ const CheckoutPage = () => {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
-                  className="space-y-6"
+                  className="space-y-4"
                 >
-                  <h2 className="text-2xl font-bold">Your Information</h2>
+                  <h2 className="text-xl font-bold">Your Information</h2>
 
                   {/* Order Type */}
                   <div className="space-y-3">
                     <label className="text-sm text-zinc-400">Order Type</label>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-2">
                       {[
                         { id: "pickup", label: "Pickup", icon: MapPin },
                         { id: "delivery", label: "Delivery", icon: Home },
@@ -449,7 +449,7 @@ const CheckoutPage = () => {
                           key={type.id}
                           onClick={() => setOrderType(type.id)}
                           className={`
-                            p-4 rounded-2xl border transition-all
+                            p-2.5 rounded-xl border transition-all
                             ${
                               orderType === type.id
                                 ? "bg-orange-500/20 border-orange-500 text-white"
@@ -458,8 +458,8 @@ const CheckoutPage = () => {
                           `}
                         >
                           <div className="flex items-center gap-3">
-                            <type.icon className="w-5 h-5" />
-                            <span className="font-medium">{type.label}</span>
+                            <type.icon className="w-4 h-4" />
+                            <span className="text-sm font-medium">{type.label}</span>
                           </div>
                         </button>
                       ))}
@@ -471,7 +471,7 @@ const CheckoutPage = () => {
                     <label className="text-sm text-zinc-400">
                       When do you want it?
                     </label>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-3 gap-2">
                       {[
                         {
                           id: "asap",
@@ -506,7 +506,7 @@ const CheckoutPage = () => {
                             }
                           }}
                           className={`
-                            p-4 rounded-2xl border transition-all text-left
+                            p-2.5 rounded-xl border transition-all text-left
                             ${
                               orderTiming === timing.id
                                 ? "bg-orange-500/20 border-orange-500 text-white"
@@ -515,12 +515,12 @@ const CheckoutPage = () => {
                           `}
                         >
                           <div className="flex items-center gap-2 mb-1">
-                            <timing.icon className="w-4 h-4" />
-                            <span className="font-medium text-sm">
+                            <timing.icon className="w-3.5 h-3.5" />
+                            <span className="font-medium text-xs">
                               {timing.label}
                             </span>
                           </div>
-                          <span className="text-xs text-zinc-500">
+                          <span className="text-[10px] text-zinc-500">
                             {timing.desc}
                           </span>
                         </button>
@@ -538,13 +538,13 @@ const CheckoutPage = () => {
                       <label className="text-sm text-zinc-400">
                         Select Date
                       </label>
-                      <div className="grid grid-cols-4 gap-2">
+                      <div className="grid grid-cols-4 gap-1.5">
                         {dateOptions.map((date) => (
                           <button
                             key={date.value}
                             onClick={() => setScheduledDate(date.value)}
                             className={`
-                              p-3 rounded-xl border text-sm transition-all
+                              p-2 rounded-lg border text-xs transition-all
                               ${
                                 scheduledDate === date.value
                                   ? "bg-orange-500/20 border-orange-500 text-white"
@@ -572,7 +572,7 @@ const CheckoutPage = () => {
                       <select
                         value={scheduledTime}
                         onChange={(e) => setScheduledTime(e.target.value)}
-                        className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-orange-500/50"
+                        className="w-full p-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-orange-500/50"
                       >
                         <option value="">Select a time...</option>
                         {timeSlots.map((slot) => (
@@ -593,10 +593,10 @@ const CheckoutPage = () => {
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
-                      className="space-y-4 p-4 bg-white/5 rounded-2xl border border-white/10"
+                      className="space-y-3 p-3 bg-white/5 rounded-xl border border-white/10"
                     >
                       <h3 className="font-semibold flex items-center gap-2">
-                        <Home className="w-5 h-5 text-orange-400" />
+                        <Home className="w-4 h-4 text-orange-400" />
                         Delivery Address
                       </h3>
 
@@ -626,7 +626,7 @@ const CheckoutPage = () => {
                                 }
                               }
                             }}
-                            className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-orange-500/50"
+                            className="w-full p-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-orange-500/50"
                           >
                             <option value="" className="bg-zinc-900">
                               Enter new address
@@ -656,7 +656,7 @@ const CheckoutPage = () => {
                             })
                           }
                           placeholder="Street Address *"
-                          className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50"
+                          className="w-full p-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50"
                         />
                         <input
                           type="text"
@@ -668,9 +668,9 @@ const CheckoutPage = () => {
                             })
                           }
                           placeholder="Apt, Suite, Unit (optional)"
-                          className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50"
+                          className="w-full p-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50"
                         />
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-3 gap-2">
                           <input
                             type="text"
                             value={deliveryAddress.city}
@@ -681,7 +681,7 @@ const CheckoutPage = () => {
                               })
                             }
                             placeholder="City *"
-                            className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50"
+                            className="w-full p-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50"
                           />
                           <input
                             type="text"
@@ -693,7 +693,7 @@ const CheckoutPage = () => {
                               })
                             }
                             placeholder="State"
-                            className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50"
+                            className="w-full p-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50"
                           />
                           <input
                             type="text"
@@ -705,7 +705,7 @@ const CheckoutPage = () => {
                               })
                             }
                             placeholder="ZIP *"
-                            className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50"
+                            className="w-full p-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50"
                           />
                         </div>
                         <textarea
@@ -717,7 +717,7 @@ const CheckoutPage = () => {
                             })
                           }
                           placeholder="Delivery instructions (gate code, landmarks, etc.)"
-                          className="w-full p-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50 resize-none h-20"
+                          className="w-full p-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50 resize-none h-16"
                         />
                       </div>
 
@@ -748,7 +748,7 @@ const CheckoutPage = () => {
                         Full Name *
                       </label>
                       <div className="relative">
-                        <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                         <input
                           type="text"
                           value={customerInfo.name}
@@ -759,7 +759,7 @@ const CheckoutPage = () => {
                             })
                           }
                           placeholder="John Doe"
-                          className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50"
+                          className="w-full pl-10 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50"
                         />
                       </div>
                     </div>
@@ -769,7 +769,7 @@ const CheckoutPage = () => {
                         Email
                       </label>
                       <div className="relative">
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                         <input
                           type="email"
                           value={customerInfo.email}
@@ -780,7 +780,7 @@ const CheckoutPage = () => {
                             })
                           }
                           placeholder="john@example.com"
-                          className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50"
+                          className="w-full pl-10 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50"
                         />
                       </div>
                     </div>
@@ -790,7 +790,7 @@ const CheckoutPage = () => {
                         Phone Number *
                       </label>
                       <div className="relative">
-                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                         <input
                           type="tel"
                           value={customerInfo.phone}
@@ -801,7 +801,7 @@ const CheckoutPage = () => {
                             })
                           }
                           placeholder="(555) 123-4567"
-                          className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50"
+                          className="w-full pl-10 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50"
                         />
                       </div>
                     </div>
@@ -817,10 +817,10 @@ const CheckoutPage = () => {
                           !deliveryAddress.city ||
                           !deliveryAddress.zip))
                     }
-                    className="w-full py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 disabled:from-zinc-700 disabled:to-zinc-700 disabled:cursor-not-allowed text-white font-semibold rounded-2xl flex items-center justify-center gap-2 transition-all"
+                    className="w-full py-2.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 disabled:from-zinc-700 disabled:to-zinc-700 disabled:cursor-not-allowed text-sm text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-all"
                   >
                     Continue to Payment
-                    <ChevronRight className="w-5 h-5" />
+                    <ChevronRight className="w-4 h-4" />
                   </button>
                 </motion.div>
               )}
@@ -832,9 +832,9 @@ const CheckoutPage = () => {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
-                  className="space-y-6"
+                  className="space-y-4"
                 >
-                  <h2 className="text-2xl font-bold">Payment Method</h2>
+                  <h2 className="text-xl font-bold">Payment Method</h2>
 
                   <div className="space-y-3">
                     {[
@@ -853,7 +853,7 @@ const CheckoutPage = () => {
                         key={method.id}
                         onClick={() => setPaymentMethod(method.id)}
                         className={`
-                          w-full p-4 rounded-2xl border transition-all flex items-center gap-4
+                          w-full p-2.5 rounded-xl border transition-all flex items-center gap-3
                           ${
                             paymentMethod === method.id
                               ? "bg-orange-500/20 border-orange-500 text-white"
@@ -863,15 +863,15 @@ const CheckoutPage = () => {
                       >
                         <div
                           className={`
-                          w-10 h-10 rounded-xl flex items-center justify-center
+                          w-8 h-8 rounded-lg flex items-center justify-center
                           ${paymentMethod === method.id ? "bg-orange-500" : "bg-white/10"}
                         `}
                         >
-                          <method.icon className="w-5 h-5" />
+                          <method.icon className="w-4 h-4" />
                         </div>
-                        <span className="font-medium">{method.label}</span>
+                        <span className="text-sm font-medium">{method.label}</span>
                         {paymentMethod === method.id && (
-                          <Check className="w-5 h-5 ml-auto text-orange-400" />
+                          <Check className="w-4 h-4 ml-auto text-orange-400" />
                         )}
                       </button>
                     ))}
@@ -900,7 +900,7 @@ const CheckoutPage = () => {
                       <label className="text-sm text-zinc-400">
                         Add a tip for the staff
                       </label>
-                      <div className="grid grid-cols-4 gap-2">
+                      <div className="grid grid-cols-4 gap-1.5">
                         {[
                           { value: 10, label: "10%" },
                           { value: 15, label: "15%" },
@@ -925,7 +925,7 @@ const CheckoutPage = () => {
                               }
                             }}
                             className={`
-                            p-3 rounded-xl border transition-all
+                            p-2 rounded-lg border transition-all
                             ${
                               tipPercentage === tip.value
                                 ? "bg-orange-500/20 border-orange-500 text-white"
@@ -933,9 +933,9 @@ const CheckoutPage = () => {
                             }
                           `}
                           >
-                            <div className="font-medium">{tip.label}</div>
+                            <div className="text-xs font-medium">{tip.label}</div>
                             {tip.value !== "custom" && (
-                              <div className="text-xs text-zinc-500 mt-1">
+                              <div className="text-[10px] text-zinc-500 mt-1">
                                 ${((subtotal * tip.value) / 100).toFixed(2)}
                               </div>
                             )}
@@ -1076,17 +1076,17 @@ const CheckoutPage = () => {
                   <div className="flex gap-3">
                     <button
                       onClick={() => setStep(1)}
-                      className="flex-1 py-4 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold rounded-2xl transition-all"
+                      className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-sm text-white font-semibold rounded-xl transition-all"
                     >
                       Back
                     </button>
                     <button
                       onClick={() => setStep(3)}
                       disabled={!paymentMethod}
-                      className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-white font-semibold rounded-2xl flex items-center justify-center gap-2 transition-all"
+                      className="flex-1 py-2.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-sm text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-all"
                     >
                       Review Order
-                      <ChevronRight className="w-5 h-5" />
+                      <ChevronRight className="w-4 h-4" />
                     </button>
                   </div>
                 </motion.div>
@@ -1099,9 +1099,9 @@ const CheckoutPage = () => {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
-                  className="space-y-6"
+                  className="space-y-4"
                 >
-                  <h2 className="text-2xl font-bold">Review Your Order</h2>
+                  <h2 className="text-xl font-bold">Review Your Order</h2>
 
                   {/* Order Summary Cards */}
                   <div className="grid gap-4">
@@ -1179,9 +1179,9 @@ const CheckoutPage = () => {
                     {items.map((item) => (
                       <div
                         key={item.id}
-                        className="flex gap-3 p-3 bg-white/5 rounded-xl"
+                        className="flex gap-2.5 p-2.5 bg-white/5 rounded-lg"
                       >
-                        <div className="w-16 h-16 rounded-lg bg-zinc-800 flex items-center justify-center overflow-hidden">
+                            <div className="w-12 h-12 rounded-lg bg-zinc-800 flex items-center justify-center overflow-hidden">
                           {hasValidImage(item) ? (
                             <img
                               src={item.image}
@@ -1195,11 +1195,11 @@ const CheckoutPage = () => {
                               }
                             />
                           ) : (
-                            <Sparkles className="w-6 h-6 text-orange-400" />
+                            <Sparkles className="w-4 h-4 text-orange-400" />
                           )}
                         </div>
                         <div className="flex-1">
-                          <h4 className="font-medium">{item.name}</h4>
+                          <h4 className="text-sm font-medium">{item.name}</h4>
                           {item.modifiers?.length > 0 && (
                             <p className="text-xs text-zinc-400">
                               {item.modifiers
@@ -1208,7 +1208,7 @@ const CheckoutPage = () => {
                             </p>
                           )}
                           <div className="flex items-center justify-between mt-1">
-                            <span className="text-sm text-zinc-400">
+                            <span className="text-xs text-zinc-400">
                               Qty: {item.quantity}
                             </span>
                             <span className="font-medium text-orange-400">
@@ -1223,23 +1223,23 @@ const CheckoutPage = () => {
                   <div className="flex gap-3">
                     <button
                       onClick={() => setStep(2)}
-                      className="flex-1 py-4 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold rounded-2xl transition-all"
+                      className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-sm text-white font-semibold rounded-xl transition-all"
                     >
                       Back
                     </button>
                     <button
                       onClick={handleSubmit}
                       disabled={loading || !paymentMethod}
-                      className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 disabled:from-zinc-700 disabled:to-zinc-700 text-white font-semibold rounded-2xl flex items-center justify-center gap-2 transition-all"
+                      className="flex-1 py-2.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 disabled:from-zinc-700 disabled:to-zinc-700 text-sm text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-all"
                     >
                       {loading ? (
                         <>
-                          <Loader2 className="w-5 h-5 animate-spin" />
+                            <Loader2 className="w-4 h-4 animate-spin" />
                           Processing...
                         </>
                       ) : (
                         <>
-                          <Sparkles className="w-5 h-5" />
+                            <Sparkles className="w-4 h-4" />
                           Place Order
                         </>
                       )}
@@ -1252,10 +1252,10 @@ const CheckoutPage = () => {
 
           {/* Order Summary Sidebar */}
           <div className="lg:col-span-1">
-            <div className="sticky top-24 p-6 bg-white/5 rounded-3xl border border-white/10">
-              <h3 className="text-lg font-semibold mb-4">Order Summary</h3>
+            <div className="sticky top-20 p-4 bg-white/5 rounded-2xl border border-white/10">
+              <h3 className="text-base font-semibold mb-3">Order Summary</h3>
 
-              <div className="space-y-3 mb-4 max-h-60 overflow-y-auto">
+              <div className="space-y-2 mb-3 max-h-48 overflow-y-auto">
                 {items.map((item) => (
                   <div key={item.id} className="flex justify-between text-sm">
                     <span className="text-zinc-400">
@@ -1289,7 +1289,7 @@ const CheckoutPage = () => {
                     </span>
                   </div>
                 )}
-                <div className="flex justify-between text-lg font-bold pt-2 border-t border-white/10">
+                <div className="flex justify-between text-base font-bold pt-2 border-t border-white/10">
                   <span>Total</span>
                   <span className="text-orange-400">${total.toFixed(2)}</span>
                 </div>

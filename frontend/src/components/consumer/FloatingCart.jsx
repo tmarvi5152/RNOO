@@ -64,7 +64,7 @@ const FloatingCart = ({ merchantSlug }) => {
       {/* Floating Island */}
       <motion.div
         layout
-        className="fixed bottom-6 right-6 z-50"
+        className="fixed bottom-4 right-4 z-50"
         initial={{ y: 100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
@@ -77,7 +77,7 @@ const FloatingCart = ({ merchantSlug }) => {
               layoutId="cart-container"
               onClick={() => setIsExpanded(true)}
               className={`
-                relative flex items-center gap-3 px-5 py-3.5
+                relative flex items-center gap-2 px-3.5 py-2
                 bg-gradient-to-r from-zinc-900 to-zinc-800
                 border border-white/10 rounded-full
                 shadow-2xl shadow-black/50
@@ -92,12 +92,12 @@ const FloatingCart = ({ merchantSlug }) => {
               <div className="absolute inset-0 rounded-full bg-orange-500/10 blur-xl opacity-50" />
 
               <motion.div
-                className="relative flex items-center justify-center w-10 h-10 bg-orange-500 rounded-full"
+                className="relative flex items-center justify-center w-8 h-8 bg-orange-500 rounded-full"
                 animate={recentlyAdded ? { scale: [1, 1.2, 1] } : {}}
                 transition={{ duration: 0.3 }}
               >
-                <ShoppingBag className="w-5 h-5 text-white" />
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-white text-orange-500 rounded-full text-xs font-bold flex items-center justify-center">
+                <ShoppingBag className="w-4 h-4 text-white" />
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-white text-orange-500 rounded-full text-[10px] font-bold flex items-center justify-center">
                   {itemCount}
                 </span>
               </motion.div>
@@ -111,7 +111,7 @@ const FloatingCart = ({ merchantSlug }) => {
                 </span>
               </div>
 
-              <ChevronRight className="w-5 h-5 text-zinc-400 ml-2" />
+              <ChevronRight className="w-4 h-4 text-zinc-400 ml-1" />
             </motion.button>
           ) : (
             /* Expanded State */
@@ -119,21 +119,21 @@ const FloatingCart = ({ merchantSlug }) => {
               key="expanded"
               layoutId="cart-container"
               className="
-                w-[380px] max-h-[80vh]
+                w-[250px] max-h-[68vh]
                 bg-zinc-900/95 backdrop-blur-xl
-                border border-white/10 rounded-3xl
+                border border-white/10 rounded-2xl
                 shadow-2xl shadow-black/50
                 overflow-hidden
               "
             >
               {/* Header */}
-              <div className="flex items-center justify-between p-5 border-b border-white/10">
+              <div className="flex items-center justify-between p-3 border-b border-white/10">
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center justify-center w-10 h-10 bg-orange-500 rounded-full">
-                    <ShoppingBag className="w-5 h-5 text-white" />
+                  <div className="flex items-center justify-center w-8 h-8 bg-orange-500 rounded-full">
+                    <ShoppingBag className="w-4 h-4 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-white font-semibold">Your Order</h3>
+                    <h3 className="text-white text-sm font-semibold">Your Order</h3>
                     <p className="text-xs text-zinc-400">
                       {itemCount} item{itemCount > 1 ? "s" : ""}
                     </p>
@@ -143,12 +143,12 @@ const FloatingCart = ({ merchantSlug }) => {
                   onClick={() => setIsExpanded(false)}
                   className="p-2 hover:bg-white/10 rounded-full transition-colors"
                 >
-                  <X className="w-5 h-5 text-zinc-400" />
+                  <X className="w-4 h-4 text-zinc-400" />
                 </button>
               </div>
 
               {/* Items */}
-              <div className="max-h-[40vh] overflow-y-auto p-4 space-y-3">
+              <div className="max-h-[34vh] overflow-y-auto p-2.5 space-y-2">
                 <AnimatePresence>
                   {items.map((item) => (
                     <motion.div
@@ -158,7 +158,7 @@ const FloatingCart = ({ merchantSlug }) => {
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: 20, height: 0 }}
                       className="
-                        relative p-4 bg-white/5 rounded-2xl
+                        relative p-2.5 bg-white/5 rounded-xl
                         border border-white/5
                         hover:border-white/10 transition-colors
                       "
@@ -166,7 +166,7 @@ const FloatingCart = ({ merchantSlug }) => {
                       <div className="flex gap-3">
                         {/* Item Image */}
                         {hasValidImage(item) ? (
-                          <div className="w-16 h-16 rounded-xl overflow-hidden bg-zinc-800 flex-shrink-0">
+                          <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-800 flex-shrink-0">
                             <img
                               src={item.image}
                               alt={item.name}
@@ -180,24 +180,24 @@ const FloatingCart = ({ merchantSlug }) => {
                             />
                           </div>
                         ) : (
-                          <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-orange-500/20 to-orange-600/20 flex items-center justify-center flex-shrink-0">
-                            <Sparkles className="w-6 h-6 text-orange-400" />
+                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500/20 to-orange-600/20 flex items-center justify-center flex-shrink-0">
+                            <Sparkles className="w-4 h-4 text-orange-400" />
                           </div>
                         )}
 
                         {/* Item Details */}
                         <div className="flex-1 min-w-0">
-                          <h4 className="text-white font-medium truncate">
+                          <h4 className="text-white text-sm font-medium truncate">
                             {item.name}
                           </h4>
                           {item.modifiers?.length > 0 && (
-                            <p className="text-xs text-zinc-400 truncate">
+                            <p className="text-[11px] text-zinc-400 truncate">
                               {item.modifiers
                                 .map((m) => m.option_name)
                                 .join(", ")}
                             </p>
                           )}
-                          <p className="text-orange-400 font-semibold mt-1">
+                          <p className="text-orange-400 text-sm font-semibold mt-0.5">
                             ${item.totalPrice.toFixed(2)}
                           </p>
                         </div>
@@ -205,32 +205,32 @@ const FloatingCart = ({ merchantSlug }) => {
                         {/* Remove Button */}
                         <button
                           onClick={() => removeItem(item.id)}
-                          className="absolute top-2 right-2 p-1.5 hover:bg-red-500/20 rounded-full transition-colors group"
+                          className="absolute top-1.5 right-1.5 p-1 hover:bg-red-500/20 rounded-full transition-colors group"
                         >
-                          <Trash2 className="w-4 h-4 text-zinc-500 group-hover:text-red-400" />
+                          <Trash2 className="w-3.5 h-3.5 text-zinc-500 group-hover:text-red-400" />
                         </button>
                       </div>
 
                       {/* Quantity Controls */}
-                      <div className="flex items-center justify-end mt-3 gap-3">
+                      <div className="flex items-center justify-end mt-2 gap-2">
                         <button
                           onClick={() =>
                             updateQuantity(item.id, item.quantity - 1)
                           }
-                          className="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+                          className="w-6 h-6 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-full transition-colors"
                         >
-                          <Minus className="w-4 h-4 text-white" />
+                          <Minus className="w-3 h-3 text-white" />
                         </button>
-                        <span className="text-white font-medium w-8 text-center">
+                        <span className="text-white text-sm font-medium w-6 text-center">
                           {item.quantity}
                         </span>
                         <button
                           onClick={() =>
                             updateQuantity(item.id, item.quantity + 1)
                           }
-                          className="w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+                          className="w-6 h-6 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-full transition-colors"
                         >
-                          <Plus className="w-4 h-4 text-white" />
+                          <Plus className="w-3 h-3 text-white" />
                         </button>
                       </div>
                     </motion.div>
@@ -239,7 +239,7 @@ const FloatingCart = ({ merchantSlug }) => {
               </div>
 
               {/* Summary */}
-              <div className="p-5 border-t border-white/10 space-y-3">
+              <div className="p-3 border-t border-white/10 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-zinc-400">Subtotal</span>
                   <span className="text-white">${subtotal.toFixed(2)}</span>
@@ -248,7 +248,7 @@ const FloatingCart = ({ merchantSlug }) => {
                   <span className="text-zinc-400">Tax</span>
                   <span className="text-white">${tax.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-lg font-semibold pt-2 border-t border-white/10">
+                <div className="flex justify-between text-sm font-semibold pt-2 border-t border-white/10">
                   <span className="text-white">Total</span>
                   <span className="text-orange-400">${total.toFixed(2)}</span>
                 </div>
@@ -259,10 +259,10 @@ const FloatingCart = ({ merchantSlug }) => {
                     navigate(`/checkout/${merchantSlug}`);
                   }}
                   className="
-                    w-full py-4 mt-4
+                    w-full py-2.5 mt-2
                     bg-gradient-to-r from-orange-500 to-orange-600
                     hover:from-orange-400 hover:to-orange-500
-                    text-white font-semibold rounded-2xl
+                    text-sm text-white font-semibold rounded-xl
                     shadow-lg shadow-orange-500/25
                     flex items-center justify-center gap-2
                     transition-all duration-300
@@ -270,9 +270,9 @@ const FloatingCart = ({ merchantSlug }) => {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  <Sparkles className="w-5 h-5" />
+                  <Sparkles className="w-4 h-4" />
                   Checkout
-                  <ChevronRight className="w-5 h-5" />
+                  <ChevronRight className="w-4 h-4" />
                 </motion.button>
               </div>
             </motion.div>

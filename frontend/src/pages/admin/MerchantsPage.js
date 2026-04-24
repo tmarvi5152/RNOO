@@ -106,6 +106,42 @@ const MerchantsPage = () => {
   const [merchantStats, setMerchantStats] = useState(null);
   const [loadingMerchantStats, setLoadingMerchantStats] = useState(false);
 
+  const getMerchantLogoUrl = useCallback((merchant) => {
+    const licenseInfo = merchant?.license_info || {};
+    return (
+      merchant?.branding?.logo_url ||
+      licenseInfo.logo_url ||
+      licenseInfo.MerchantSiteLogo ||
+      licenseInfo.LogoUrl ||
+      licenseInfo.Logo ||
+      licenseInfo.SiteLogo ||
+      ""
+    );
+  }, []);
+
+  const normalizeMerchantStats = useCallback((rawStats = {}, recentOrders = []) => {
+    const totalOrders = Number(
+      rawStats?.total_orders ?? rawStats?.totalOrders ?? rawStats?.orders_total ?? 0,
+    );
+    const totalRevenue = Number(
+      rawStats?.total_revenue ??
+        rawStats?.totalRevenue ??
+        rawStats?.revenue_total ??
+        0,
+    );
+
+    return {
+      ...rawStats,
+      total_orders: Number.isFinite(totalOrders) ? totalOrders : 0,
+      total_revenue: Number.isFinite(totalRevenue) ? totalRevenue : 0,
+      recent_orders: Array.isArray(recentOrders)
+        ? recentOrders
+        : Array.isArray(rawStats?.recent_orders)
+          ? rawStats.recent_orders
+          : [],
+    };
+  }, []);
+
   const [newMerchant, setNewMerchant] = useState({
     name: "",
     slug: "",
@@ -146,31 +182,46 @@ const MerchantsPage = () => {
   const loadMerchantStats = useCallback(async (merchantId) => {
     try {
       setLoadingMerchantStats(true);
-      const res = await api.get(`/merchants/${merchantId}/stats`);
-      setMerchantStats(res.data);
+      const [statsRes, ordersRes] = await Promise.all([
+        apiService.getStats(merchantId),
+        apiService.getOrders({ merchant_id: merchantId, limit: 5, skip: 0 }),
+      ]);
+
+      const statsPayload = statsRes?.data || {};
+      const recentOrders = Array.isArray(ordersRes?.data?.orders)
+        ? ordersRes.data.orders
+        : [];
+
+      setMerchantStats(normalizeMerchantStats(statsPayload, recentOrders));
     } catch (err) {
       console.error("Failed to load merchant stats:", err);
       // Set empty stats on error so panel still shows
-      setMerchantStats({
-        total_orders: 0,
-        total_revenue: 0,
-        recent_orders: [],
-        shepherd_status: "unknown",
-      });
+      setMerchantStats(normalizeMerchantStats({}, []));
     } finally {
       setLoadingMerchantStats(false);
     }
-  }, []);
+  }, [normalizeMerchantStats]);
 
   const handleOpenMerchantPanel = (merchant) => {
     setSelectedMerchant(merchant);
-    loadMerchantStats(merchant.id);
+    setMerchantStats(null);
   };
 
   const handleCloseMerchantPanel = () => {
     setSelectedMerchant(null);
     setMerchantStats(null);
   };
+
+  useEffect(() => {
+    if (!selectedMerchant?.id) return undefined;
+
+    loadMerchantStats(selectedMerchant.id);
+    const intervalId = setInterval(() => {
+      loadMerchantStats(selectedMerchant.id);
+    }, 30000);
+
+    return () => clearInterval(intervalId);
+  }, [selectedMerchant?.id, loadMerchantStats]);
 
   const loadShepherdMerchants = async () => {
     if (shepherdMerchants.length > 0) return; // Already loaded
@@ -1025,7 +1076,20 @@ const MerchantsPage = () => {
                       >
                         <TableCell>
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                            {getMerchantLogoUrl(merchant) ? (
+                              <img
+                                src={getMerchantLogoUrl(merchant)}
+                                alt={merchant.name}
+                                className="w-10 h-10 rounded-lg object-contain border bg-white p-1"
+                                onError={(e) => {
+                                  e.target.style.display = "none";
+                                  e.target.nextSibling.style.display = "flex";
+                                }}
+                              />
+                            ) : null}
+                            <div
+                              className={`w-10 h-10 bg-primary/10 rounded-lg items-center justify-center ${getMerchantLogoUrl(merchant) ? "hidden" : "flex"}`}
+                            >
                               <Store className="w-5 h-5 text-primary" />
                             </div>
                             <div>

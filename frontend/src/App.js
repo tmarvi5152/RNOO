@@ -15,6 +15,7 @@ import MerchantsPage from "./pages/admin/MerchantsPage";
 import MerchantDetailPage from "./pages/admin/MerchantDetailPage";
 import LogsPage from "./pages/admin/LogsPage";
 import ShepherdPage from "./pages/admin/ShepherdPage";
+import AdminUsersPage from "./pages/admin/AdminUsersPage";
 
 // Consumer Pages — routed through template system
 import {
@@ -111,6 +112,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={["super_admin"]}>
             <ShepherdPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/users"
+        element={
+          <ProtectedRoute allowedRoles={["super_admin"]}>
+            <AdminUsersPage />
           </ProtectedRoute>
         }
       />

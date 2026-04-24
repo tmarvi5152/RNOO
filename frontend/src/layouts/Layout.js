@@ -16,6 +16,7 @@ import {
   LayoutDashboard,
   Store,
   ClipboardList,
+  Users,
   LogOut,
   Menu,
   X,
@@ -26,6 +27,19 @@ import {
   Clock,
   Server,
 } from "lucide-react";
+
+const getMerchantLogoUrl = (merchant) => {
+  const licenseInfo = merchant?.license_info || {};
+  return (
+    merchant?.branding?.logo_url ||
+    licenseInfo.logo_url ||
+    licenseInfo.MerchantSiteLogo ||
+    licenseInfo.LogoUrl ||
+    licenseInfo.Logo ||
+    licenseInfo.SiteLogo ||
+    ""
+  );
+};
 
 // Sidebar Component - defined outside AdminLayout
 const AdminSidebar = ({
@@ -130,6 +144,12 @@ export const AdminLayout = ({ children }) => {
       roles: ["super_admin"],
     },
     {
+      icon: Users,
+      label: "Users",
+      path: "/admin/users",
+      roles: ["super_admin"],
+    },
+    {
       icon: FileText,
       label: "Logs",
       path: "/admin/logs",
@@ -212,6 +232,7 @@ export const ConsumerLayout = ({ children, merchant }) => {
 
   const branding = merchant?.branding || {};
   const primaryColor = branding.primary_color || "#7C3AED";
+  const merchantLogoUrl = getMerchantLogoUrl(merchant);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -227,9 +248,9 @@ export const ConsumerLayout = ({ children, merchant }) => {
               to={merchant ? `/order/${merchant.slug}` : "/"}
               className="flex items-center gap-3"
             >
-              {branding.logo_url ? (
+              {merchantLogoUrl ? (
                 <img
-                  src={branding.logo_url}
+                  src={merchantLogoUrl}
                   alt={merchant?.name}
                   className="h-10 w-auto"
                 />

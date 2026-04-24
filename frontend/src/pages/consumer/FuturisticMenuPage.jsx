@@ -23,6 +23,19 @@ import {
   Utensils,
 } from "lucide-react";
 
+const getMerchantLogoUrl = (merchant) => {
+  const licenseInfo = merchant?.license_info || {};
+  return (
+    merchant?.branding?.logo_url ||
+    licenseInfo.logo_url ||
+    licenseInfo.MerchantSiteLogo ||
+    licenseInfo.LogoUrl ||
+    licenseInfo.Logo ||
+    licenseInfo.SiteLogo ||
+    ""
+  );
+};
+
 // Animated Background Grain
 const GrainOverlay = () => (
   <div
@@ -38,6 +51,7 @@ const HeroSection = ({ merchant, scrollY }) => {
   const y = useTransform(scrollY, [0, 500], [0, 150]);
   const opacity = useTransform(scrollY, [0, 300], [1, 0]);
   const scale = useTransform(scrollY, [0, 300], [1, 1.1]);
+  const merchantLogoUrl = getMerchantLogoUrl(merchant);
 
   const bannerUrl =
     merchant?.branding?.banner_url ||
@@ -66,7 +80,7 @@ const HeroSection = ({ merchant, scrollY }) => {
         className="relative h-full flex flex-col justify-end p-5 md:p-6 max-w-7xl mx-auto"
       >
         {/* Logo */}
-        {merchant?.branding?.logo_url && (
+        {merchantLogoUrl && (
           <motion.div
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -75,7 +89,7 @@ const HeroSection = ({ merchant, scrollY }) => {
           >
             <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden bg-white/10 backdrop-blur-sm border border-white/20 shadow-2xl">
               <img
-                src={merchant.branding.logo_url}
+                src={merchantLogoUrl}
                 alt={merchant.name}
                 className="w-full h-full object-cover"
               />

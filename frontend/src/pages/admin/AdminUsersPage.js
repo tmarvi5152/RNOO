@@ -34,9 +34,15 @@ import {
   SelectValue,
 } from "../../components/ui/select";
 import { toast } from "sonner";
-import { Plus, Edit2, Trash2, Search, Users } from "lucide-react";
+import { Plus, Edit2, Trash2, Search, Users, Mail, Phone } from "lucide-react";
 
-const USER_ROLES = ["CONSUMER", "MERCHANT", "SUPER_ADMIN"];
+const USER_ROLES = ["consumer", "merchant", "reseller", "super_admin"];
+
+const roleLabel = (role) =>
+  String(role || "")
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 
 const AdminUsersPage = () => {
   useAuth();
@@ -52,7 +58,8 @@ const AdminUsersPage = () => {
   const [formData, setFormData] = useState({
     email: "",
     name: "",
-    role: "CONSUMER",
+    password: "",
+    role: "consumer",
     phone: "",
     merchant_id: "",
     is_active: true,
@@ -66,14 +73,15 @@ const AdminUsersPage = () => {
     try {
       setLoading(true);
       const [usersRes, merchantsRes] = await Promise.all([
-        apiService.getUsers?.() || apiService.fetchData("GET", "/api/users"),
+        apiService.getUsers(),
         apiService.getMerchants(),
-      ]).catch(() => [[], []]);
+      ]);
 
-      setUsers(Array.isArray(usersRes) ? usersRes : []);
-      setMerchants(Array.isArray(merchantsRes) ? merchantsRes : []);
+      setUsers(Array.isArray(usersRes?.data) ? usersRes.data : []);
+      setMerchants(Array.isArray(merchantsRes?.data) ? merchantsRes.data : []);
     } catch (error) {
       console.error("Error loading data:", error);
+      toast.error("Failed to load users");
       setUsers([]);
       setMerchants([]);
     } finally {
@@ -93,30 +101,39 @@ const AdminUsersPage = () => {
     setFormData((prev) => ({
       ...prev,
       role: value,
-      merchant_id: value !== "MERCHANT" ? "" : prev.merchant_id,
+      merchant_id: value !== "merchant" ? "" : prev.merchant_id,
     }));
   };
 
   const handleCreate = async () => {
-    if (!formData.email || !formData.name) {
-      toast.error("Email and name are required");
+    if (!formData.email || !formData.name || !formData.password) {
+      toast.error("Email, name, and password are required");
       return;
     }
 
-    if (formData.role === "MERCHANT" && !formData.merchant_id) {
+    if (formData.role === "merchant" && !formData.merchant_id) {
       toast.error("Merchant users must be assigned to a merchant");
       return;
     }
 
     try {
       setSaving(true);
-      const res = await apiService.fetchData("POST", "/api/users", formData);
-      setUsers((prev) => [...prev, res]);
+      const payload = {
+        email: formData.email.trim(),
+        name: formData.name.trim(),
+        password: formData.password,
+        role: formData.role,
+        phone: formData.phone?.trim() || null,
+        merchant_id: formData.role === "merchant" ? formData.merchant_id : null,
+      };
+
+      const res = await apiService.createUser(payload);
+      setUsers((prev) => [...prev, res.data]);
       toast.success("User created successfully");
       resetForm();
       setIsCreateOpen(false);
     } catch (error) {
-      toast.error(error.message || "Failed to create user");
+      toast.error(error.response?.data?.detail || "Failed to create user");
     } finally {
       setSaving(false);
     }
@@ -127,10 +144,11 @@ const AdminUsersPage = () => {
     setFormData({
       email: user.email,
       name: user.name,
+      password: "",
       role: user.role,
       phone: user.phone || "",
-      merchant_id: user.merchant_id || "",
-      is_active: user.is_active,
+      merchant_id: user.merchant_id ? String(user.merchant_id) : "",
+      is_active: Boolean(user.is_active),
     });
     setIsEditOpen(true);
   };
@@ -141,49 +159,63 @@ const AdminUsersPage = () => {
       return;
     }
 
-    if (formData.role === "MERCHANT" && !formData.merchant_id) {
+    if (formData.role === "merchant" && !formData.merchant_id) {
       toast.error("Merchant users must be assigned to a merchant");
       return;
     }
 
     try {
       setSaving(true);
-      const res = await apiService.fetchData(
-        "PUT",
-        `/api/users/${editingUser.id}`,
-        formData,
+      const payload = {
+        email: formData.email.trim(),
+        name: formData.name.trim(),
+        role: formData.role,
+        phone: formData.phone?.trim() || null,
+        merchant_id: formData.role === "merchant" ? formData.merchant_id : null,
+        is_active: Boolean(formData.is_active),
+      };
+
+      const res = await apiService.updateUser(editingUser.id, payload);
+      setUsers((prev) =>
+        prev.map((u) => (u.id === editingUser.id ? res.data : u)),
       );
-      setUsers((prev) => prev.map((u) => (u.id === editingUser.id ? res : u)));
       toast.success("User updated successfully");
       setIsEditOpen(false);
+      setEditingUser(null);
+      resetForm();
     } catch (error) {
-      toast.error(error.message || "Failed to update user");
+      toast.error(error.response?.data?.detail || "Failed to update user");
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!confirm("Are you sure you want to delete this user?")) return;
+    if (!window.confirm("Are you sure you want to delete this user?")) return;
 
     try {
-      await apiService.fetchData("DELETE", `/api/users/${id}`, null);
+      await apiService.deleteUser(id);
       setUsers((prev) => prev.filter((u) => u.id !== id));
       toast.success("User deleted successfully");
     } catch (error) {
-      toast.error(error.message || "Failed to delete user");
+      toast.error(error.response?.data?.detail || "Failed to delete user");
     }
   };
 
   const handleToggleActive = async (user) => {
     try {
-      const res = await apiService.fetchData("PUT", `/api/users/${user.id}`, {
-        ...user,
+      const res = await apiService.updateUser(user.id, {
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        phone: user.phone || null,
+        merchant_id: user.merchant_id || null,
         is_active: !user.is_active,
       });
-      setUsers((prev) => prev.map((u) => (u.id === user.id ? res : u)));
-      toast.success(`User ${res.is_active ? "activated" : "deactivated"}`);
-    } catch {
+      setUsers((prev) => prev.map((u) => (u.id === user.id ? res.data : u)));
+      toast.success(`User ${res.data?.is_active ? "activated" : "deactivated"}`);
+    } catch (error) {
+      console.error("Failed to toggle user active:", error);
       toast.error("Failed to update user status");
     }
   };
@@ -192,7 +224,8 @@ const AdminUsersPage = () => {
     setFormData({
       email: "",
       name: "",
-      role: "CONSUMER",
+      password: "",
+      role: "consumer",
       phone: "",
       merchant_id: "",
       is_active: true,
@@ -201,9 +234,15 @@ const AdminUsersPage = () => {
 
   const filteredUsers = users.filter(
     (u) =>
-      u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.role.toLowerCase().includes(searchTerm.toLowerCase()),
+      String(u.name || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      String(u.email || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      String(u.role || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()),
   );
 
   const UserForm = () => (
@@ -240,12 +279,25 @@ const AdminUsersPage = () => {
           <SelectContent>
             {USER_ROLES.map((role) => (
               <SelectItem key={role} value={role}>
-                {role}
+                {roleLabel(role)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
+
+      {!editingUser && (
+        <div>
+          <Label>Password *</Label>
+          <Input
+            name="password"
+            type="password"
+            placeholder="Set a temporary password"
+            value={formData.password}
+            onChange={handleInputChange}
+          />
+        </div>
+      )}
 
       <div>
         <Label>Phone</Label>
@@ -257,7 +309,7 @@ const AdminUsersPage = () => {
         />
       </div>
 
-      {formData.role === "MERCHANT" && (
+      {formData.role === "merchant" && (
         <div>
           <Label>Assign to Merchant *</Label>
           <Select
@@ -271,7 +323,7 @@ const AdminUsersPage = () => {
             </SelectTrigger>
             <SelectContent>
               {merchants.map((m) => (
-                <SelectItem key={m.id} value={m.id}>
+                <SelectItem key={m.id} value={String(m.id)}>
                   {m.name}
                 </SelectItem>
               ))}
@@ -295,10 +347,10 @@ const AdminUsersPage = () => {
 
   const getRoleColor = (role) => {
     const colors = {
-      SUPER_ADMIN: "destructive",
-      ADMIN: "destructive",
-      MERCHANT: "default",
-      CONSUMER: "outline",
+      super_admin: "destructive",
+      reseller: "secondary",
+      merchant: "default",
+      consumer: "outline",
     };
     return colors[role] || "outline";
   };
@@ -387,8 +439,11 @@ const AdminUsersPage = () => {
                   <TableBody>
                     {filteredUsers.map((user) => {
                       const assignmentName =
-                        user.role === "MERCHANT"
-                          ? merchants.find((m) => m.id === user.merchant_id)
+                        user.role === "merchant"
+                          ? merchants.find(
+                              (m) =>
+                                String(m.id) === String(user.merchant_id || ""),
+                            )
                               ?.name
                           : null;
 
@@ -405,7 +460,7 @@ const AdminUsersPage = () => {
                           </TableCell>
                           <TableCell>
                             <Badge variant={getRoleColor(user.role)}>
-                              {user.role}
+                              {roleLabel(user.role)}
                             </Badge>
                           </TableCell>
                           <TableCell>
