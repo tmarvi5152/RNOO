@@ -807,7 +807,10 @@ def build_shepherd_order(order: dict, merchant_shepherd_config: dict) -> dict:
         ticket["need_dt"] = order["need_datetime"]
     
     # Build the complete shepherd order
-    merchant_id = str(order.get("merchant_id", ""))
+    merchant_id = str(
+        merchant_shepherd_config.get("merchant_id")
+        or order.get("merchant_id", "")
+    )
     merchant_id_digits = "".join(ch for ch in merchant_id if ch.isdigit())
     merchant_id_suffix = merchant_id_digits[:5] or merchant_id[:5]
     order_date = datetime.now(timezone.utc).strftime("%d-%m-%y")

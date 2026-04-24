@@ -1737,7 +1737,7 @@ async def submit_order_to_shepherd_async(order_id: str, order_dict: dict, mercha
         )
         
         # Generate order reference to match the payload sent to Shepherd
-        merchant_id = str(order_dict.get("merchant_id", ""))
+        merchant_id = str(shepherd_merchant_id or order_dict.get("merchant_id", ""))
         merchant_id_digits = "".join(ch for ch in merchant_id if ch.isdigit())
         merchant_id_suffix = merchant_id_digits[:5] or merchant_id[:5]
         order_date = datetime.now(timezone.utc).strftime("%d-%m-%y")
