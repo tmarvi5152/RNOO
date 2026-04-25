@@ -47,6 +47,7 @@ db = client[db_name]
 
 # Shepherd Configuration
 SHEPHERD_BEARER_TOKEN = os.environ.get('SHEPHERD_BEARER_TOKEN', '')
+WEBHOOK_BASE_URL = os.environ.get('WEBHOOK_BASE_URL', '').rstrip('/')
 if SHEPHERD_BEARER_TOKEN:
     init_shepherd_client(SHEPHERD_BEARER_TOKEN)
 
@@ -55,17 +56,158 @@ JWT_SECRET = os.environ.get('JWT_SECRET', 'rnoo-super-secret-key-change-in-produ
 JWT_ALGORITHM = 'HS256'
 JWT_EXPIRATION_HOURS = 24
 
+# ============== SHEPHERD WEBHOOK HELPERS ==============
+
+# Shepherd push events RNOO subscribes to on startup
+SHEPHERD_WEBHOOK_EVENTS = ["ORDERSTATUSUPDATE", "MENUUPDATE", "NEWORDER"]
+
+
+async def subscribe_shepherd_webhooks_on_startup():
+    """Subscribe all active Shepherd-linked merchants to webhook events on startup."""
+    shepherd = get_shepherd_client()
+    if not shepherd or not WEBHOOK_BASE_URL:
+        return
+
+    try:
+        merchants = await db.merchants.find(
+            {"is_active": True, "shepherd_config.merchant_id": {"$exists": True, "$ne": None}},
+            {"_id": 0, "id": 1, "shepherd_config": 1}
+        ).to_list(500)
+
+        for merchant in merchants:
+            shepherd_merchant_id = merchant.get("shepherd_config", {}).get("merchant_id")
+            if not shepherd_merchant_id:
+                continue
+            callback_url = f"{WEBHOOK_BASE_URL}/api/webhooks/shepherd/{shepherd_merchant_id}"
+            for event_id in SHEPHERD_WEBHOOK_EVENTS:
+                try:
+                    await shepherd.subscribe_webhook_event(shepherd_merchant_id, event_id, callback_url)
+                    logger.info(f"Webhook startup: subscribed {shepherd_merchant_id} to {event_id} -> {callback_url}")
+                except Exception as e:
+                    logger.warning(f"Webhook startup: could not subscribe {shepherd_merchant_id} to {event_id}: {e}")
+    except Exception as e:
+        logger.error(f"Webhook startup subscription failed: {e}")
+
+
+async def _handle_shepherd_order_status_update(shepherd_merchant_id: str, payload: dict):
+    """Handle ORDERSTATUSUPDATE webhook push from Shepherd."""
+    try:
+        order_ref = (
+            payload.get("id") or payload.get("orderId") or payload.get("order_id") or
+            payload.get("OrderId") or payload.get("ref") or payload.get("Ref")
+        )
+        status_raw = (
+            payload.get("status") or payload.get("Status") or
+            payload.get("orderStatus") or payload.get("OrderStatus") or ""
+        )
+
+        if not order_ref:
+            logger.warning(f"ORDERSTATUSUPDATE for {shepherd_merchant_id}: no order ref in payload {payload}")
+            return
+
+        order = await db.orders.find_one(
+            {"$or": [{"shepherd_order_id": order_ref}, {"shepherd_order_ref": order_ref}]},
+            {"_id": 0}
+        )
+
+        if not order:
+            logger.warning(f"ORDERSTATUSUPDATE: no order found for ref {order_ref} (merchant {shepherd_merchant_id})")
+            return
+
+        new_status = map_shepherd_status_to_internal(status_raw.lower(), order.get("status"))
+        old_status = order.get("status")
+
+        update_data = {
+            "shepherd_status": status_raw,
+            "shepherd_status_updated_at": datetime.now(timezone.utc).isoformat()
+        }
+        if new_status != old_status:
+            update_data["status"] = new_status
+
+        await db.orders.update_one({"id": order["id"]}, {"$set": update_data})
+
+        if new_status != old_status:
+            updated_order = await db.orders.find_one({"id": order["id"]}, {"_id": 0})
+            if updated_order:
+                await ws_manager.broadcast_order_event(
+                    f"order_status_{new_status}",
+                    updated_order,
+                    order["merchant_id"]
+                )
+            logger.info(f"Webhook: order {order['id'][:8]} status {old_status} -> {new_status}")
+    except Exception as e:
+        logger.error(f"Error handling ORDERSTATUSUPDATE webhook: {e}")
+
+
+async def _handle_shepherd_menu_update(shepherd_merchant_id: str):
+    """Handle MENUUPDATE webhook push from Shepherd — re-syncs menu for the merchant."""
+    try:
+        merchant = await db.merchants.find_one(
+            {"shepherd_config.merchant_id": shepherd_merchant_id, "is_active": True},
+            {"_id": 0, "id": 1, "shepherd_config": 1}
+        )
+        if not merchant:
+            logger.warning(f"MENUUPDATE webhook: no active merchant for Shepherd ID {shepherd_merchant_id}")
+            return
+
+        shepherd = get_shepherd_client()
+        if not shepherd:
+            return
+
+        merchant_id = merchant["id"]
+        shepherd_menu = await shepherd.get_menu(shepherd_merchant_id)
+        schedules_data = await shepherd.get_schedules(shepherd_merchant_id)
+        schedules = schedules_data if isinstance(schedules_data, list) else schedules_data.get("schedules", [])
+
+        transformed = transform_shepherd_menu_to_rnoo(
+            shepherd_menu, merchant_id,
+            shepherd_merchant_id=shepherd_merchant_id,
+            rnoo_only=True, schedules=schedules
+        )
+
+        await db.menu_categories.delete_many({"merchant_id": merchant_id})
+        await db.menu_items.delete_many({"merchant_id": merchant_id})
+
+        if transformed["categories"]:
+            for cat in transformed["categories"]:
+                cat["created_at"] = datetime.now(timezone.utc).isoformat()
+            await db.menu_categories.insert_many(transformed["categories"])
+
+        if transformed["items"]:
+            for item in transformed["items"]:
+                item["created_at"] = datetime.now(timezone.utc).isoformat()
+            await db.menu_items.insert_many(transformed["items"])
+
+        await db.merchants.update_one(
+            {"id": merchant_id},
+            {"$set": {"last_menu_sync": datetime.now(timezone.utc).isoformat()}}
+        )
+        logger.info(
+            f"Webhook menu re-sync complete for merchant {merchant_id}: "
+            f"{len(transformed['categories'])} cats, {len(transformed['items'])} items"
+        )
+    except Exception as e:
+        logger.error(f"Error handling MENUUPDATE webhook: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Handle application startup and shutdown events"""
     global _background_sync_task
-    
+
     logger.info("Application starting up...")
-    
+
     # Start the background order status sync task
     _background_sync_task = asyncio.create_task(sync_order_statuses_background())
     logger.info("Background order status sync task started")
-    
+
+    # Subscribe to Shepherd webhook events if WEBHOOK_BASE_URL is set
+    if WEBHOOK_BASE_URL and SHEPHERD_BEARER_TOKEN:
+        asyncio.create_task(subscribe_shepherd_webhooks_on_startup())
+        logger.info(f"Shepherd webhook subscription task started (base URL: {WEBHOOK_BASE_URL})")
+    else:
+        logger.info("WEBHOOK_BASE_URL not set — running in poll-only mode (set WEBHOOK_BASE_URL in .env to enable push webhooks)")
+
     yield
     
     # Shutdown
@@ -394,7 +536,7 @@ class BrandingSettings(BaseModel):
 
 class ShepherdConfig(BaseModel):
     merchant_id: str
-    clerk_id: str = "8888"
+    clerk_id: Optional[str] = None
     profit_center: Optional[str] = None
     concept_id: Optional[str] = None
     api_endpoint: Optional[str] = None
@@ -3775,6 +3917,110 @@ async def link_merchant_to_shepherd(
         "merchant_id": merchant_id,
         "shepherd_merchant_id": shepherd_merchant_id
     }
+
+# ============== SHEPHERD WEBHOOK RECEIVER & MANAGEMENT ==============
+
+@api_router.post("/webhooks/shepherd/{shepherd_merchant_id}")
+async def receive_shepherd_webhook(shepherd_merchant_id: str, request: Request):
+    """
+    Receive Shepherd push webhook events.
+    Shepherd POSTs here when subscribed events fire (ORDERSTATUSUPDATE, MENUUPDATE, NEWORDER).
+    No authentication required — Shepherd does not send our token back.
+    In production, restrict this path by IP at the reverse-proxy level.
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    event_type = (
+        body.get("eventType") or body.get("EventType") or
+        body.get("event") or body.get("Event") or
+        body.get("event_type") or body.get("type") or ""
+    ).upper()
+
+    logger.info(f"Shepherd webhook received: merchant={shepherd_merchant_id} event={event_type} payload={body}")
+
+    if event_type == "ORDERSTATUSUPDATE":
+        asyncio.create_task(_handle_shepherd_order_status_update(shepherd_merchant_id, body))
+    elif event_type == "MENUUPDATE":
+        asyncio.create_task(_handle_shepherd_menu_update(shepherd_merchant_id))
+    elif event_type == "NEWORDER":
+        logger.info(f"Shepherd NEWORDER event for merchant {shepherd_merchant_id} (informational)")
+    else:
+        logger.info(f"Shepherd webhook unhandled event type '{event_type}' for merchant {shepherd_merchant_id}")
+
+    return {"received": True, "merchant": shepherd_merchant_id, "event": event_type}
+
+
+@api_router.get("/shepherd/merchants/{shepherd_merchant_id}/webhooks/events")
+async def list_shepherd_webhook_events(
+    shepherd_merchant_id: str,
+    user: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.RESELLER]))
+):
+    """List available webhook event types for a Shepherd merchant."""
+    shepherd = get_shepherd_client()
+    if not shepherd:
+        raise HTTPException(status_code=503, detail="Shepherd API not configured")
+    try:
+        events = await shepherd.get_webhook_events(shepherd_merchant_id)
+        return {"events": events, "shepherd_merchant_id": shepherd_merchant_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Shepherd API error: {str(e)}")
+
+
+@api_router.get("/shepherd/merchants/{shepherd_merchant_id}/webhooks/subscriptions")
+async def list_shepherd_webhook_subscriptions(
+    shepherd_merchant_id: str,
+    user: dict = Depends(require_role([UserRole.SUPER_ADMIN, UserRole.RESELLER]))
+):
+    """List current webhook subscriptions for a Shepherd merchant."""
+    shepherd = get_shepherd_client()
+    if not shepherd:
+        raise HTTPException(status_code=503, detail="Shepherd API not configured")
+    try:
+        subscriptions = await shepherd.get_webhook_subscriptions(shepherd_merchant_id)
+        return {"subscriptions": subscriptions, "shepherd_merchant_id": shepherd_merchant_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Shepherd API error: {str(e)}")
+
+
+@api_router.post("/shepherd/merchants/{shepherd_merchant_id}/webhooks/subscribe")
+async def subscribe_to_shepherd_webhook(
+    shepherd_merchant_id: str,
+    event_id: str,
+    user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))
+):
+    """Subscribe to a Shepherd webhook event for a merchant."""
+    shepherd = get_shepherd_client()
+    if not shepherd:
+        raise HTTPException(status_code=503, detail="Shepherd API not configured")
+    if not WEBHOOK_BASE_URL:
+        raise HTTPException(status_code=400, detail="WEBHOOK_BASE_URL not configured in .env — Shepherd needs a public URL to POST to")
+    try:
+        callback_url = f"{WEBHOOK_BASE_URL}/api/webhooks/shepherd/{shepherd_merchant_id}"
+        result = await shepherd.subscribe_webhook_event(shepherd_merchant_id, event_id, callback_url)
+        return {"subscribed": True, "event": event_id, "callback_url": callback_url, "response": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Subscription failed: {str(e)}")
+
+
+@api_router.delete("/shepherd/merchants/{shepherd_merchant_id}/webhooks/{event_id}")
+async def unsubscribe_from_shepherd_webhook(
+    shepherd_merchant_id: str,
+    event_id: str,
+    user: dict = Depends(require_role([UserRole.SUPER_ADMIN]))
+):
+    """Unsubscribe from a Shepherd webhook event for a merchant."""
+    shepherd = get_shepherd_client()
+    if not shepherd:
+        raise HTTPException(status_code=503, detail="Shepherd API not configured")
+    try:
+        result = await shepherd.unsubscribe_webhook_event(shepherd_merchant_id, event_id)
+        return {"unsubscribed": True, "event": event_id, "response": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unsubscription failed: {str(e)}")
+
 
 # ============== HEALTH CHECK ==============
 @api_router.get("/")

@@ -12,6 +12,8 @@ import {
   MapPin,
   ShoppingBag,
   LogIn,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 
 const RP_RED = "#d71920";
@@ -33,17 +35,23 @@ const HomePage = () => {
   const navigate = useNavigate();
   const [merchants, setMerchants] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     loadMerchants();
   }, []);
 
   const loadMerchants = async () => {
+    setError(null);
+    setLoading(true);
     try {
       const res = await apiService.getPublicMerchants();
       setMerchants(Array.isArray(res?.data) ? res.data : []);
     } catch (err) {
       console.error("Failed to load merchants:", err);
+      setError(
+        "Could not load restaurants. Please check your connection and try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -109,6 +117,18 @@ const HomePage = () => {
                 </Card>
               ))}
             </div>
+          ) : error ? (
+            <Card className="p-12 text-center">
+              <AlertCircle className="w-16 h-16 mx-auto text-red-400 mb-4" />
+              <h3 className="text-xl font-heading font-semibold mb-2">
+                Unable to Load Restaurants
+              </h3>
+              <p className="text-gray-500 mb-6">{error}</p>
+              <Button onClick={loadMerchants} variant="outline">
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Try Again
+              </Button>
+            </Card>
           ) : merchants.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {merchants.map((merchant, index) => (
@@ -167,7 +187,9 @@ const HomePage = () => {
                           </h3>
                           <div className="flex items-center gap-1 text-sm text-gray-500 mt-1">
                             <MapPin className="w-4 h-4" />
-                            {merchant.city}, {merchant.state}
+                            {[merchant.city, merchant.state]
+                              .filter(Boolean)
+                              .join(", ") || "Location not listed"}
                           </div>
                         </div>
                       </div>
@@ -197,7 +219,9 @@ const HomePage = () => {
               <h3 className="text-xl font-heading font-semibold mb-2">
                 No Restaurants Yet
               </h3>
-              <p className="text-gray-500">No boarded merchants are available.</p>
+              <p className="text-gray-500">
+                No boarded merchants are available.
+              </p>
             </Card>
           )}
         </div>

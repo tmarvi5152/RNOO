@@ -107,7 +107,6 @@ const OrdersPage = () => {
 
   // Handle new order from WebSocket
   const handleNewOrder = useCallback((order) => {
-    console.log("New order received via WebSocket:", order);
     setOrders((prev) => {
       // Check if order already exists
       if (prev.find((o) => o.id === order.id)) return prev;
@@ -121,24 +120,10 @@ const OrdersPage = () => {
       description: `${order.customer?.name} - $${order.total?.toFixed(2)}`,
       duration: 5000,
     });
-    // Play notification sound (optional)
-    try {
-      const audio = new Audio(
-        "data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU" +
-          "AAAAAA",
-      );
-      audio.volume = 0.3;
-      audio.play().catch(() => {
-        /* ignore audio play errors */
-      });
-    } catch {
-      // Audio not supported
-    }
   }, []);
 
   // Handle order update from WebSocket
   const handleOrderUpdate = useCallback((order, eventType) => {
-    console.log("Order update received via WebSocket:", eventType, order);
     setOrders((prev) => prev.map((o) => (o.id === order.id ? order : o)));
     // Update selected order if it's the one being viewed
     setSelectedOrder((prev) => {
@@ -159,8 +144,6 @@ const OrdersPage = () => {
     merchantId: user?.role === "merchant" ? user?.merchant_id : undefined,
     onNewOrder: handleNewOrder,
     onOrderUpdate: handleOrderUpdate,
-    onConnect: () => console.log("WebSocket connected"),
-    onDisconnect: () => console.log("WebSocket disconnected"),
   });
 
   // Clear new order highlight after 10 seconds

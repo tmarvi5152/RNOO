@@ -90,13 +90,17 @@ const AdminSidebar = ({
       <div className="flex items-center gap-3 mb-4 px-4">
         <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
           <span className="font-heading font-bold">
-            {user?.name?.[0] || "U"}
+            {(user?.name || user?.first_name || "U")[0].toUpperCase()}
           </span>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-sm truncate">{user?.name}</p>
+          <p className="font-medium text-sm truncate">
+            {user?.name ||
+              `${user?.first_name || ""} ${user?.last_name || ""}`.trim() ||
+              user?.email}
+          </p>
           <p className="text-xs text-rpower-text-light/60 capitalize">
-            {user?.role?.replace("_", " ")}
+            {user?.role?.replaceAll("_", " ")}
           </p>
         </div>
       </div>
@@ -194,6 +198,7 @@ export const AdminLayout = ({ children }) => {
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Open navigation menu"
             onClick={() => setSidebarOpen(true)}
           >
             <Menu className="w-6 h-6" />

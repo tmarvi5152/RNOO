@@ -157,7 +157,6 @@ const ShepherdPage = () => {
       await apiService.updateMerchant(linkingMerchant.id, {
         shepherd_config: {
           merchant_id: selectedShepherdId,
-          clerk_id: "8888",
           location: shepherdMerchant?.location,
         },
       });

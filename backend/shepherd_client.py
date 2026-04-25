@@ -277,6 +277,8 @@ class ShepherdAPIClient:
                     response = await client.post(url, headers=self.headers, json=data)
                 elif method == "PUT":
                     response = await client.put(url, headers=self.headers, json=data)
+                elif method == "DELETE":
+                    response = await client.delete(url, headers=self.headers)
                 else:
                     raise ValueError(f"Unsupported HTTP method: {method}")
 
@@ -379,7 +381,45 @@ class ShepherdAPIClient:
         Endpoint: /merchants/{merchantId}/menus/{menuId}
         """
         return await self._request("GET", f"/merchants/{merchant_id}/menus/{menu_id}")
-    
+
+    # ── Webhook Subscription Methods ──────────────────────────────────────────
+
+    async def get_webhook_events(self, merchant_id: str) -> list:
+        """
+        List available webhook event types for a merchant.
+        Known events: NEWORDER, ORDERSTATUSUPDATE, MENUUPDATE, ITEM86, 86LISTUPDATE,
+                      DEVICERESPONSE, TICKETPOLL, WAITLIST
+        Endpoint: GET /merchants/{merchantId}/webhooks/events
+        """
+        return await self._request("GET", f"/merchants/{merchant_id}/webhooks/events")
+
+    async def get_webhook_subscriptions(self, merchant_id: str) -> dict:
+        """
+        Get current webhook subscriptions for a merchant.
+        Endpoint: GET /merchants/{merchantId}/webhooks
+        """
+        return await self._request("GET", f"/merchants/{merchant_id}/webhooks")
+
+    async def subscribe_webhook_event(self, merchant_id: str, event_id: str, callback_url: str) -> dict:
+        """
+        Subscribe to a Shepherd webhook push event.
+        Shepherd will POST to callback_url when the event fires.
+        event_id: e.g. 'ORDERSTATUSUPDATE', 'NEWORDER', 'MENUUPDATE'
+        Endpoint: POST /merchants/{merchantId}/webhooks/events/{eventId}
+        """
+        return await self._request(
+            "POST",
+            f"/merchants/{merchant_id}/webhooks/events/{event_id}",
+            {"url": callback_url}
+        )
+
+    async def unsubscribe_webhook_event(self, merchant_id: str, event_id: str) -> dict:
+        """
+        Unsubscribe from a Shepherd webhook event.
+        Endpoint: DELETE /merchants/{merchantId}/webhooks/events/{eventId}
+        """
+        return await self._request("DELETE", f"/merchants/{merchant_id}/webhooks/events/{event_id}")
+
     @staticmethod
     def get_logo_url(merchant_id: str) -> str:
         """Generate the URL for a merchant's logo"""

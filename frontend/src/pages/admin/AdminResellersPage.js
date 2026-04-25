@@ -55,7 +55,7 @@ const AdminResellersPage = () => {
     try {
       setLoading(true);
       const res = await apiService.getResellers();
-      setResellers(res || []);
+      setResellers(res.data || []);
     } catch (error) {
       toast.error("Failed to load resellers");
       console.error(error);
@@ -132,7 +132,8 @@ const AdminResellersPage = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm("Are you sure you want to delete this reseller?")) return;
+    if (!window.confirm("Are you sure you want to delete this reseller?"))
+      return;
 
     try {
       await apiService.deleteReseller(id);

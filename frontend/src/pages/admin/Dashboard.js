@@ -468,7 +468,7 @@ const AdminDashboard = () => {
             currentPeriodRevenue: 0,
             previousPeriodRevenue: 0,
             trend: 0,
-            rating: 4.5 + Math.random() * 0.5, // Simulated rating
+            rating: null, // Rating not yet implemented
           };
         }
 

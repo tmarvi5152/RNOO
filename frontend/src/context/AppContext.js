@@ -106,11 +106,19 @@ export const useCart = () => {
 
 export const CartProvider = ({ children }) => {
   const [items, setItems] = useState(() => {
-    const saved = localStorage.getItem("rnoo_cart");
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem("rnoo_cart");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
   const [merchantId, setMerchantId] = useState(() => {
-    return localStorage.getItem("rnoo_cart_merchant") || null;
+    try {
+      return localStorage.getItem("rnoo_cart_merchant") || null;
+    } catch {
+      return null;
+    }
   });
 
   useEffect(() => {

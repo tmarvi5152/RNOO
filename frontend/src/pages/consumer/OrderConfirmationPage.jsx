@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "../../components/ui/button";
@@ -20,6 +20,14 @@ const OrderConfirmationPage = () => {
   const merchantSlug = searchParams.get("merchantSlug");
   const paymentMethod = searchParams.get("paymentMethod") || "";
   const [copied, setCopied] = useState(false);
+  // Capture the placed-at time once on mount so it doesn't change on re-renders
+  const placedAtRef = useRef(new Date().toLocaleTimeString());
+
+  useEffect(() => {
+    if (!orderId) {
+      navigate("/", { replace: true });
+    }
+  }, [orderId, navigate]);
 
   const paymentMethodLabelMap = {
     demo_card: "Demo Credit Card",
@@ -46,7 +54,7 @@ const OrderConfirmationPage = () => {
   };
 
   if (!orderId) {
-    return null;
+    return null; // Will redirect via useEffect
   }
 
   return (
@@ -99,7 +107,7 @@ const OrderConfirmationPage = () => {
               transition={{ delay: 0.5 }}
               className="p-4 bg-zinc-800/50 rounded-xl border border-zinc-700"
             >
-              <p className="text-sm text-zinc-400 mb-2">Order ID</p>
+              <p className="text-sm text-zinc-400 mb-2">Order Reference</p>
               <div className="flex items-center justify-between gap-3">
                 <p className="text-xl font-mono font-semibold text-orange-400 break-all">
                   {orderId}
@@ -180,7 +188,7 @@ const OrderConfirmationPage = () => {
           transition={{ delay: 0.8 }}
           className="text-center mt-6 text-zinc-500 text-sm"
         >
-          Order placed at {new Date().toLocaleTimeString()}
+          Order placed at {placedAtRef.current}
         </motion.div>
       </motion.div>
     </div>

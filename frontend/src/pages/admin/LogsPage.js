@@ -247,15 +247,13 @@ const LogsPage = () => {
     return "text-gray-700";
   };
 
-  const getUniqueActions = () => {
+  const uniqueActions = useMemo(() => {
     const actions = new Set();
     logs.forEach((log) => {
-      if (log.action) {
-        actions.add(log.action);
-      }
+      if (log.action) actions.add(log.action);
     });
     return Array.from(actions).sort();
-  };
+  }, [logs]);
 
   const getMerchantLabel = (merchantId) => {
     if (!merchantId) return "N/A";
@@ -476,7 +474,7 @@ const LogsPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Actions</SelectItem>
-                    {getUniqueActions().map((action) => (
+                    {uniqueActions.map((action) => (
                       <SelectItem key={action} value={action}>
                         {action.charAt(0).toUpperCase() + action.slice(1)}
                       </SelectItem>
