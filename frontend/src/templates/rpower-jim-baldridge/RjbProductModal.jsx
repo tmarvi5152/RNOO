@@ -11,6 +11,7 @@ const RjbProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
   const [specialInstructions, setSpecialInstructions] = useState("");
   const [expandedGroups, setExpandedGroups] = useState({});
   const [imageFailed, setImageFailed] = useState(false);
+  const [attempted, setAttempted] = useState(false);
 
   useEffect(() => {
     if (item?.modifier_groups) {
@@ -28,6 +29,7 @@ const RjbProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
       });
       setSelectedModifiers(defaults);
       setExpandedGroups(expanded);
+      setAttempted(false);
     }
   }, [item]);
 
@@ -99,18 +101,20 @@ const RjbProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
     return total * quantity;
   };
 
+  const isGroupSatisfied = (group) => {
+    if (!group?.is_required) return true;
+    const selection = selectedModifiers[group.id];
+    const min = group.min_selections || 1;
+    if (group.max_selections === 1) return Boolean(selection);
+    return Array.isArray(selection) && selection.length >= min;
+  };
+
   const handleAddToCart = () => {
+    setAttempted(true);
     for (const group of item.modifier_groups || []) {
-      if (group.is_required) {
-        const selection = selectedModifiers[group.id];
-        if (
-          !selection ||
-          (Array.isArray(selection) &&
-            selection.length < (group.min_selections || 1))
-        ) {
-          toast.error(`Please select ${group.name}`);
-          return;
-        }
+      if (group.is_required && !isGroupSatisfied(group)) {
+        toast.error(`Please select ${group.name}`);
+        return;
       }
     }
 
@@ -304,7 +308,11 @@ const RjbProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                   initial={{ y: 18, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.08 + groupIndex * 0.05 }}
-                  className="rjb-modifier-group border border-[#e8ba532f] rounded-2xl overflow-hidden"
+                  className={`rjb-modifier-group border rounded-2xl overflow-hidden ${
+                    attempted && !isGroupSatisfied(group)
+                      ? "border-[#cf2030] bg-[#cf203012]"
+                      : "border-[#e8ba532f]"
+                  }`}
                 >
                   <button
                     onClick={() =>
@@ -332,6 +340,12 @@ const RjbProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                       <ChevronDown className="w-5 h-5 text-white/55" />
                     </motion.div>
                   </button>
+                  {attempted && !isGroupSatisfied(group) && (
+                    <div className="px-3 py-2 text-xs font-medium text-[#ff9aa3] bg-[#cf20301a] border-t border-[#cf203044]">
+                      Choose at least {group.min_selections || 1} option
+                      {(group.min_selections || 1) > 1 ? "s" : ""} to continue.
+                    </div>
+                  )}
 
                   <AnimatePresence>
                     {expandedGroups[group.id] && (
@@ -544,18 +558,20 @@ const RjbProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                 <div className="rjb-modal-qty-wrap flex items-center gap-1.5 bg-[#f5f7fb08] rounded-xl p-1.5 border border-[#e8ba532a]">
                   <motion.button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="rjb-modal-qty-btn w-8 h-8 rounded-md bg-[#1d2633] hover:bg-[#263245] flex items-center justify-center"
+                    className="rjb-modal-qty-btn w-10 h-10 rounded-md bg-[#1d2633] hover:bg-[#263245] flex items-center justify-center"
                     whileTap={{ scale: 0.9 }}
+                    aria-label="Decrease quantity"
                   >
                     <Minus className="w-4 h-4 text-white" />
                   </motion.button>
-                  <span className="w-7 text-center text-white font-semibold text-base">
+                  <span className="w-9 text-center text-white font-semibold text-base">
                     {quantity}
                   </span>
                   <motion.button
                     onClick={() => setQuantity(quantity + 1)}
-                    className="rjb-modal-qty-btn w-8 h-8 rounded-md bg-[#1d2633] hover:bg-[#263245] flex items-center justify-center"
+                    className="rjb-modal-qty-btn w-10 h-10 rounded-md bg-[#1d2633] hover:bg-[#263245] flex items-center justify-center"
                     whileTap={{ scale: 0.9 }}
+                    aria-label="Increase quantity"
                   >
                     <Plus className="w-4 h-4 text-white" />
                   </motion.button>

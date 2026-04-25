@@ -66,6 +66,8 @@ const MenuPage = () => {
   const [itemQuantity, setItemQuantity] = useState(1);
   const [selectedModifiers, setSelectedModifiers] = useState({});
   const [specialInstructions, setSpecialInstructions] = useState("");
+  const [modifierValidationAttempted, setModifierValidationAttempted] =
+    useState(false);
 
   useEffect(() => {
     loadMenuData();
@@ -99,6 +101,7 @@ const MenuPage = () => {
     setSelectedItem(item);
     setItemQuantity(1);
     setSpecialInstructions("");
+    setModifierValidationAttempted(false);
 
     // Initialize modifiers with defaults
     const defaults = {};
@@ -119,6 +122,15 @@ const MenuPage = () => {
 
   const closeItemModal = () => {
     setSelectedItem(null);
+    setModifierValidationAttempted(false);
+  };
+
+  const isGroupSatisfied = (group) => {
+    if (!group?.is_required) return true;
+    const selection = selectedModifiers[group.id];
+    const min = group.min_selections || 1;
+    if (group.max_selections === 1) return Boolean(selection);
+    return Array.isArray(selection) && selection.length >= min;
   };
 
   const handleModifierChange = (
@@ -167,6 +179,8 @@ const MenuPage = () => {
 
   const handleAddToCart = () => {
     if (!selectedItem) return;
+
+    setModifierValidationAttempted(true);
 
     // Validate required modifiers
     for (const group of selectedItem.modifier_groups || []) {
@@ -486,95 +500,112 @@ const MenuPage = () => {
 
                   {/* Modifier Groups */}
                   <div className="mt-6 space-y-6">
-                    {selectedItem.modifier_groups?.map((group) => (
-                      <div key={group.id} className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-semibold">{group.name}</h4>
-                          {group.is_required && (
-                            <Badge variant="outline" className="text-xs">
-                              Required
-                            </Badge>
+                    {selectedItem.modifier_groups?.map((group) => {
+                      const satisfied = isGroupSatisfied(group);
+                      return (
+                        <div
+                          key={group.id}
+                          className={`space-y-3 rounded-xl p-3 transition-colors ${
+                            modifierValidationAttempted && !satisfied
+                              ? "border border-red-300 bg-red-50/50"
+                              : "border border-transparent"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-semibold">{group.name}</h4>
+                            {group.is_required && (
+                              <Badge variant="outline" className="text-xs">
+                                Required
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            {group.min_selections > 0 &&
+                              `Min: ${group.min_selections} `}
+                            {group.max_selections > 1 &&
+                              `Max: ${group.max_selections}`}
+                          </p>
+                          {modifierValidationAttempted && !satisfied && (
+                            <p className="text-xs font-medium text-red-600">
+                              Please choose at least {group.min_selections || 1}{" "}
+                              option
+                              {group.min_selections > 1 ? "s" : ""}.
+                            </p>
+                          )}
+
+                          {group.max_selections === 1 ? (
+                            <RadioGroup
+                              value={selectedModifiers[group.id] || ""}
+                              onValueChange={(value) =>
+                                handleModifierChange(group.id, value, false)
+                              }
+                            >
+                              {group.options.map((option) => (
+                                <div
+                                  key={option.id}
+                                  className="flex items-center justify-between"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <RadioGroupItem
+                                      value={option.id}
+                                      id={option.id}
+                                    />
+                                    <Label
+                                      htmlFor={option.id}
+                                      className="cursor-pointer"
+                                    >
+                                      {option.name}
+                                    </Label>
+                                  </div>
+                                  {option.price > 0 && (
+                                    <span className="text-sm text-gray-500">
+                                      +${option.price.toFixed(2)}
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                            </RadioGroup>
+                          ) : (
+                            <div className="space-y-2">
+                              {group.options.map((option) => (
+                                <div
+                                  key={option.id}
+                                  className="flex items-center justify-between"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Checkbox
+                                      id={option.id}
+                                      checked={(
+                                        selectedModifiers[group.id] || []
+                                      ).includes(option.id)}
+                                      onCheckedChange={() =>
+                                        handleModifierChange(
+                                          group.id,
+                                          option.id,
+                                          true,
+                                          group.max_selections,
+                                        )
+                                      }
+                                    />
+                                    <Label
+                                      htmlFor={option.id}
+                                      className="cursor-pointer"
+                                    >
+                                      {option.name}
+                                    </Label>
+                                  </div>
+                                  {option.price > 0 && (
+                                    <span className="text-sm text-gray-500">
+                                      +${option.price.toFixed(2)}
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
                           )}
                         </div>
-                        <p className="text-xs text-gray-500">
-                          {group.min_selections > 0 &&
-                            `Min: ${group.min_selections} `}
-                          {group.max_selections > 1 &&
-                            `Max: ${group.max_selections}`}
-                        </p>
-
-                        {group.max_selections === 1 ? (
-                          <RadioGroup
-                            value={selectedModifiers[group.id] || ""}
-                            onValueChange={(value) =>
-                              handleModifierChange(group.id, value, false)
-                            }
-                          >
-                            {group.options.map((option) => (
-                              <div
-                                key={option.id}
-                                className="flex items-center justify-between"
-                              >
-                                <div className="flex items-center gap-2">
-                                  <RadioGroupItem
-                                    value={option.id}
-                                    id={option.id}
-                                  />
-                                  <Label
-                                    htmlFor={option.id}
-                                    className="cursor-pointer"
-                                  >
-                                    {option.name}
-                                  </Label>
-                                </div>
-                                {option.price > 0 && (
-                                  <span className="text-sm text-gray-500">
-                                    +${option.price.toFixed(2)}
-                                  </span>
-                                )}
-                              </div>
-                            ))}
-                          </RadioGroup>
-                        ) : (
-                          <div className="space-y-2">
-                            {group.options.map((option) => (
-                              <div
-                                key={option.id}
-                                className="flex items-center justify-between"
-                              >
-                                <div className="flex items-center gap-2">
-                                  <Checkbox
-                                    id={option.id}
-                                    checked={(
-                                      selectedModifiers[group.id] || []
-                                    ).includes(option.id)}
-                                    onCheckedChange={() =>
-                                      handleModifierChange(
-                                        group.id,
-                                        option.id,
-                                        true,
-                                        group.max_selections,
-                                      )
-                                    }
-                                  />
-                                  <Label
-                                    htmlFor={option.id}
-                                    className="cursor-pointer"
-                                  >
-                                    {option.name}
-                                  </Label>
-                                </div>
-                                {option.price > 0 && (
-                                  <span className="text-sm text-gray-500">
-                                    +${option.price.toFixed(2)}
-                                  </span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
 
                     {/* Special Instructions */}
                     <div className="space-y-2">
@@ -595,25 +626,27 @@ const MenuPage = () => {
               <div className="border-t p-4 flex-shrink-0 bg-white">
                 <div className="flex items-center gap-4">
                   {/* Quantity */}
-                  <div className="flex items-center gap-2 bg-gray-100 rounded-full px-2">
+                  <div className="flex items-center gap-2 bg-gray-100 rounded-full px-2.5 py-1">
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 rounded-full"
+                      className="h-10 w-10 rounded-full"
                       onClick={() =>
                         setItemQuantity(Math.max(1, itemQuantity - 1))
                       }
+                      aria-label="Decrease quantity"
                     >
                       <Minus className="w-4 h-4" />
                     </Button>
-                    <span className="w-8 text-center font-semibold">
+                    <span className="w-9 text-center font-semibold">
                       {itemQuantity}
                     </span>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 rounded-full"
+                      className="h-10 w-10 rounded-full"
                       onClick={() => setItemQuantity(itemQuantity + 1)}
+                      aria-label="Increase quantity"
                     >
                       <Plus className="w-4 h-4" />
                     </Button>

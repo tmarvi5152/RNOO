@@ -18,6 +18,16 @@ import RpowerJimBaldridgeCartPage from "./rpower-jim-baldridge/CartPage";
 import RpowerJimBaldridgeCheckoutPage from "./rpower-jim-baldridge/CheckoutPage";
 import RpowerJimBaldridgeOrderTrackingPage from "./rpower-jim-baldridge/OrderTrackingPage";
 import RpowerJimBaldridgeOrderConfirmationPage from "./rpower-jim-baldridge/OrderConfirmationPage";
+import VelocityMenuPage from "./velocity/MenuPage";
+import VelocityCartPage from "./velocity/CartPage";
+import VelocityCheckoutPage from "./velocity/CheckoutPage";
+import VelocityOrderTrackingPage from "./velocity/OrderTrackingPage";
+import VelocityOrderConfirmationPage from "./velocity/OrderConfirmationPage";
+import CraveMenuPage from "./crave/MenuPage";
+import CraveCartPage from "./crave/CartPage";
+import CraveCheckoutPage from "./crave/CheckoutPage";
+import CraveOrderTrackingPage from "./crave/OrderTrackingPage";
+import CraveOrderConfirmationPage from "./crave/OrderConfirmationPage";
 
 export const DEFAULT_TEMPLATE = "classic";
 
@@ -50,6 +60,26 @@ export const TEMPLATES = {
     CheckoutPage: RpowerJimBaldridgeCheckoutPage,
     OrderTrackingPage: RpowerJimBaldridgeOrderTrackingPage,
     OrderConfirmationPage: RpowerJimBaldridgeOrderConfirmationPage,
+  },
+  velocity: {
+    label: "Velocity",
+    description:
+      "Pure speed and conversion. Dense grid layout, bottom-sheet modifiers, and a frictionless checkout flow inspired by fast-food mobile apps.",
+    MenuPage: VelocityMenuPage,
+    CartPage: VelocityCartPage,
+    CheckoutPage: VelocityCheckoutPage,
+    OrderTrackingPage: VelocityOrderTrackingPage,
+    OrderConfirmationPage: VelocityOrderConfirmationPage,
+  },
+  crave: {
+    label: "Crave",
+    description:
+      "Modern, playful, rounded list-first flow with FAB cart and focused accordion checkout.",
+    MenuPage: CraveMenuPage,
+    CartPage: CraveCartPage,
+    CheckoutPage: CraveCheckoutPage,
+    OrderTrackingPage: CraveOrderTrackingPage,
+    OrderConfirmationPage: CraveOrderConfirmationPage,
   },
   // Future templates go here, e.g.:
   // modern: { label: "Modern", MenuPage: ..., ... }

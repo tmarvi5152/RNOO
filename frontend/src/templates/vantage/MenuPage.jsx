@@ -21,10 +21,12 @@ const VantageMenuModal = ({ item, merchantId, merchantSlug, onClose }) => {
   const [selectedModifiers, setSelectedModifiers] = useState({});
   const [specialInstructions, setSpecialInstructions] = useState("");
   const [imageFailed, setImageFailed] = useState(false);
+  const [attempted, setAttempted] = useState(false);
 
   useEffect(() => {
     if (!item) return;
     setImageFailed(false);
+    setAttempted(false);
     const defaults = {};
     item.modifier_groups?.forEach((group) => {
       const defaultOption = group.options?.find((o) => o.is_default);
@@ -74,15 +76,19 @@ const VantageMenuModal = ({ item, merchantId, merchantSlug, onClose }) => {
     return total;
   }, [item, selectedModifiers]);
 
+  const isGroupSatisfied = (group) => {
+    if (!group?.is_required) return true;
+    const selected = selectedModifiers[group.id];
+    const min = group.min_selections || 1;
+    if (group.max_selections === 1) return Boolean(selected);
+    return Array.isArray(selected) && selected.length >= min;
+  };
+
   const handleAdd = () => {
+    setAttempted(true);
     for (const group of item.modifier_groups || []) {
       if (!group.is_required) continue;
-      const selected = selectedModifiers[group.id];
-      if (
-        !selected ||
-        (Array.isArray(selected) &&
-          selected.length < (group.min_selections || 1))
-      ) {
+      if (!isGroupSatisfied(group)) {
         toast.error(`Please select ${group.name}`);
         return;
       }
@@ -172,8 +178,16 @@ const VantageMenuModal = ({ item, merchantId, merchantSlug, onClose }) => {
           <div className="space-y-5 mt-6">
             {item.modifier_groups?.map((group) => {
               const isSingle = group.max_selections === 1;
+              const satisfied = isGroupSatisfied(group);
               return (
-                <div key={group.id} className="vantage-surface p-4">
+                <div
+                  key={group.id}
+                  className={`vantage-surface p-4 ${
+                    attempted && !satisfied
+                      ? "border border-red-300 bg-red-50"
+                      : ""
+                  }`}
+                >
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-medium">{group.name}</h4>
                     {group.is_required && (
@@ -186,6 +200,12 @@ const VantageMenuModal = ({ item, merchantId, merchantSlug, onClose }) => {
                       ? `Max ${group.max_selections}`
                       : "Choose one"}
                   </p>
+                  {attempted && !satisfied && (
+                    <p className="text-xs font-medium text-red-600 mb-3">
+                      Please choose at least {group.min_selections || 1} option
+                      {(group.min_selections || 1) > 1 ? "s" : ""}.
+                    </p>
+                  )}
 
                   {isSingle ? (
                     <RadioGroup
@@ -272,16 +292,18 @@ const VantageMenuModal = ({ item, merchantId, merchantSlug, onClose }) => {
           <div className="inline-flex items-center gap-2 bg-black/5 rounded-full px-2 py-1">
             <button
               onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-              className="w-8 h-8 rounded-full bg-white flex items-center justify-center"
+              className="w-10 h-10 rounded-full bg-white flex items-center justify-center"
+              aria-label="Decrease quantity"
             >
               <Minus className="w-4 h-4" />
             </button>
-            <span className="w-8 text-center text-sm font-medium">
+            <span className="w-9 text-center text-sm font-medium">
               {quantity}
             </span>
             <button
               onClick={() => setQuantity((q) => q + 1)}
-              className="w-8 h-8 rounded-full bg-white flex items-center justify-center"
+              className="w-10 h-10 rounded-full bg-white flex items-center justify-center"
+              aria-label="Increase quantity"
             >
               <Plus className="w-4 h-4" />
             </button>

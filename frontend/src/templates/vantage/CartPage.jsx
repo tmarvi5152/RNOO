@@ -51,7 +51,7 @@ const VantageCartPage = () => {
 
   return (
     <div className="min-h-screen bg-[#f8f8f5]">
-      <div className="max-w-7xl mx-auto px-6 py-10">
+      <div className="max-w-7xl mx-auto px-6 py-10 pb-32 lg:pb-10">
         <button
           onClick={() => navigate(`/order/${slug}`)}
           className="mb-6 inline-flex items-center gap-2 text-sm text-black/70 hover:text-black"
@@ -170,7 +170,7 @@ const VantageCartPage = () => {
                   <span>${subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-black/65">
-                  <span>Tax</span>
+                  <span>Tax (8.25%)</span>
                   <span>${tax.toFixed(2)}</span>
                 </div>
               </div>
@@ -190,6 +190,31 @@ const VantageCartPage = () => {
               </Button>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 bg-[#f8f8f5]/95 backdrop-blur border-t border-black/10 p-4 lg:hidden">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-sm space-y-1 mb-3">
+            <div className="flex justify-between text-black/65">
+              <span>Subtotal</span>
+              <span>${subtotal.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-black/65">
+              <span>Tax (8.25%)</span>
+              <span>${tax.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between font-semibold pt-1 border-t border-black/10">
+              <span>Total</span>
+              <span>${total.toFixed(2)}</span>
+            </div>
+          </div>
+          <Button
+            className="w-full rounded-full h-11"
+            onClick={() => navigate(`/checkout/${slug}`)}
+          >
+            Continue to Checkout
+          </Button>
         </div>
       </div>
     </div>

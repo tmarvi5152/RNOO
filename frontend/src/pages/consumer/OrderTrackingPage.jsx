@@ -63,6 +63,68 @@ const statusSteps = [
   },
 ];
 
+const DISPLAY_STEPS = [
+  { label: "Received", statuses: ["pending", "confirmed"] },
+  { label: "Preparing", statuses: ["preparing"] },
+  { label: "Ready", statuses: ["ready"] },
+  { label: "Delivered", statuses: ["delivered"] },
+];
+
+const HorizontalTracker = ({ status }) => {
+  const activeIdx = React.useMemo(() => {
+    for (let i = 0; i < DISPLAY_STEPS.length; i++) {
+      if (DISPLAY_STEPS[i].statuses.includes(status)) return i;
+    }
+    return 0;
+  }, [status]);
+
+  return (
+    <div className="flex items-center w-full mb-6 px-1">
+      {DISPLAY_STEPS.map((step, idx) => {
+        const completed = idx < activeIdx;
+        const current = idx === activeIdx;
+        const isLast = idx === DISPLAY_STEPS.length - 1;
+        return (
+          <React.Fragment key={step.label}>
+            <div className="flex flex-col items-center gap-1.5 shrink-0">
+              <div
+                className={`w-4 h-4 rounded-full border-2 transition-colors ${
+                  completed
+                    ? "bg-orange-500 border-orange-500"
+                    : current
+                      ? "bg-zinc-900 border-orange-500 ring-4 ring-orange-500/20"
+                      : "bg-zinc-700 border-zinc-600"
+                }`}
+              />
+              <span
+                className={`text-[10px] font-bold uppercase tracking-wide whitespace-nowrap ${
+                  current
+                    ? "text-orange-400"
+                    : completed
+                      ? "text-zinc-300"
+                      : "text-zinc-500"
+                }`}
+              >
+                {step.label}
+              </span>
+            </div>
+            {!isLast && (
+              <div className="flex-1 h-0.5 mx-1 mb-5 rounded-full overflow-hidden bg-zinc-700">
+                <motion.div
+                  className="h-full rounded-full bg-orange-500"
+                  initial={{ width: 0 }}
+                  animate={{ width: completed ? "100%" : "0%" }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
+                />
+              </div>
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+};
+
 const OrderTrackingPage = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
@@ -264,6 +326,8 @@ const OrderTrackingPage = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                {!isCancelled && <HorizontalTracker status={order.status} />}
+
                 {!isCancelled && estimatedTime && (
                   <div className="mb-6 p-4 bg-orange-500/10 border border-orange-500/30 rounded-xl">
                     <div className="flex items-center gap-2 text-orange-400">
@@ -369,7 +433,10 @@ const OrderTrackingPage = () => {
                         )}
                       </div>
                       <span className="text-white font-semibold">
-                        ${item.total.toFixed(2)}
+                        $
+                        {(
+                          item.total ?? (item.unit_price ?? 0) * item.quantity
+                        ).toFixed(2)}
                       </span>
                     </div>
                   ))}
@@ -379,22 +446,22 @@ const OrderTrackingPage = () => {
                 <div className="mt-4 pt-4 border-t border-white/10 space-y-2">
                   <div className="flex justify-between text-zinc-400">
                     <span>Subtotal</span>
-                    <span>${order.subtotal.toFixed(2)}</span>
+                    <span>${(order.subtotal || 0).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-zinc-400">
                     <span>Tax</span>
-                    <span>${order.tax.toFixed(2)}</span>
+                    <span>${(order.tax || 0).toFixed(2)}</span>
                   </div>
                   {order.tip > 0 && (
                     <div className="flex justify-between text-zinc-400">
                       <span>Tip</span>
-                      <span>${order.tip.toFixed(2)}</span>
+                      <span>${(order.tip || 0).toFixed(2)}</span>
                     </div>
                   )}
                   <div className="flex justify-between text-lg font-bold text-white pt-2 border-t border-white/10">
                     <span>Total</span>
                     <span className="text-orange-400">
-                      ${order.total.toFixed(2)}
+                      ${(order.total || 0).toFixed(2)}
                     </span>
                   </div>
                 </div>

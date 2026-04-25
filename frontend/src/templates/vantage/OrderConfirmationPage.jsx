@@ -20,6 +20,8 @@ const VantageOrderConfirmationPage = () => {
     demo_card: "Demo Credit Card",
     cash: "Cash",
     pay_at_store: "Pay at Store",
+    apple_pay: "Apple Pay",
+    google_pay: "Google Pay",
   };
   const paymentMethodLabel = paymentMethodLabelMap[paymentMethod] || "";
 

@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { AdminLayout } from "../../layouts/Layout";
@@ -13,6 +19,13 @@ import {
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { Input } from "../../components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -129,6 +142,91 @@ const RecentOrderRow = ({ order }) => {
   );
 };
 
+const LIVE_ORDER_STATUSES = new Set([
+  "pending",
+  "confirmed",
+  "preparing",
+  "ready",
+]);
+
+const getOrderItemCount = (order) =>
+  (order?.items || []).reduce(
+    (sum, item) => sum + (Number(item?.quantity) || 0),
+    0,
+  );
+
+const liveStatusStyles = {
+  pending: "bg-yellow-100 text-yellow-800",
+  confirmed: "bg-blue-100 text-blue-800",
+  preparing: "bg-purple-100 text-purple-800",
+  ready: "bg-green-100 text-green-800",
+};
+
+const getCustomerSegment = (orderCount, daysSinceOrder) => {
+  if (orderCount >= 5) return "Loyal";
+  if (daysSinceOrder > 60 && orderCount > 1) return "At Risk";
+  if (orderCount >= 2) return "Repeat";
+  return "New";
+};
+
+const customerSegmentStyles = {
+  Loyal: "bg-green-100 text-green-800",
+  Repeat: "bg-blue-100 text-blue-800",
+  New: "bg-purple-100 text-purple-800",
+  "At Risk": "bg-amber-100 text-amber-800",
+};
+
+const LiveOrderExpoRow = ({ order, locationName }) => {
+  const createdAt = order?.created_at ? new Date(order.created_at) : null;
+  const createdText = createdAt
+    ? createdAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+    : "Unknown time";
+  const itemCount = getOrderItemCount(order);
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-semibold text-gray-900 truncate">
+            #{order.order_number || String(order.id).slice(-6)}
+          </p>
+          <p className="text-xs text-gray-500 truncate mt-0.5">
+            {order.customer?.name || "Guest"}
+          </p>
+          <p className="text-xs text-gray-500 truncate mt-0.5 inline-flex items-center gap-1">
+            <Store className="w-3 h-3" />
+            {locationName || "Unknown Location"}
+          </p>
+        </div>
+        <Badge
+          className={
+            liveStatusStyles[order.status] || "bg-gray-100 text-gray-700"
+          }
+        >
+          {order.status}
+        </Badge>
+      </div>
+
+      <div className="mt-3 grid grid-cols-3 gap-2 text-xs sm:text-sm">
+        <div className="rounded-lg bg-gray-50 px-2 py-1.5">
+          <p className="text-gray-500">Total</p>
+          <p className="font-semibold text-gray-900">
+            ${Number(order.total || 0).toFixed(2)}
+          </p>
+        </div>
+        <div className="rounded-lg bg-gray-50 px-2 py-1.5">
+          <p className="text-gray-500">Items</p>
+          <p className="font-semibold text-gray-900">{itemCount}</p>
+        </div>
+        <div className="rounded-lg bg-gray-50 px-2 py-1.5">
+          <p className="text-gray-500">Placed</p>
+          <p className="font-semibold text-gray-900">{createdText}</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const getMerchantLocationName = (merchant, merchantId) => {
   if (!merchant) {
     return merchantId ? `Merchant ${String(merchantId).slice(-4)}` : "Unknown";
@@ -220,7 +318,13 @@ const AdminDashboard = () => {
     atRisk: 0,
     avgLTV: 0,
   });
+  const [customerInsights, setCustomerInsights] = useState([]);
   const [ordersPerMinute, setOrdersPerMinute] = useState(0);
+  const [customerInsightsDialogOpen, setCustomerInsightsDialogOpen] =
+    useState(false);
+  const [customerSegmentFilter, setCustomerSegmentFilter] = useState("all");
+  const [customerSort, setCustomerSort] = useState("top_spenders");
+  const [liveOrdersDialogOpen, setLiveOrdersDialogOpen] = useState(false);
 
   // Merchant multi-select filter
   const [allOrders, setAllOrders] = useState([]);
@@ -431,21 +535,43 @@ const AdminDashboard = () => {
       // NEW: Calculate customer segments
       const customerMap = {};
       orders.forEach((order) => {
+        const customerName =
+          order.customer?.name || order.customer?.full_name || "Guest";
         const customerId =
           order.customer?.id ||
           order.customer?.phone ||
-          `customer-${Math.random()}`;
+          order.customer?.email ||
+          `${customerName}-${order.merchant_id || "unknown"}`;
+        const merchantRecord =
+          merchantLookup[order.merchant_id] || order.merchant || null;
+        const merchantName = getMerchantLocationName(
+          merchantRecord,
+          order.merchant_id,
+        );
+        const orderDate = order.created_at ? new Date(order.created_at) : null;
+
         if (!customerMap[customerId]) {
           customerMap[customerId] = {
             id: customerId,
+            name: customerName,
+            phone: order.customer?.phone || "",
+            email: order.customer?.email || "",
             orders: [],
             totalSpent: 0,
             lastOrderDate: null,
+            lastMerchantName: merchantName,
           };
         }
         customerMap[customerId].orders.push(order);
         customerMap[customerId].totalSpent += order.total || 0;
-        customerMap[customerId].lastOrderDate = new Date(order.created_at);
+        if (
+          orderDate &&
+          (!customerMap[customerId].lastOrderDate ||
+            orderDate > customerMap[customerId].lastOrderDate)
+        ) {
+          customerMap[customerId].lastOrderDate = orderDate;
+          customerMap[customerId].lastMerchantName = merchantName;
+        }
       });
 
       let newCount = 0;
@@ -490,6 +616,36 @@ const AdminDashboard = () => {
         atRisk: atRiskCount,
         avgLTV: Math.round(avgLTV),
       });
+
+      const customerInsightsRows = Object.values(customerMap)
+        .map((customer) => {
+          const orderCount = customer.orders.length;
+          const daysSinceOrder = customer.lastOrderDate
+            ? (Date.now() - customer.lastOrderDate.getTime()) /
+              (1000 * 60 * 60 * 24)
+            : Number.POSITIVE_INFINITY;
+          const segment = getCustomerSegment(orderCount, daysSinceOrder);
+
+          return {
+            id: customer.id,
+            name: customer.name,
+            phone: customer.phone,
+            email: customer.email,
+            orderCount,
+            totalSpent: Number(customer.totalSpent.toFixed(2)),
+            avgOrderValue:
+              orderCount > 0
+                ? Number((customer.totalSpent / orderCount).toFixed(2))
+                : 0,
+            segment,
+            lastOrderDate: customer.lastOrderDate,
+            lastMerchantName: customer.lastMerchantName,
+          };
+        })
+        .sort((a, b) => b.totalSpent - a.totalSpent)
+        .slice(0, 100);
+
+      setCustomerInsights(customerInsightsRows);
 
       // Calculate orders per minute (average from last hour of data)
       const lastHourOrders = orders.filter((o) => {
@@ -679,6 +835,42 @@ const AdminDashboard = () => {
 
   const displayStats = filteredStats || stats;
   const isSuperAdmin = user?.role === "super_admin";
+  const merchantsById = merchants.reduce((lookup, merchant) => {
+    lookup[merchant.id] = merchant;
+    return lookup;
+  }, {});
+  const filteredOrdersForView =
+    selectedMerchantIds.length === 0
+      ? allOrders
+      : allOrders.filter((o) => selectedMerchantIds.includes(o.merchant_id));
+  const liveOrders = filteredOrdersForView
+    .filter((order) => LIVE_ORDER_STATUSES.has(order.status))
+    .sort(
+      (a, b) =>
+        new Date(b.created_at || 0).getTime() -
+        new Date(a.created_at || 0).getTime(),
+    );
+  const filteredCustomerInsights = useMemo(() => {
+    const base =
+      customerSegmentFilter === "all"
+        ? customerInsights
+        : customerInsights.filter((c) => c.segment === customerSegmentFilter);
+
+    const next = [...base];
+    if (customerSort === "top_spenders") {
+      next.sort((a, b) => b.totalSpent - a.totalSpent);
+    } else if (customerSort === "recent_activity") {
+      next.sort(
+        (a, b) =>
+          new Date(b.lastOrderDate || 0).getTime() -
+          new Date(a.lastOrderDate || 0).getTime(),
+      );
+    } else if (customerSort === "highest_aov") {
+      next.sort((a, b) => b.avgOrderValue - a.avgOrderValue);
+    }
+
+    return next;
+  }, [customerInsights, customerSegmentFilter, customerSort]);
 
   return (
     <AdminLayout>
@@ -908,7 +1100,18 @@ const AdminDashboard = () => {
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.5 }}
               >
-                <Card className="border-2 border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg">
+                <Card
+                  className="border-2 border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg cursor-pointer hover:shadow-xl transition-shadow"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setLiveOrdersDialogOpen(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setLiveOrdersDialogOpen(true);
+                    }
+                  }}
+                >
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between">
                       <div>
@@ -916,10 +1119,13 @@ const AdminDashboard = () => {
                           🔴 LIVE ORDERS
                         </p>
                         <p className="text-4xl font-heading font-bold mt-2 text-green-700">
-                          {stats?.active_orders || 0}
+                          {liveOrders.length}
                         </p>
                         <p className="text-sm text-green-600 mt-3 font-semibold">
                           +{ordersPerMinute} orders/min
+                        </p>
+                        <p className="text-xs text-green-700/80 mt-1">
+                          Click for expo view
                         </p>
                       </div>
                       <motion.div
@@ -939,7 +1145,18 @@ const AdminDashboard = () => {
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.1 }}
               >
-                <Card className="border border-blue-200 bg-gradient-to-br from-blue-50 to-cyan-50">
+                <Card
+                  className="border border-blue-200 bg-gradient-to-br from-blue-50 to-cyan-50 cursor-pointer hover:shadow-lg transition-shadow"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setCustomerInsightsDialogOpen(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setCustomerInsightsDialogOpen(true);
+                    }
+                  }}
+                >
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between">
                       <div>
@@ -947,17 +1164,16 @@ const AdminDashboard = () => {
                           Total Customers
                         </p>
                         <p className="text-4xl font-heading font-bold mt-2 text-blue-700">
-                          {Object.keys(customerSegments).length > 0
-                            ? customerSegments.newCustomers +
-                              customerSegments.repeat +
-                              customerSegments.loyal
-                            : 0}
+                          {customerInsights.length}
                         </p>
                         <p className="text-sm text-blue-600 mt-3">
                           Avg Lifetime Value:{" "}
                           <span className="font-bold">
                             ${customerSegments.avgLTV}
                           </span>
+                        </p>
+                        <p className="text-xs text-blue-700/80 mt-1">
+                          Click for customer insights
                         </p>
                       </div>
                       <Users className="w-10 h-10 text-blue-400 opacity-40" />
@@ -1479,6 +1695,239 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        <Dialog
+          open={liveOrdersDialogOpen}
+          onOpenChange={setLiveOrdersDialogOpen}
+        >
+          <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-heading flex items-center gap-2">
+                <Activity className="w-5 h-5 text-green-600" />
+                Live Orders Expo View
+              </DialogTitle>
+              <DialogDescription>
+                High-level live queue with current status, check total, and item
+                count.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3">
+              <div className="rounded-lg bg-green-50 border border-green-100 p-2.5">
+                <p className="text-xs text-green-700">Live Orders</p>
+                <p className="text-lg font-bold text-green-800">
+                  {liveOrders.length}
+                </p>
+              </div>
+              <div className="rounded-lg bg-blue-50 border border-blue-100 p-2.5">
+                <p className="text-xs text-blue-700">Preparing</p>
+                <p className="text-lg font-bold text-blue-800">
+                  {liveOrders.filter((o) => o.status === "preparing").length}
+                </p>
+              </div>
+              <div className="rounded-lg bg-purple-50 border border-purple-100 p-2.5">
+                <p className="text-xs text-purple-700">Ready</p>
+                <p className="text-lg font-bold text-purple-800">
+                  {liveOrders.filter((o) => o.status === "ready").length}
+                </p>
+              </div>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1 space-y-2">
+              {liveOrders.length > 0 ? (
+                liveOrders.map((order) => (
+                  <LiveOrderExpoRow
+                    key={order.id}
+                    order={order}
+                    locationName={getMerchantLocationName(
+                      order?.merchant || merchantsById[order?.merchant_id],
+                      order?.merchant_id,
+                    )}
+                  />
+                ))
+              ) : (
+                <div className="py-10 text-center text-gray-500">
+                  No live orders right now.
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <Button
+                onClick={() => navigate("/admin/orders")}
+                className="bg-primary hover:bg-primary-hover"
+              >
+                Open Full Orders Board
+                <ArrowUpRight className="w-4 h-4 ml-2" />
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={customerInsightsDialogOpen}
+          onOpenChange={setCustomerInsightsDialogOpen}
+        >
+          <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-heading flex items-center gap-2">
+                <Users className="w-5 h-5 text-blue-600" />
+                Customer Insights View
+              </DialogTitle>
+              <DialogDescription>
+                High-level customer breakdown with segment, spend, orders, and
+                latest location activity.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-3">
+              <div className="rounded-lg bg-purple-50 border border-purple-100 p-2.5">
+                <p className="text-xs text-purple-700">New</p>
+                <p className="text-lg font-bold text-purple-800">
+                  {customerSegments.newCustomers}
+                </p>
+              </div>
+              <div className="rounded-lg bg-blue-50 border border-blue-100 p-2.5">
+                <p className="text-xs text-blue-700">Repeat</p>
+                <p className="text-lg font-bold text-blue-800">
+                  {customerSegments.repeat}
+                </p>
+              </div>
+              <div className="rounded-lg bg-green-50 border border-green-100 p-2.5">
+                <p className="text-xs text-green-700">Loyal</p>
+                <p className="text-lg font-bold text-green-800">
+                  {customerSegments.loyal}
+                </p>
+              </div>
+              <div className="rounded-lg bg-amber-50 border border-amber-100 p-2.5">
+                <p className="text-xs text-amber-700">At Risk</p>
+                <p className="text-lg font-bold text-amber-800">
+                  {customerSegments.atRisk}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { value: "all", label: "All" },
+                  { value: "Loyal", label: "Loyal" },
+                  { value: "Repeat", label: "Repeat" },
+                  { value: "New", label: "New" },
+                  { value: "At Risk", label: "At Risk" },
+                ].map((filter) => (
+                  <button
+                    key={filter.value}
+                    type="button"
+                    onClick={() => setCustomerSegmentFilter(filter.value)}
+                    className={`h-8 px-3 rounded-full text-xs font-semibold border transition-colors ${
+                      customerSegmentFilter === filter.value
+                        ? "bg-primary text-white border-primary"
+                        : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="w-full sm:w-52">
+                <Select value={customerSort} onValueChange={setCustomerSort}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="top_spenders">Top Spenders</SelectItem>
+                    <SelectItem value="recent_activity">
+                      Recent Activity
+                    </SelectItem>
+                    <SelectItem value="highest_aov">Highest AOV</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="text-xs text-gray-500 mb-2">
+              Showing {filteredCustomerInsights.length} customer
+              {filteredCustomerInsights.length !== 1 ? "s" : ""}
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1 space-y-2">
+              {filteredCustomerInsights.length > 0 ? (
+                filteredCustomerInsights.map((customer) => {
+                  const lastOrderText = customer.lastOrderDate
+                    ? new Date(customer.lastOrderDate).toLocaleDateString()
+                    : "N/A";
+
+                  return (
+                    <div
+                      key={customer.id}
+                      className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-gray-900 truncate">
+                            {customer.name || "Guest"}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate mt-0.5">
+                            {customer.phone ||
+                              customer.email ||
+                              "No contact info"}
+                          </p>
+                        </div>
+                        <Badge
+                          className={
+                            customerSegmentStyles[customer.segment] ||
+                            "bg-gray-100 text-gray-700"
+                          }
+                        >
+                          {customer.segment}
+                        </Badge>
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs sm:text-sm">
+                        <div className="rounded-lg bg-gray-50 px-2 py-1.5">
+                          <p className="text-gray-500">Orders</p>
+                          <p className="font-semibold text-gray-900">
+                            {customer.orderCount}
+                          </p>
+                        </div>
+                        <div className="rounded-lg bg-gray-50 px-2 py-1.5">
+                          <p className="text-gray-500">Spend</p>
+                          <p className="font-semibold text-gray-900">
+                            ${customer.totalSpent.toFixed(2)}
+                          </p>
+                        </div>
+                        <div className="rounded-lg bg-gray-50 px-2 py-1.5">
+                          <p className="text-gray-500">AOV</p>
+                          <p className="font-semibold text-gray-900">
+                            ${customer.avgOrderValue.toFixed(2)}
+                          </p>
+                        </div>
+                        <div className="rounded-lg bg-gray-50 px-2 py-1.5">
+                          <p className="text-gray-500">Last Order</p>
+                          <p className="font-semibold text-gray-900">
+                            {lastOrderText}
+                          </p>
+                        </div>
+                        <div className="rounded-lg bg-gray-50 px-2 py-1.5">
+                          <p className="text-gray-500">Location</p>
+                          <p className="font-semibold text-gray-900 truncate">
+                            {customer.lastMerchantName || "Unknown"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="py-10 text-center text-gray-500">
+                  No customer insights available.
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );

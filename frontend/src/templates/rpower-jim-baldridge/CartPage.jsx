@@ -83,7 +83,7 @@ const RpowerJimBaldridgeCartPage = () => {
 
   return (
     <div className="min-h-screen bg-[#0f1115] text-white">
-      <div className="max-w-6xl mx-auto px-6 py-10">
+      <div className="max-w-6xl mx-auto px-6 py-10 pb-32 xl:pb-10">
         <button
           onClick={() => navigate(`/order/${slug}`)}
           className="mb-6 inline-flex items-center gap-2 text-sm text-white/70 hover:text-white"
@@ -209,7 +209,7 @@ const RpowerJimBaldridgeCartPage = () => {
                   <span>${subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-white/70">
-                  <span>Tax</span>
+                  <span>Tax (8.25%)</span>
                   <span>${tax.toFixed(2)}</span>
                 </div>
               </div>
@@ -236,6 +236,32 @@ const RpowerJimBaldridgeCartPage = () => {
               <LegacyLockup className="mt-4" compact />
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 bg-[#0f1115]/96 backdrop-blur border-t border-[#e8ba5333] p-4 xl:hidden">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-sm space-y-1 mb-3">
+            <div className="flex justify-between text-white/70">
+              <span>Subtotal</span>
+              <span>${subtotal.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-white/70">
+              <span>Tax (8.25%)</span>
+              <span>${tax.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between font-semibold pt-1 border-t border-white/15">
+              <span>Total Due</span>
+              <span className="text-[#f6c453]">${total.toFixed(2)}</span>
+            </div>
+          </div>
+          <Button
+            className="w-full rounded-md h-11 bg-[#cf2030] hover:bg-[#b11928] uppercase tracking-wide text-[13px]"
+            onClick={() => navigate(`/checkout/${slug}`)}
+          >
+            <CreditCard className="w-4 h-4 mr-2" />
+            Continue to Ticket Checkout
+          </Button>
         </div>
       </div>
     </div>

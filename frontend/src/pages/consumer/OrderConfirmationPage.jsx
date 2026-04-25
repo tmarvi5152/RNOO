@@ -3,7 +3,14 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader } from "../../components/ui/card";
-import { Check, Sparkles, Home, Copy, CheckCircle } from "lucide-react";
+import {
+  Check,
+  Sparkles,
+  Home,
+  Copy,
+  CheckCircle,
+  ArrowRight,
+} from "lucide-react";
 import { toast } from "sonner";
 
 const OrderConfirmationPage = () => {
@@ -18,14 +25,10 @@ const OrderConfirmationPage = () => {
     demo_card: "Demo Credit Card",
     cash: "Cash",
     pay_at_store: "Pay at Store",
+    apple_pay: "Apple Pay",
+    google_pay: "Google Pay",
   };
   const paymentMethodLabel = paymentMethodLabelMap[paymentMethod] || "";
-
-  useEffect(() => {
-    if (!orderId) {
-      navigate("/");
-    }
-  }, [orderId, navigate]);
 
   const handleCopyOrderId = () => {
     navigator.clipboard.writeText(orderId);
@@ -35,13 +38,11 @@ const OrderConfirmationPage = () => {
   };
 
   const handleBackToMenu = () => {
-    const menuUrl = `/merchant/${merchantSlug}`;
-    if (window.opener) {
-      window.opener.location.href = window.location.origin + menuUrl;
-      window.close();
-    } else {
-      navigate(menuUrl);
-    }
+    navigate(merchantSlug ? `/order/${merchantSlug}` : "/");
+  };
+
+  const handleTrackOrder = () => {
+    navigate(`/track/${encodeURIComponent(orderId)}`);
   };
 
   if (!orderId) {
@@ -153,15 +154,20 @@ const OrderConfirmationPage = () => {
               transition={{ delay: 0.7 }}
               className="space-y-3"
             >
-              {/* Back to Menu Button */}
+              <Button
+                onClick={handleTrackOrder}
+                className="w-full bg-orange-500 hover:bg-orange-600 text-white h-12 text-base"
+              >
+                Track Order
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
               {merchantSlug && (
-                <Button
+                <button
                   onClick={handleBackToMenu}
-                  className="w-full bg-orange-500 hover:bg-orange-600 text-white h-12 text-base"
+                  className="w-full text-sm text-zinc-400 hover:text-zinc-200 py-2 transition-colors"
                 >
-                  <Home className="w-5 h-5 mr-2" />
                   Back to Menu
-                </Button>
+                </button>
               )}
             </motion.div>
           </CardContent>

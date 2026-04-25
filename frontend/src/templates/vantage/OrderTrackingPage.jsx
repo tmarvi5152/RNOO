@@ -17,6 +17,68 @@ const STATUS_STEPS = [
   "delivered",
 ];
 
+const DISPLAY_STEPS = [
+  { label: "Received", statuses: ["pending", "confirmed"] },
+  { label: "Preparing", statuses: ["preparing"] },
+  { label: "Ready", statuses: ["ready"] },
+  { label: "Delivered", statuses: ["delivered"] },
+];
+
+const HorizontalTracker = ({ status }) => {
+  const activeIdx = React.useMemo(() => {
+    for (let i = 0; i < DISPLAY_STEPS.length; i++) {
+      if (DISPLAY_STEPS[i].statuses.includes(status)) return i;
+    }
+    return 0;
+  }, [status]);
+
+  return (
+    <div className="flex items-center w-full mb-6 px-1">
+      {DISPLAY_STEPS.map((step, idx) => {
+        const completed = idx < activeIdx;
+        const current = idx === activeIdx;
+        const isLast = idx === DISPLAY_STEPS.length - 1;
+        return (
+          <React.Fragment key={step.label}>
+            <div className="flex flex-col items-center gap-1.5 shrink-0">
+              <div
+                className={`w-3.5 h-3.5 rounded-full border-2 transition-colors ${
+                  completed
+                    ? "bg-black border-black"
+                    : current
+                      ? "bg-white border-black ring-4 ring-black/10"
+                      : "bg-white border-black/25"
+                }`}
+              />
+              <span
+                className={`text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap ${
+                  current
+                    ? "text-black"
+                    : completed
+                      ? "text-black/65"
+                      : "text-black/30"
+                }`}
+              >
+                {step.label}
+              </span>
+            </div>
+            {!isLast && (
+              <div className="flex-1 h-px mx-1 mb-5 rounded-full overflow-hidden bg-black/15">
+                <motion.div
+                  className="h-full rounded-full bg-black"
+                  initial={{ width: 0 }}
+                  animate={{ width: completed ? "100%" : "0%" }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
+                />
+              </div>
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+};
+
 const VantageOrderTrackingPage = () => {
   useVantageTheme();
   const { orderId } = useParams();
@@ -73,10 +135,8 @@ const VantageOrderTrackingPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f8f8f5] px-6 py-12">
-        <div className="max-w-3xl mx-auto vantage-surface p-10">
-          Loading order...
-        </div>
+      <div className="min-h-screen bg-[#f8f8f5] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-4 border-black border-t-transparent" />
       </div>
     );
   }
@@ -142,7 +202,8 @@ const VantageOrderTrackingPage = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 vantage-surface p-6 shadow-[0_15px_45px_rgba(20,20,20,0.08)]">
-            <h2 className="text-xl font-medium mb-6">Status Timeline</h2>
+            <h2 className="text-xl font-medium mb-4">Status Timeline</h2>
+            <HorizontalTracker status={order.status} />
             <div className="space-y-4">
               {STATUS_STEPS.map((status, idx) => {
                 const completed = idx <= activeIdx;
