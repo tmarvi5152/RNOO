@@ -209,7 +209,7 @@ const RpowerJimBaldridgeCartPage = () => {
                   <span>${subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-white/70">
-                  <span>Tax (8.25%)</span>
+                  <span>Tax</span>
                   <span>${tax.toFixed(2)}</span>
                 </div>
               </div>
@@ -247,7 +247,7 @@ const RpowerJimBaldridgeCartPage = () => {
               <span>${subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-white/70">
-              <span>Tax (8.25%)</span>
+              <span>Tax</span>
               <span>${tax.toFixed(2)}</span>
             </div>
             <div className="flex justify-between font-semibold pt-1 border-t border-white/15">

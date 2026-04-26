@@ -810,7 +810,7 @@ const CartPage = () => {
                     <span>${subtotal.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Tax (8.25%)</span>
+                    <span className="text-gray-500">Tax</span>
                     <span>${tax.toFixed(2)}</span>
                   </div>
                 </div>
@@ -903,7 +903,7 @@ const CartPage = () => {
               <span>${subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-gray-500">
-              <span>Tax (8.25%)</span>
+              <span>Tax</span>
               <span>${tax.toFixed(2)}</span>
             </div>
             {tip > 0 && (

@@ -74,10 +74,9 @@ const CraveCheckoutPage = () => {
 
   const subtotal = getSubtotal();
   const tax = getTax();
-  const deliveryFee = orderType === "delivery" ? 4.99 : 0;
   const isCardPayment = paymentMethod === "demo_card";
   const effectiveTip = isCardPayment ? tip : 0;
-  const total = subtotal + tax + deliveryFee + effectiveTip;
+  const total = subtotal + tax + effectiveTip;
 
   const dateOptions = useMemo(() => {
     return Array.from({ length: 7 }).map((_, idx) => {
@@ -535,12 +534,6 @@ const CraveCheckoutPage = () => {
                 <span>Tax</span>
                 <span>${tax.toFixed(2)}</span>
               </div>
-              {deliveryFee > 0 && (
-                <div className="flex justify-between text-slate-500">
-                  <span>Delivery</span>
-                  <span>${deliveryFee.toFixed(2)}</span>
-                </div>
-              )}
               {effectiveTip > 0 && (
                 <div className="flex justify-between text-slate-500">
                   <span>Tip</span>

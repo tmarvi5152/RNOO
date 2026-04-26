@@ -65,8 +65,9 @@ All five pages are **required**. A template with any missing page will break rou
 
 ### Summary display
 
-- **Tax label** must read exactly: `Tax (8.25%)` — not "Tax", "Tax (est.)", or any other variant.
-- Show rows: Subtotal → Tax (8.25%) → Tip (if applicable) → Delivery Fee (if delivery) → **Total**.
+- **Tax label** must read exactly: `Tax`.
+- Show rows: Subtotal → Tax → Tip (if applicable) → **Total**.
+- Do not hardcode delivery fee amounts in any template view. If a delivery fee is provided by backend/Shepherd totals, render that backend-provided value.
 
 ### Mobile sticky summary (required)
 
@@ -304,7 +305,7 @@ Use this checklist before shipping a new template:
 ### CartPage
 
 - [ ] Totals from `useCartStore` helpers only (`getSubtotal`, `getTax`, `getTotal`)
-- [ ] Tax row reads "Tax (8.25%)"
+- [ ] Tax row reads "Tax"
 - [ ] Mobile sticky footer with total + checkout CTA (`lg:hidden`)
 - [ ] Bottom padding prevents sticky bar overlap (`pb-28 lg:pb-0`)
 

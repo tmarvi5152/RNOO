@@ -170,7 +170,7 @@ const VantageCartPage = () => {
                   <span>${subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-black/65">
-                  <span>Tax (8.25%)</span>
+                  <span>Tax</span>
                   <span>${tax.toFixed(2)}</span>
                 </div>
               </div>
@@ -201,7 +201,7 @@ const VantageCartPage = () => {
               <span>${subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-black/65">
-              <span>Tax (8.25%)</span>
+              <span>Tax</span>
               <span>${tax.toFixed(2)}</span>
             </div>
             <div className="flex justify-between font-semibold pt-1 border-t border-black/10">

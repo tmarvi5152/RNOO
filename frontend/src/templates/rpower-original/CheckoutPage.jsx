@@ -73,10 +73,9 @@ const RpowerOriginalCheckoutPage = () => {
 
   const subtotal = getSubtotal();
   const tax = getTax();
-  const deliveryFee = orderType === "delivery" ? 4.99 : 0;
   const isCard = paymentMethod === "demo_card";
   const effectiveTip = isCard ? tip : 0;
-  const total = subtotal + tax + deliveryFee + effectiveTip;
+  const total = subtotal + tax + effectiveTip;
 
   const dateOptions = useMemo(
     () =>
@@ -238,12 +237,6 @@ const RpowerOriginalCheckoutPage = () => {
           <span>Tax</span>
           <span>${tax.toFixed(2)}</span>
         </div>
-        {deliveryFee > 0 && (
-          <div className="flex justify-between" style={{ color: "#475569" }}>
-            <span>Delivery Fee</span>
-            <span>${deliveryFee.toFixed(2)}</span>
-          </div>
-        )}
         {effectiveTip > 0 && (
           <div className="flex justify-between" style={{ color: "#475569" }}>
             <span>Tip</span>

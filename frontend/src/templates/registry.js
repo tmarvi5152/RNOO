@@ -33,6 +33,11 @@ import RpowerOriginalCartPage from "./rpower-original/CartPage";
 import RpowerOriginalCheckoutPage from "./rpower-original/CheckoutPage";
 import RpowerOriginalOrderTrackingPage from "./rpower-original/OrderTrackingPage";
 import RpowerOriginalOrderConfirmationPage from "./rpower-original/OrderConfirmationPage";
+import JukeboxMenuPage from "./jukebox-vintage-diner/MenuPage";
+import JukeboxCartPage from "./jukebox-vintage-diner/CartPage";
+import JukeboxCheckoutPage from "./jukebox-vintage-diner/CheckoutPage";
+import JukeboxOrderTrackingPage from "./jukebox-vintage-diner/OrderTrackingPage";
+import JukeboxOrderConfirmationPage from "./jukebox-vintage-diner/OrderConfirmationPage";
 
 export const DEFAULT_TEMPLATE = "classic";
 
@@ -48,8 +53,7 @@ export const TEMPLATES = {
   },
   vantage: {
     label: "Template # 2",
-    description:
-      "Vantage",
+    description: "Vantage",
     MenuPage: VantageMenuPage,
     CartPage: VantageCartPage,
     CheckoutPage: VantageCheckoutPage,
@@ -58,8 +62,7 @@ export const TEMPLATES = {
   },
   rpower_jim_baldridge: {
     label: "Template # 3",
-    description:
-      "Jim Baldridge - Version",
+    description: "Jim Baldridge - Version",
     MenuPage: RpowerJimBaldridgeMenuPage,
     CartPage: RpowerJimBaldridgeCartPage,
     CheckoutPage: RpowerJimBaldridgeCheckoutPage,
@@ -68,8 +71,7 @@ export const TEMPLATES = {
   },
   velocity: {
     label: "Template # 4",
-    description:
-      "Velocity",
+    description: "Velocity",
     MenuPage: VelocityMenuPage,
     CartPage: VelocityCartPage,
     CheckoutPage: VelocityCheckoutPage,
@@ -78,8 +80,7 @@ export const TEMPLATES = {
   },
   crave: {
     label: "Template # 5",
-    description:
-      "Cravings",
+    description: "Cravings",
     MenuPage: CraveMenuPage,
     CartPage: CraveCartPage,
     CheckoutPage: CraveCheckoutPage,
@@ -88,13 +89,21 @@ export const TEMPLATES = {
   },
   rpower_original: {
     label: "Template # 6",
-    description:
-      "RPOWER - Original",
+    description: "RPOWER - Original",
     MenuPage: RpowerOriginalMenuPage,
     CartPage: RpowerOriginalCartPage,
     CheckoutPage: RpowerOriginalCheckoutPage,
     OrderTrackingPage: RpowerOriginalOrderTrackingPage,
     OrderConfirmationPage: RpowerOriginalOrderConfirmationPage,
+  },
+  jukebox_vintage_diner: {
+    label: "Template # 7",
+    description: "Vintage Diner",
+    MenuPage: JukeboxMenuPage,
+    CartPage: JukeboxCartPage,
+    CheckoutPage: JukeboxCheckoutPage,
+    OrderTrackingPage: JukeboxOrderTrackingPage,
+    OrderConfirmationPage: JukeboxOrderConfirmationPage,
   },
   // Future templates go here, e.g.:
   // modern: { label: "Modern", MenuPage: ..., ... }

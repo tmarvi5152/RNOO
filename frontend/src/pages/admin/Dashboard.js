@@ -560,10 +560,36 @@ const AdminDashboard = () => {
             totalSpent: 0,
             lastOrderDate: null,
             lastMerchantName: merchantName,
+            locations: new Set(),
+            locationStats: {},
           };
         }
         customerMap[customerId].orders.push(order);
         customerMap[customerId].totalSpent += order.total || 0;
+        if (merchantName) {
+          customerMap[customerId].locations.add(merchantName);
+          if (!customerMap[customerId].locationStats[merchantName]) {
+            customerMap[customerId].locationStats[merchantName] = {
+              location: merchantName,
+              orderCount: 0,
+              totalSpent: 0,
+              lastOrderDate: null,
+            };
+          }
+
+          const locationEntry =
+            customerMap[customerId].locationStats[merchantName];
+          locationEntry.orderCount += 1;
+          locationEntry.totalSpent += Number(order.total || 0);
+
+          if (
+            orderDate &&
+            (!locationEntry.lastOrderDate ||
+              orderDate > locationEntry.lastOrderDate)
+          ) {
+            locationEntry.lastOrderDate = orderDate;
+          }
+        }
         if (
           orderDate &&
           (!customerMap[customerId].lastOrderDate ||
@@ -640,6 +666,20 @@ const AdminDashboard = () => {
             segment,
             lastOrderDate: customer.lastOrderDate,
             lastMerchantName: customer.lastMerchantName,
+            locations: Array.from(customer.locations),
+            locationCount: customer.locations.size,
+            locationBreakdown: Object.values(customer.locationStats)
+              .map((entry) => ({
+                location: entry.location,
+                orderCount: entry.orderCount,
+                totalSpent: Number(entry.totalSpent.toFixed(2)),
+                avgOrderValue:
+                  entry.orderCount > 0
+                    ? Number((entry.totalSpent / entry.orderCount).toFixed(2))
+                    : 0,
+                lastOrderDate: entry.lastOrderDate,
+              }))
+              .sort((a, b) => b.orderCount - a.orderCount),
           };
         })
         .sort((a, b) => b.totalSpent - a.totalSpent)
@@ -1858,6 +1898,8 @@ const AdminDashboard = () => {
                   const lastOrderText = customer.lastOrderDate
                     ? new Date(customer.lastOrderDate).toLocaleDateString()
                     : "N/A";
+                  const latestLocation = customer.lastMerchantName || "Unknown";
+                  const locationBreakdown = customer.locationBreakdown || [];
 
                   return (
                     <div
@@ -1911,12 +1953,89 @@ const AdminDashboard = () => {
                           </p>
                         </div>
                         <div className="rounded-lg bg-gray-50 px-2 py-1.5">
-                          <p className="text-gray-500">Location</p>
-                          <p className="font-semibold text-gray-900 truncate">
-                            {customer.lastMerchantName || "Unknown"}
-                          </p>
+                          <p className="text-gray-500">Locations</p>
+                          {customer.locationCount > 1 ? (
+                            <>
+                              <p className="font-semibold text-gray-900">
+                                {customer.locationCount} locations
+                              </p>
+                              <p className="mt-0.5 text-[11px] italic font-normal text-gray-700 whitespace-normal break-words leading-snug">
+                                latest: {latestLocation}
+                              </p>
+                            </>
+                          ) : (
+                            <p className="font-semibold text-gray-900 whitespace-normal break-words leading-snug">
+                              {latestLocation}
+                            </p>
+                          )}
                         </div>
                       </div>
+
+                      {customer.locationCount > 1 && (
+                        <div className="mt-2 rounded-lg bg-slate-50 px-2 py-2">
+                          <p className="text-gray-500 text-xs mb-1.5">
+                            Location Breakdown
+                          </p>
+
+                          <div className="hidden sm:grid grid-cols-5 gap-2 px-1 pb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                            <p>Location</p>
+                            <p>Orders</p>
+                            <p>Spend</p>
+                            <p>AOV</p>
+                            <p>Last Order</p>
+                          </div>
+
+                          <div className="space-y-1">
+                            {locationBreakdown.length > 0 ? (
+                              locationBreakdown.map((entry) => {
+                                const locationLastOrderText =
+                                  entry.lastOrderDate
+                                    ? new Date(
+                                        entry.lastOrderDate,
+                                      ).toLocaleDateString()
+                                    : "N/A";
+
+                                return (
+                                  <div
+                                    key={`${customer.id}-${entry.location}`}
+                                    className="rounded-md border border-slate-200 bg-white p-2"
+                                  >
+                                    <div className="sm:hidden space-y-1 text-xs">
+                                      <p className="font-semibold text-gray-900 break-words">
+                                        {entry.location}
+                                      </p>
+                                      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-gray-700">
+                                        <p>Orders: {entry.orderCount}</p>
+                                        <p>
+                                          Spend: ${entry.totalSpent.toFixed(2)}
+                                        </p>
+                                        <p>
+                                          AOV: ${entry.avgOrderValue.toFixed(2)}
+                                        </p>
+                                        <p>Last: {locationLastOrderText}</p>
+                                      </div>
+                                    </div>
+
+                                    <div className="hidden sm:grid sm:grid-cols-5 gap-2 text-xs text-gray-800 items-start">
+                                      <p className="font-semibold break-words">
+                                        {entry.location}
+                                      </p>
+                                      <p>{entry.orderCount}</p>
+                                      <p>${entry.totalSpent.toFixed(2)}</p>
+                                      <p>${entry.avgOrderValue.toFixed(2)}</p>
+                                      <p>{locationLastOrderText}</p>
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            ) : (
+                              <p className="text-xs text-gray-500">
+                                No location activity
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })

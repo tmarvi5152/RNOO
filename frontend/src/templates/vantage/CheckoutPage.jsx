@@ -43,10 +43,9 @@ const VantageCheckoutPage = () => {
 
   const subtotal = getSubtotal();
   const tax = getTax();
-  const deliveryFee = orderType === "delivery" ? 4.99 : 0;
   const isCardPayment = paymentMethod === "demo_card";
   const effectiveTip = isCardPayment ? tip : 0;
-  const total = subtotal + tax + deliveryFee + effectiveTip;
+  const total = subtotal + tax + effectiveTip;
 
   const dateOptions = useMemo(() => {
     return Array.from({ length: 7 }).map((_, idx) => {
@@ -519,12 +518,6 @@ const VantageCheckoutPage = () => {
               <span>Tax</span>
               <span>${tax.toFixed(2)}</span>
             </div>
-            {orderType === "delivery" && (
-              <div className="flex justify-between text-black/65">
-                <span>Delivery Fee</span>
-                <span>${deliveryFee.toFixed(2)}</span>
-              </div>
-            )}
             {effectiveTip > 0 && (
               <div className="flex justify-between text-black/65">
                 <span>Tip</span>

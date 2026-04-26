@@ -88,8 +88,7 @@ const CheckoutPage = () => {
   const effectiveTipAmount = isCardPayment ? tipAmount : 0;
   const subtotal = getSubtotal();
   const tax = getTax();
-  const deliveryFee = orderType === "delivery" ? 4.99 : 0;
-  const total = getTotal() + deliveryFee + effectiveTipAmount;
+  const total = getTotal() + effectiveTipAmount;
 
   const hasValidImage = (item) => Boolean(item.image && !failedImages[item.id]);
 
@@ -1346,12 +1345,6 @@ const CheckoutPage = () => {
                   <span className="text-zinc-400">Subtotal</span>
                   <span>${subtotal.toFixed(2)}</span>
                 </div>
-                {orderType === "delivery" && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-zinc-400">Delivery Fee</span>
-                    <span>${deliveryFee.toFixed(2)}</span>
-                  </div>
-                )}
                 <div className="flex justify-between text-sm">
                   <span className="text-zinc-400">Tax</span>
                   <span>${tax.toFixed(2)}</span>

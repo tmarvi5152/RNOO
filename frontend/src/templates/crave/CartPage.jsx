@@ -166,7 +166,7 @@ const CraveCartPage = () => {
                 <span>${subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-slate-500">
-                <span>Tax (8.25%)</span>
+                <span>Tax</span>
                 <span>${tax.toFixed(2)}</span>
               </div>
               <div className="flex justify-between font-bold text-slate-900 pt-2 border-t border-slate-200">
@@ -193,7 +193,7 @@ const CraveCartPage = () => {
               <span>${subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-slate-500">
-              <span>Tax (8.25%)</span>
+              <span>Tax</span>
               <span>${tax.toFixed(2)}</span>
             </div>
             <div className="flex justify-between font-bold text-slate-900 pt-1 border-t border-slate-200">

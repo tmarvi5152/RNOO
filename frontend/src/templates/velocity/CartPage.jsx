@@ -180,7 +180,7 @@ const VelocityCartPage = () => {
             <span>${subtotal.toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-black/60">
-            <span>Tax (8.25%)</span>
+            <span>Tax</span>
             <span>${tax.toFixed(2)}</span>
           </div>
           <div className="flex justify-between font-black text-base mt-1 pt-1 border-t border-[#eee]">
