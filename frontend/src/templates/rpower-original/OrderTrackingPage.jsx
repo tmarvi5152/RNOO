@@ -6,7 +6,7 @@ import { useOrderWebSocket } from "../../hooks/useOrderWebSocket";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useRpowerOriginalTheme } from "./RpowerOriginalTheme";
-import rpowerLogo from "../../images/rpower-logo.png";
+import RpowerOriginalHeroBanner from "./HeroBanner";
 
 // ─── Step definitions ─────────────────────────────────────────────────────────
 
@@ -63,9 +63,13 @@ const VerticalTracker = ({ status }) => {
               <div
                 className="w-5 h-5 rounded-full shrink-0 flex items-center justify-center border-2 transition-all"
                 style={{
-                  background: completed || current ? "#cc0000" : "#ffffff",
-                  borderColor: completed || current ? "#cc0000" : "#e2e8f0",
-                  boxShadow: current ? "0 0 0 4px rgba(204,0,0,0.15)" : "none",
+                  background:
+                    completed || current ? "var(--ro-red)" : "#ffffff",
+                  borderColor:
+                    completed || current ? "var(--ro-red)" : "#e2e8f0",
+                  boxShadow: current
+                    ? "0 0 0 4px rgba(211,173,103,0.18)"
+                    : "none",
                   zIndex: 1,
                 }}
               >
@@ -93,7 +97,7 @@ const VerticalTracker = ({ status }) => {
                   style={{
                     flex: 1,
                     minHeight: 40,
-                    background: completed ? "#cc0000" : "#e2e8f0",
+                    background: completed ? "var(--ro-red)" : "#e2e8f0",
                   }}
                 />
               )}
@@ -103,13 +107,13 @@ const VerticalTracker = ({ status }) => {
             <div className={`pb-8 min-w-0 ${isLast ? "pb-0" : ""}`}>
               <p
                 className="text-sm font-semibold leading-tight"
-                style={{ color: completed || current ? "#1e293b" : "#94a3b8" }}
+                style={{ color: completed || current ? "#f8fafc" : "#94a3b8" }}
               >
                 {step.label}
               </p>
               <p
                 className="text-xs mt-0.5"
-                style={{ color: completed || current ? "#475569" : "#cbd5e1" }}
+                style={{ color: completed || current ? "#cbd5e1" : "#94a3b8" }}
               >
                 {step.detail}
               </p>
@@ -163,6 +167,7 @@ const RpowerOriginalOrderTrackingPage = () => {
   useEffect(() => {
     loadOrder();
   }, [loadOrder]);
+
   useEffect(() => {
     const id = setInterval(() => loadOrder(true), 10000);
     return () => clearInterval(id);
@@ -185,19 +190,16 @@ const RpowerOriginalOrderTrackingPage = () => {
     return (
       <div
         className="min-h-screen flex flex-col"
-        style={{ background: "#f8fafc" }}
+        style={{ background: "transparent" }}
       >
-        <div
-          style={{
-            background: "#0f172a",
-            borderBottom: "3px solid #cc0000",
-            height: 67,
-          }}
-        />
+        <RpowerOriginalHeroBanner title="Order Status" compact />
         <div className="flex-1 flex items-center justify-center">
           <div
             className="w-10 h-10 rounded-full border-4 border-t-transparent animate-spin"
-            style={{ borderColor: "#cc0000", borderTopColor: "transparent" }}
+            style={{
+              borderColor: "var(--ro-red)",
+              borderTopColor: "transparent",
+            }}
           />
         </div>
       </div>
@@ -209,26 +211,18 @@ const RpowerOriginalOrderTrackingPage = () => {
     return (
       <div
         className="min-h-screen flex flex-col"
-        style={{ background: "#f8fafc" }}
+        style={{ background: "transparent" }}
       >
-        <header className="ro-header">
-          <div className="max-w-3xl mx-auto px-6 h-16 flex items-center">
-            <img
-              src={rpowerLogo}
-              alt="RPOWER"
-              className="h-8 w-auto object-contain"
-            />
-          </div>
-        </header>
+        <RpowerOriginalHeroBanner title="Order Status" compact />
         <div className="flex-1 flex flex-col items-center justify-center px-6 py-16">
           <AlertCircle
             className="w-12 h-12 mb-4"
             style={{ color: "#cbd5e1" }}
           />
-          <h1 className="text-2xl font-bold mb-2" style={{ color: "#1e293b" }}>
+          <h1 className="text-2xl font-bold mb-2" style={{ color: "#f8fafc" }}>
             Order Not Found
           </h1>
-          <p className="text-sm mb-8" style={{ color: "#475569" }}>
+          <p className="text-sm mb-8" style={{ color: "#cbd5e1" }}>
             We couldn't locate order #{orderId}.
           </p>
           <button
@@ -244,69 +238,42 @@ const RpowerOriginalOrderTrackingPage = () => {
 
   // ── Main ──────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen" style={{ background: "#f8fafc" }}>
-      {/* Header */}
-      <header className="ro-header">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-4">
-          <img
-            src={rpowerLogo}
-            alt="RPOWER"
-            className="h-8 w-auto object-contain"
-          />
-          <div
-            className="w-px h-5"
-            style={{ background: "rgba(255,255,255,0.2)" }}
-          />
-          <span
-            className="text-sm font-semibold"
-            style={{ color: "rgba(255,255,255,0.9)" }}
-          >
-            Order Status
-          </span>
-          <div className="ml-auto flex items-center gap-3">
-            {isConnected && (
-              <span
-                className="text-xs flex items-center gap-1.5"
-                style={{ color: "rgba(255,255,255,0.7)" }}
-              >
-                <span
-                  className="w-2 h-2 rounded-full inline-block"
-                  style={{ background: "#22c55e" }}
-                />
-                Live
-              </span>
-            )}
-            <button
-              onClick={() => loadOrder(true)}
-              disabled={refreshing}
-              aria-label="Refresh"
-              className="w-8 h-8 flex items-center justify-center rounded"
-              style={{ color: "rgba(255,255,255,0.7)" }}
-            >
-              <RefreshCw
-                className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
-              />
-            </button>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen" style={{ background: "transparent" }}>
+      <RpowerOriginalHeroBanner
+        title="Order Status"
+        subtitle={isConnected ? "Live updates enabled" : ""}
+        compact
+      />
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
+        <div className="flex justify-end mb-3">
+          <button
+            onClick={() => loadOrder(true)}
+            disabled={refreshing}
+            aria-label="Refresh"
+            className="ro-btn-outline h-9 px-3 text-xs"
+          >
+            <RefreshCw
+              className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
+            />
+            Refresh
+          </button>
+        </div>
         {/* Status hero */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           className="ro-panel p-6 mb-5"
-          style={{ borderLeft: "4px solid #cc0000" }}
+          style={{ borderLeft: "4px solid var(--ro-red)" }}
         >
           <p className="ro-label mb-1">Order Reference</p>
-          <p className="text-2xl font-bold mb-3" style={{ color: "#1e293b" }}>
+          <p className="text-2xl font-bold mb-3" style={{ color: "#f8fafc" }}>
             #{orderId}
           </p>
           {order.poscnx_ticket_number && (
-            <p className="text-sm mb-3" style={{ color: "#475569" }}>
+            <p className="text-sm mb-3" style={{ color: "#cbd5e1" }}>
               POS Ticket&nbsp;
-              <span className="font-bold" style={{ color: "#cc0000" }}>
+              <span className="font-bold" style={{ color: "var(--ro-red)" }}>
                 #{order.poscnx_ticket_number}
               </span>
             </p>
@@ -314,9 +281,9 @@ const RpowerOriginalOrderTrackingPage = () => {
           <span
             className="inline-block text-xs font-bold px-3 py-1 rounded"
             style={{
-              background: "#fff5f5",
-              color: "#cc0000",
-              border: "1px solid #cc0000",
+              background: "rgba(211, 173, 103, 0.16)",
+              color: "var(--ro-red)",
+              border: "1px solid var(--ro-red)",
             }}
           >
             {statusLabel}
@@ -348,7 +315,7 @@ const RpowerOriginalOrderTrackingPage = () => {
                 <div
                   key={idx}
                   className="flex justify-between text-sm"
-                  style={{ color: "#475569" }}
+                  style={{ color: "#cbd5e1" }}
                 >
                   <span>
                     {item.quantity}× {item.name}

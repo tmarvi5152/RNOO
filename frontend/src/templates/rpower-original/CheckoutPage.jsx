@@ -6,7 +6,7 @@ import { apiService } from "../../context/AppContext";
 import { ArrowLeft, Check, CreditCard, Loader2, Store } from "lucide-react";
 import { toast } from "sonner";
 import { useRpowerOriginalTheme } from "./RpowerOriginalTheme";
-import rpowerLogo from "../../images/rpower-logo.png";
+import RpowerOriginalHeroBanner from "./HeroBanner";
 
 // ─── Field wrapper ────────────────────────────────────────────────────────────
 
@@ -14,10 +14,10 @@ const Field = ({ label, required, children }) => (
   <div>
     <label
       className="block text-xs font-semibold mb-1.5"
-      style={{ color: "#475569", letterSpacing: "0.03em" }}
+      style={{ color: "#cbd5e1", letterSpacing: "0.03em" }}
     >
       {label}
-      {required && <span style={{ color: "#cc0000" }}> *</span>}
+      {required && <span style={{ color: "var(--ro-red)" }}> *</span>}
     </label>
     {children}
   </div>
@@ -29,11 +29,11 @@ const SectionHeading = ({ children }) => (
   <h2
     className="text-sm font-bold mb-4"
     style={{
-      color: "#1e293b",
+      color: "#f8fafc",
       textTransform: "uppercase",
       letterSpacing: "0.07em",
       paddingBottom: "0.5rem",
-      borderBottom: "2px solid #cc0000",
+      borderBottom: "2px solid var(--ro-red)",
     }}
   >
     {children}
@@ -218,7 +218,7 @@ const RpowerOriginalCheckoutPage = () => {
           <div
             key={item.id}
             className="flex justify-between"
-            style={{ color: "#475569" }}
+            style={{ color: "#cbd5e1" }}
           >
             <span className="truncate mr-2">
               {item.quantity}× {item.name}
@@ -229,16 +229,16 @@ const RpowerOriginalCheckoutPage = () => {
       </div>
       <div className="ro-divider mb-4" />
       <div className="space-y-2 text-sm">
-        <div className="flex justify-between" style={{ color: "#475569" }}>
+        <div className="flex justify-between" style={{ color: "#cbd5e1" }}>
           <span>Subtotal</span>
           <span>${subtotal.toFixed(2)}</span>
         </div>
-        <div className="flex justify-between" style={{ color: "#475569" }}>
+        <div className="flex justify-between" style={{ color: "#cbd5e1" }}>
           <span>Tax</span>
           <span>${tax.toFixed(2)}</span>
         </div>
         {effectiveTip > 0 && (
-          <div className="flex justify-between" style={{ color: "#475569" }}>
+          <div className="flex justify-between" style={{ color: "#cbd5e1" }}>
             <span>Tip</span>
             <span>${effectiveTip.toFixed(2)}</span>
           </div>
@@ -247,10 +247,10 @@ const RpowerOriginalCheckoutPage = () => {
       <div className="ro-divider my-4" />
       <div
         className="flex justify-between font-bold text-base mb-5"
-        style={{ color: "#1e293b" }}
+        style={{ color: "#f8fafc" }}
       >
         <span>Total</span>
-        <span style={{ color: "#cc0000" }}>${total.toFixed(2)}</span>
+        <span style={{ color: "var(--ro-red)" }}>${total.toFixed(2)}</span>
       </div>
       <button
         onClick={handleSubmit}
@@ -267,27 +267,8 @@ const RpowerOriginalCheckoutPage = () => {
   );
 
   return (
-    <div className="min-h-screen" style={{ background: "#f8fafc" }}>
-      {/* Header */}
-      <header className="ro-header">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-4">
-          <img
-            src={rpowerLogo}
-            alt="RPOWER"
-            className="h-8 w-auto object-contain"
-          />
-          <div
-            className="w-px h-5"
-            style={{ background: "rgba(255,255,255,0.2)" }}
-          />
-          <span
-            className="text-sm font-semibold"
-            style={{ color: "rgba(255,255,255,0.9)" }}
-          >
-            Checkout
-          </span>
-        </div>
-      </header>
+    <div className="min-h-screen" style={{ background: "transparent" }}>
+      <RpowerOriginalHeroBanner title="Checkout" compact />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
         <button
@@ -550,7 +531,8 @@ const RpowerOriginalCheckoutPage = () => {
                     <span
                       className="text-sm font-semibold"
                       style={{
-                        color: paymentMethod === value ? "#cc0000" : "#1e293b",
+                        color:
+                          paymentMethod === value ? "var(--ro-red)" : "#f8fafc",
                       }}
                     >
                       {label}
@@ -558,7 +540,7 @@ const RpowerOriginalCheckoutPage = () => {
                     {paymentMethod === value && (
                       <Check
                         className="w-4 h-4 ml-auto"
-                        style={{ color: "#cc0000" }}
+                        style={{ color: "var(--ro-red)" }}
                       />
                     )}
                   </button>
@@ -592,7 +574,7 @@ const RpowerOriginalCheckoutPage = () => {
                   </div>
                   {tipSelection === "custom" && (
                     <div className="mt-3 flex items-center gap-2">
-                      <span style={{ color: "#475569" }}>$</span>
+                      <span style={{ color: "#cbd5e1" }}>$</span>
                       <input
                         type="number"
                         min="0"

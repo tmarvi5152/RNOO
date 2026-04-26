@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { CheckCircle2, Copy, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { useRpowerOriginalTheme } from "./RpowerOriginalTheme";
-import rpowerLogo from "../../images/rpower-logo.png";
+import RpowerOriginalHeroBanner from "./HeroBanner";
 import { apiService } from "../../context/AppContext";
 
 const PAYMENT_LABELS = {
@@ -103,18 +103,9 @@ const RpowerOriginalOrderConfirmationPage = () => {
   return (
     <div
       className="min-h-screen flex flex-col"
-      style={{ background: "#f8fafc" }}
+      style={{ background: "transparent" }}
     >
-      {/* Header */}
-      <header className="ro-header">
-        <div className="max-w-lg mx-auto px-6 h-16 flex items-center">
-          <img
-            src={rpowerLogo}
-            alt="RPOWER"
-            className="h-8 w-auto object-contain"
-          />
-        </div>
-      </header>
+      <RpowerOriginalHeroBanner title="Order Confirmed" compact />
 
       <div className="flex-1 flex items-start justify-center px-4 py-10">
         <motion.div
@@ -125,25 +116,25 @@ const RpowerOriginalOrderConfirmationPage = () => {
           {/* Success banner */}
           <div
             className="ro-panel overflow-hidden mb-4"
-            style={{ borderTop: "4px solid #cc0000" }}
+            style={{ borderTop: "4px solid var(--ro-red)" }}
           >
             <div className="text-center px-6 py-8">
               <div
                 className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
-                style={{ background: "#fff5f5" }}
+                style={{ background: "rgba(211, 173, 103, 0.16)" }}
               >
                 <CheckCircle2
                   className="w-9 h-9"
-                  style={{ color: "#cc0000" }}
+                  style={{ color: "var(--ro-red)" }}
                 />
               </div>
               <h1
                 className="text-2xl font-bold mb-1"
-                style={{ color: "#1e293b" }}
+                style={{ color: "#f8fafc" }}
               >
                 Order Confirmed!
               </h1>
-              <p className="text-sm" style={{ color: "#475569" }}>
+              <p className="text-sm" style={{ color: "#cbd5e1" }}>
                 Your order has been received and sent to the kitchen.
               </p>
             </div>
@@ -152,22 +143,25 @@ const RpowerOriginalOrderConfirmationPage = () => {
             <div
               className="px-6 py-5 text-center"
               style={{
-                background: "#f8fafc",
-                borderTop: "1px solid #e2e8f0",
-                borderBottom: "1px solid #e2e8f0",
+                background: "rgba(2, 6, 23, 0.45)",
+                borderTop: "1px solid rgba(255,255,255,0.16)",
+                borderBottom: "1px solid rgba(255,255,255,0.16)",
               }}
             >
               <p className="ro-label mb-2">Order Number</p>
               <p
                 className="text-xl font-bold mb-3 break-all"
-                style={{ color: "#1e293b" }}
+                style={{ color: "#f8fafc" }}
               >
                 {orderId}
               </p>
               {posTicket && (
-                <p className="text-sm mb-3" style={{ color: "#475569" }}>
+                <p className="text-sm mb-3" style={{ color: "#cbd5e1" }}>
                   POS Ticket&nbsp;
-                  <span className="font-bold" style={{ color: "#cc0000" }}>
+                  <span
+                    className="font-bold"
+                    style={{ color: "var(--ro-red)" }}
+                  >
                     #{posTicket}
                   </span>
                 </p>
@@ -184,10 +178,10 @@ const RpowerOriginalOrderConfirmationPage = () => {
             {/* Details */}
             <div className="px-6 py-5 space-y-3">
               <div className="flex justify-between text-sm">
-                <span className="font-semibold" style={{ color: "#1e293b" }}>
+                <span className="font-semibold" style={{ color: "#f8fafc" }}>
                   Placed At
                 </span>
-                <span style={{ color: "#475569" }}>
+                <span style={{ color: "#cbd5e1" }}>
                   {placedAt.current.toLocaleTimeString([], {
                     hour: "2-digit",
                     minute: "2-digit",
@@ -196,10 +190,10 @@ const RpowerOriginalOrderConfirmationPage = () => {
               </div>
               {paymentLabel && (
                 <div className="flex justify-between text-sm">
-                  <span className="font-semibold" style={{ color: "#1e293b" }}>
+                  <span className="font-semibold" style={{ color: "#f8fafc" }}>
                     Payment
                   </span>
-                  <span style={{ color: "#475569" }}>{paymentLabel}</span>
+                  <span style={{ color: "#cbd5e1" }}>{paymentLabel}</span>
                 </div>
               )}
             </div>

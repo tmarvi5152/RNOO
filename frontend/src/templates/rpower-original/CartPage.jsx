@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { useCartStore } from "../../stores/cartStore";
 import { ArrowLeft, Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
 import { useRpowerOriginalTheme } from "./RpowerOriginalTheme";
-import rpowerLogo from "../../images/rpower-logo.png";
+import RpowerOriginalHeroBanner from "./HeroBanner";
 
 const RpowerOriginalCartPage = () => {
   useRpowerOriginalTheme();
@@ -32,17 +32,9 @@ const RpowerOriginalCartPage = () => {
     return (
       <div
         className="min-h-screen flex flex-col"
-        style={{ background: "#f8fafc" }}
+        style={{ background: "transparent" }}
       >
-        <header className="ro-header">
-          <div className="max-w-4xl mx-auto px-6 h-16 flex items-center gap-3">
-            <img
-              src={rpowerLogo}
-              alt="RPOWER"
-              className="h-8 w-auto object-contain"
-            />
-          </div>
-        </header>
+        <RpowerOriginalHeroBanner title="Your Order" compact />
         <div className="flex-1 flex flex-col items-center justify-center px-6 py-16">
           <div
             className="w-20 h-20 rounded-full flex items-center justify-center mb-6"
@@ -50,10 +42,10 @@ const RpowerOriginalCartPage = () => {
           >
             <ShoppingCart className="w-9 h-9" style={{ color: "#94a3b8" }} />
           </div>
-          <h1 className="text-2xl font-bold mb-2" style={{ color: "#1e293b" }}>
+          <h1 className="text-2xl font-bold mb-2" style={{ color: "#f8fafc" }}>
             Your cart is empty
           </h1>
-          <p className="text-sm mb-8" style={{ color: "#475569" }}>
+          <p className="text-sm mb-8" style={{ color: "#cbd5e1" }}>
             Add items from the menu to get started.
           </p>
           <button
@@ -69,27 +61,8 @@ const RpowerOriginalCartPage = () => {
 
   // ── Cart ─────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen" style={{ background: "#f8fafc" }}>
-      {/* Header */}
-      <header className="ro-header">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-4">
-          <img
-            src={rpowerLogo}
-            alt="RPOWER"
-            className="h-8 w-auto object-contain"
-          />
-          <div
-            className="w-px h-5"
-            style={{ background: "rgba(255,255,255,0.2)" }}
-          />
-          <span
-            className="text-sm font-semibold"
-            style={{ color: "rgba(255,255,255,0.9)" }}
-          >
-            Your Order
-          </span>
-        </div>
-      </header>
+    <div className="min-h-screen" style={{ background: "transparent" }}>
+      <RpowerOriginalHeroBanner title="Your Order" compact />
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
         {/* Back link */}
@@ -150,7 +123,7 @@ const RpowerOriginalCartPage = () => {
                   <div className="flex items-start justify-between gap-2">
                     <h3
                       className="font-semibold text-sm leading-snug"
-                      style={{ color: "#1e293b" }}
+                      style={{ color: "#f8fafc" }}
                     >
                       {item.name}
                     </h3>
@@ -160,7 +133,7 @@ const RpowerOriginalCartPage = () => {
                       className="shrink-0 p-1 rounded transition-colors"
                       style={{ color: "#94a3b8" }}
                       onMouseEnter={(e) =>
-                        (e.currentTarget.style.color = "#cc0000")
+                        (e.currentTarget.style.color = "var(--ro-red)")
                       }
                       onMouseLeave={(e) =>
                         (e.currentTarget.style.color = "#94a3b8")
@@ -173,7 +146,7 @@ const RpowerOriginalCartPage = () => {
                   {item.modifiers?.length > 0 && (
                     <p
                       className="text-xs mt-1 line-clamp-2"
-                      style={{ color: "#64748b" }}
+                      style={{ color: "#cbd5e1" }}
                     >
                       {item.modifiers.map((m) => m.option_name).join(", ")}
                     </p>
@@ -209,7 +182,7 @@ const RpowerOriginalCartPage = () => {
                     </div>
                     <span
                       className="font-bold text-sm"
-                      style={{ color: "#cc0000" }}
+                      style={{ color: "var(--ro-red)" }}
                     >
                       $
                       {(
@@ -231,14 +204,14 @@ const RpowerOriginalCartPage = () => {
               <div className="space-y-2.5 text-sm">
                 <div
                   className="flex justify-between"
-                  style={{ color: "#475569" }}
+                  style={{ color: "#cbd5e1" }}
                 >
                   <span>Subtotal</span>
                   <span>${subtotal.toFixed(2)}</span>
                 </div>
                 <div
                   className="flex justify-between"
-                  style={{ color: "#475569" }}
+                  style={{ color: "#cbd5e1" }}
                 >
                   <span>Tax</span>
                   <span>${tax.toFixed(2)}</span>
@@ -249,10 +222,12 @@ const RpowerOriginalCartPage = () => {
 
               <div
                 className="flex justify-between font-bold text-base mb-5"
-                style={{ color: "#1e293b" }}
+                style={{ color: "#f8fafc" }}
               >
                 <span>Total</span>
-                <span style={{ color: "#cc0000" }}>${total.toFixed(2)}</span>
+                <span style={{ color: "var(--ro-red)" }}>
+                  ${total.toFixed(2)}
+                </span>
               </div>
 
               <button

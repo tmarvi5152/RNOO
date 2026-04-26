@@ -532,11 +532,6 @@ async def capture_provider_webhook_payloads(request: Request, call_next):
     content_type = request.headers.get("content-type", "")
     parsed_payload = parse_provider_payload(raw_body, content_type)
 
-    async def receive():
-        return {"type": "http.request", "body": raw_body, "more_body": False}
-
-    request._receive = receive
-
     status_code = 500
     try:
         response = await call_next(request)

@@ -28,12 +28,37 @@ export const useOrderWebSocket = ({
   const reconnectTimeoutRef = useRef(null);
   const pingIntervalRef = useRef(null);
   const isConnectingRef = useRef(false);
+  const onNewOrderRef = useRef(onNewOrder);
+  const onOrderUpdateRef = useRef(onOrderUpdate);
+  const onConnectRef = useRef(onConnect);
+  const onDisconnectRef = useRef(onDisconnect);
   const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState(null);
 
+  // Keep latest callbacks without forcing reconnects on every render.
+  useEffect(() => {
+    onNewOrderRef.current = onNewOrder;
+  }, [onNewOrder]);
+
+  useEffect(() => {
+    onOrderUpdateRef.current = onOrderUpdate;
+  }, [onOrderUpdate]);
+
+  useEffect(() => {
+    onConnectRef.current = onConnect;
+  }, [onConnect]);
+
+  useEffect(() => {
+    onDisconnectRef.current = onDisconnect;
+  }, [onDisconnect]);
+
   const connect = useCallback(() => {
     // Prevent multiple simultaneous connection attempts
-    if (isConnectingRef.current || wsRef.current?.readyState === WebSocket.CONNECTING || wsRef.current?.readyState === WebSocket.OPEN) {
+    if (
+      isConnectingRef.current ||
+      wsRef.current?.readyState === WebSocket.CONNECTING ||
+      wsRef.current?.readyState === WebSocket.OPEN
+    ) {
       console.log("WebSocket connection already in progress or connected");
       return;
     }
@@ -63,7 +88,7 @@ export const useOrderWebSocket = ({
         console.log("WebSocket connected");
         isConnectingRef.current = false;
         setIsConnected(true);
-        onConnect?.();
+        onConnectRef.current?.();
 
         // Setup ping interval to keep connection alive
         pingIntervalRef.current = setInterval(() => {
@@ -86,10 +111,10 @@ export const useOrderWebSocket = ({
           // Route message to appropriate callback
           if (data.type === "new_order") {
             console.log("New order received:", data.order?.id);
-            onNewOrder?.(data.order, data);
+            onNewOrderRef.current?.(data.order, data);
           } else if (data.type?.startsWith("order_")) {
             console.log("Order update:", data.type, data.order?.id);
-            onOrderUpdate?.(data.order, data.type, data);
+            onOrderUpdateRef.current?.(data.order, data.type, data);
           }
         } catch (err) {
           console.error("Error parsing WebSocket message:", err);
@@ -98,8 +123,9 @@ export const useOrderWebSocket = ({
 
       ws.onclose = (event) => {
         console.log("WebSocket disconnected:", event.code, event.reason);
+        isConnectingRef.current = false;
         setIsConnected(false);
-        onDisconnect?.();
+        onDisconnectRef.current?.();
 
         // Clear ping interval
         if (pingIntervalRef.current) {
@@ -125,7 +151,7 @@ export const useOrderWebSocket = ({
       console.error("Failed to create WebSocket connection:", err);
       isConnectingRef.current = false;
     }
-  }, [merchantId, isAdmin, onNewOrder, onOrderUpdate, onConnect, onDisconnect]);
+  }, [merchantId, isAdmin]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
