@@ -6,7 +6,7 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Skeleton } from "../components/ui/skeleton";
-import rpowerLogo from "../images/rpower-logo.png";
+import rpowerAdminLogo from "../images/rpower_admin_logo.png";
 import {
   Store,
   MapPin,
@@ -16,7 +16,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 
-const RP_RED = "#d71920";
+const RP_RED = "#cc0000";
 
 const getMerchantLogoUrl = (merchant) => {
   const licenseInfo = merchant?.license_info || {};
@@ -58,28 +58,35 @@ const HomePage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f6f6f8]">
-      <section className="bg-[linear-gradient(180deg,#11161f_0%,#17222f_100%)] px-4 py-12 sm:py-16">
+    <div className="rpower-home-shell min-h-screen">
+      <section className="rpower-home-hero px-4 py-12 sm:py-14">
         <motion.div
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mx-auto max-w-6xl rounded-3xl bg-[linear-gradient(140deg,#0b1120_0%,#0e1a34_65%,#132445_100%)] border border-white/10 shadow-2xl p-8 sm:p-12"
+          className="mx-auto max-w-6xl rounded-2xl border border-[#e4e4e4] bg-white shadow-[0_16px_40px_rgba(15,23,42,0.08)] p-8 sm:p-10"
         >
-          <div className="flex flex-col items-center text-center gap-5">
+          <div className="flex flex-col items-center text-center gap-5 sm:gap-6">
             <img
-              src={rpowerLogo}
+              src={rpowerAdminLogo}
               alt="RPOWER"
-              className="h-20 sm:h-24 w-auto object-contain"
+              className="h-14 sm:h-16 w-auto object-contain"
             />
+            <h1 className="text-2xl sm:text-4xl font-bold text-[#1e293b] tracking-tight">
+              The Industry Leader in Restaurant Point of Sale Software
+            </h1>
+            <p className="max-w-3xl text-sm sm:text-base text-[#475569]">
+              Power your online ordering experience with the reliability,
+              performance, and support expected from RPOWER POS.
+            </p>
             <div className="flex items-center justify-center pt-1">
               <Button
-                className="text-white hover:opacity-95"
+                className="text-white hover:opacity-95 px-7"
                 style={{ backgroundColor: RP_RED }}
                 onClick={() => navigate("/login")}
                 data-testid="home-login-btn"
               >
                 <LogIn className="w-4 h-4 mr-2" />
-                Login
+                Admin Login
               </Button>
             </div>
           </div>
@@ -91,10 +98,10 @@ const HomePage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="text-2xl sm:text-3xl font-heading font-bold">
+              <h2 className="text-2xl sm:text-3xl font-heading font-bold text-[#1e293b]">
                 Available Storefronts
               </h2>
-              <p className="text-gray-500 mt-1">
+              <p className="text-[#64748b] mt-1">
                 Browse boarded merchants and start ordering
               </p>
             </div>
@@ -139,11 +146,11 @@ const HomePage = () => {
                   transition={{ delay: index * 0.1 }}
                 >
                   <Card
-                    className="overflow-hidden hover:shadow-xl transition-all cursor-pointer group border-gray-200"
+                    className="overflow-hidden hover:shadow-xl transition-all cursor-pointer group border-[#e2e8f0]"
                     onClick={() => navigate(`/order/${merchant.slug}`)}
                     data-testid={`merchant-card-${merchant.slug}`}
                   >
-                    <div className="relative h-48 overflow-hidden bg-gradient-to-br from-white to-gray-100 border-b">
+                    <div className="relative h-48 overflow-hidden bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] border-b border-[#e2e8f0]">
                       {getMerchantLogoUrl(merchant) ? (
                         <img
                           src={getMerchantLogoUrl(merchant)}

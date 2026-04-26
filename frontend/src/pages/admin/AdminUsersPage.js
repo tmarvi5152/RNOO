@@ -52,7 +52,10 @@ const PASSWORD_POLICY_MESSAGE =
   "Password must be at least 8 characters and include 1 uppercase letter, 1 number, and 1 special character";
 
 const splitName = (fullName = "") => {
-  const parts = String(fullName || "").trim().split(/\s+/).filter(Boolean);
+  const parts = String(fullName || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
   if (parts.length === 0) return { firstName: "", lastName: "" };
   if (parts.length === 1) return { firstName: parts[0], lastName: "" };
   return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
@@ -169,19 +172,19 @@ const AdminUsersPage = () => {
       role: value,
       merchant_id:
         value === "super_admin"
-          ? (allMerchantIds[0] || "")
-          : (prev.merchant_ids?.[0] || prev.merchant_id || ""),
+          ? allMerchantIds[0] || ""
+          : prev.merchant_ids?.[0] || prev.merchant_id || "",
       merchant_ids:
-        value === "super_admin"
-          ? allMerchantIds
-          : (prev.merchant_ids || []),
+        value === "super_admin" ? allMerchantIds : prev.merchant_ids || [],
     }));
   };
 
   const toggleMerchantAssignment = (merchantId) => {
     setFormData((prev) => {
       const id = String(merchantId);
-      const existing = Array.isArray(prev.merchant_ids) ? prev.merchant_ids : [];
+      const existing = Array.isArray(prev.merchant_ids)
+        ? prev.merchant_ids
+        : [];
       const selected = existing.includes(id)
         ? existing.filter((m) => m !== id)
         : [...existing, id];
@@ -209,7 +212,9 @@ const AdminUsersPage = () => {
       !formData.phone ||
       !formData.password
     ) {
-      toast.error("First name, last name, email, phone, and password are required");
+      toast.error(
+        "First name, last name, email, phone, and password are required",
+      );
       return;
     }
 
@@ -218,7 +223,10 @@ const AdminUsersPage = () => {
       return;
     }
 
-    if (formData.role === "merchant" && (!formData.merchant_ids || formData.merchant_ids.length === 0)) {
+    if (
+      formData.role === "merchant" &&
+      (!formData.merchant_ids || formData.merchant_ids.length === 0)
+    ) {
       toast.error("Merchant users must be assigned to at least one merchant");
       return;
     }
@@ -237,14 +245,16 @@ const AdminUsersPage = () => {
           formData.role === "super_admin"
             ? merchants.map((m) => String(m.id))
             : formData.role === "merchant"
-            ? formData.merchant_ids
-            : [],
+              ? formData.merchant_ids
+              : [],
         merchant_id:
           formData.role === "super_admin"
-            ? (merchants[0]?.id ? String(merchants[0].id) : null)
+            ? merchants[0]?.id
+              ? String(merchants[0].id)
+              : null
             : formData.role === "merchant"
-            ? (formData.merchant_ids[0] || null)
-            : null,
+              ? formData.merchant_ids[0] || null
+              : null,
       };
 
       const res = await apiService.createUser(payload);
@@ -288,7 +298,10 @@ const AdminUsersPage = () => {
       return;
     }
 
-    if (formData.role === "merchant" && (!formData.merchant_ids || formData.merchant_ids.length === 0)) {
+    if (
+      formData.role === "merchant" &&
+      (!formData.merchant_ids || formData.merchant_ids.length === 0)
+    ) {
       toast.error("Merchant users must be assigned to at least one merchant");
       return;
     }
@@ -306,14 +319,16 @@ const AdminUsersPage = () => {
           formData.role === "super_admin"
             ? merchants.map((m) => String(m.id))
             : formData.role === "merchant"
-            ? formData.merchant_ids
-            : [],
+              ? formData.merchant_ids
+              : [],
         merchant_id:
           formData.role === "super_admin"
-            ? (merchants[0]?.id ? String(merchants[0].id) : null)
+            ? merchants[0]?.id
+              ? String(merchants[0].id)
+              : null
             : formData.role === "merchant"
-            ? (formData.merchant_ids[0] || null)
-            : null,
+              ? formData.merchant_ids[0] || null
+              : null,
         is_active: Boolean(formData.is_active),
       };
 
@@ -397,7 +412,9 @@ const AdminUsersPage = () => {
       const status = error.response?.status;
       const detail = error.response?.data?.detail;
       if ([404, 405].includes(status) || detail === "Not Found") {
-        toast.error("Password reset endpoint mismatch (404/405). Restart backend so latest routes are loaded, then try again.");
+        toast.error(
+          "Password reset endpoint mismatch (404/405). Restart backend so latest routes are loaded, then try again.",
+        );
       } else {
         toast.error(detail || "Failed to reset password");
       }
@@ -420,7 +437,9 @@ const AdminUsersPage = () => {
         is_active: !user.is_active,
       });
       setUsers((prev) => prev.map((u) => (u.id === user.id ? res.data : u)));
-      toast.success(`User ${res.data?.is_active ? "activated" : "deactivated"}`);
+      toast.success(
+        `User ${res.data?.is_active ? "activated" : "deactivated"}`,
+      );
     } catch (error) {
       console.error("Failed to toggle user active:", error);
       toast.error("Failed to update user status");
@@ -441,27 +460,35 @@ const AdminUsersPage = () => {
     });
   };
 
-  const filteredUsers = users.filter(
-    (u) => {
-      const merchantMatches = getUserMerchantIds(u)
-        .map((merchantId) => {
-          const merchant = merchants.find((m) => String(m.id) === String(merchantId));
-          return `${merchant?.name || ""} ${merchantId}`.toLowerCase();
-        })
-        .join(" ");
+  const filteredUsers = users.filter((u) => {
+    const merchantMatches = getUserMerchantIds(u)
+      .map((merchantId) => {
+        const merchant = merchants.find(
+          (m) => String(m.id) === String(merchantId),
+        );
+        return `${merchant?.name || ""} ${merchantId}`.toLowerCase();
+      })
+      .join(" ");
 
-      const term = searchTerm.toLowerCase();
-      return (
-        String(getUserDisplayName(u) || "").toLowerCase().includes(term) ||
-        String(u.email || "").toLowerCase().includes(term) ||
-        String(u.role || "").toLowerCase().includes(term) ||
-        merchantMatches.includes(term)
-      );
-    },
-  );
+    const term = searchTerm.toLowerCase();
+    return (
+      String(getUserDisplayName(u) || "")
+        .toLowerCase()
+        .includes(term) ||
+      String(u.email || "")
+        .toLowerCase()
+        .includes(term) ||
+      String(u.role || "")
+        .toLowerCase()
+        .includes(term) ||
+      merchantMatches.includes(term)
+    );
+  });
 
   const filteredMerchantOptions = merchants.filter((merchant) => {
-    const term = String(merchantAccessSearchTerm || "").toLowerCase().trim();
+    const term = String(merchantAccessSearchTerm || "")
+      .toLowerCase()
+      .trim();
     if (!term) return true;
 
     const merchantName = String(merchant?.name || "").toLowerCase();
@@ -558,7 +585,9 @@ const AdminUsersPage = () => {
               value={formData.password}
               onChange={handleInputChange}
             />
-            <p className="mt-1 text-xs text-gray-500">{PASSWORD_POLICY_MESSAGE}</p>
+            <p className="mt-1 text-xs text-gray-500">
+              {PASSWORD_POLICY_MESSAGE}
+            </p>
           </div>
         )}
 
@@ -581,7 +610,9 @@ const AdminUsersPage = () => {
               />
               <div className="mt-2 max-h-44 overflow-y-auto rounded-md border bg-white p-2 space-y-2">
                 {filteredMerchantOptions.length === 0 ? (
-                  <p className="text-xs text-gray-500">No merchants available</p>
+                  <p className="text-xs text-gray-500">
+                    No merchants available
+                  </p>
                 ) : (
                   filteredMerchantOptions.map((merchant) => {
                     const merchantId = String(merchant.id);
@@ -607,7 +638,8 @@ const AdminUsersPage = () => {
                 )}
               </div>
               <p className="mt-1 text-xs text-gray-500">
-                {formData.merchant_ids.length} merchant{formData.merchant_ids.length === 1 ? "" : "s"} selected
+                {formData.merchant_ids.length} merchant
+                {formData.merchant_ids.length === 1 ? "" : "s"} selected
               </p>
             </>
           )}
@@ -659,7 +691,10 @@ const AdminUsersPage = () => {
           </div>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-blue-600 hover:bg-blue-700" onClick={openCreateDialog}>
+              <Button
+                className="bg-[#cc0000] hover:bg-[#a90000]"
+                onClick={openCreateDialog}
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 New User
               </Button>
@@ -668,14 +703,15 @@ const AdminUsersPage = () => {
               <DialogHeader>
                 <DialogTitle>Create New User</DialogTitle>
                 <DialogDescription>
-                  Set required identity and access details for the new user account.
+                  Set required identity and access details for the new user
+                  account.
                 </DialogDescription>
               </DialogHeader>
               {renderUserForm("create")}
               <Button
                 onClick={handleCreate}
                 disabled={saving}
-                className="w-full bg-blue-600 hover:bg-blue-700"
+                className="w-full bg-[#cc0000] hover:bg-[#a90000]"
               >
                 {saving ? "Creating..." : "Create User"}
               </Button>
@@ -731,15 +767,20 @@ const AdminUsersPage = () => {
                   </TableHeader>
                   <TableBody>
                     {filteredUsers.map((user) => {
-                      const assignmentEntries = getUserMerchantIds(user)
-                        .map((merchantId) => {
-                          const merchant = merchants.find((m) => String(m.id) === String(merchantId));
+                      const assignmentEntries = getUserMerchantIds(user).map(
+                        (merchantId) => {
+                          const merchant = merchants.find(
+                            (m) => String(m.id) === String(merchantId),
+                          );
                           return {
                             id: merchantId,
                             name: merchant?.name || "Unknown Merchant",
-                            displayId: getMerchantDisplayId(merchant || { id: merchantId }),
+                            displayId: getMerchantDisplayId(
+                              merchant || { id: merchantId },
+                            ),
                           };
-                        });
+                        },
+                      );
 
                       return (
                         <TableRow key={user.id}>
@@ -762,11 +803,16 @@ const AdminUsersPage = () => {
                           </TableCell>
                           <TableCell>
                             {user.role === "super_admin" ? (
-                              <span className="text-sm text-gray-600">All merchants</span>
+                              <span className="text-sm text-gray-600">
+                                All merchants
+                              </span>
                             ) : assignmentEntries.length > 0 ? (
                               <div className="space-y-1">
                                 {assignmentEntries.map((entry) => (
-                                  <div key={entry.id} className="text-xs text-gray-600">
+                                  <div
+                                    key={entry.id}
+                                    className="text-xs text-gray-600"
+                                  >
                                     {entry.name} ({entry.displayId})
                                   </div>
                                 ))}
@@ -787,7 +833,11 @@ const AdminUsersPage = () => {
                           </TableCell>
                           <TableCell>
                             <Badge
-                              variant={user.is_active ? "default" : "secondary"}
+                              className={
+                                user.is_active
+                                  ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-0"
+                                  : "bg-slate-100 text-slate-500 hover:bg-slate-100 border-0"
+                              }
                             >
                               {user.is_active ? "Active" : "Inactive"}
                             </Badge>
@@ -841,14 +891,15 @@ const AdminUsersPage = () => {
             <DialogHeader>
               <DialogTitle>Edit User</DialogTitle>
               <DialogDescription>
-                Super admins can update all profile fields, including email and role.
+                Super admins can update all profile fields, including email and
+                role.
               </DialogDescription>
             </DialogHeader>
             {renderUserForm("edit")}
             <Button
               onClick={handleSaveEdit}
               disabled={saving}
-              className="w-full bg-blue-600 hover:bg-blue-700"
+              className="w-full bg-[#cc0000] hover:bg-[#a90000]"
             >
               {saving ? "Saving..." : "Save Changes"}
             </Button>
@@ -896,7 +947,7 @@ const AdminUsersPage = () => {
               <Button
                 onClick={handleResetPassword}
                 disabled={saving}
-                className="w-full bg-blue-600 hover:bg-blue-700"
+                className="w-full bg-[#cc0000] hover:bg-[#a90000]"
               >
                 {saving ? "Resetting..." : "Reset Password"}
               </Button>

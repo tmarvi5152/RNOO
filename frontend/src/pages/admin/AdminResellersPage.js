@@ -165,7 +165,7 @@ const AdminResellersPage = () => {
           </div>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-purple-600 hover:bg-purple-700">
+              <Button className="bg-[#cc0000] hover:bg-[#a90000]">
                 <Plus className="w-4 h-4 mr-2" />
                 New Reseller
               </Button>
@@ -225,7 +225,7 @@ const AdminResellersPage = () => {
                 <Button
                   onClick={handleCreate}
                   disabled={saving}
-                  className="w-full bg-purple-600 hover:bg-purple-700"
+                  className="w-full bg-[#cc0000] hover:bg-[#a90000]"
                 >
                   {saving ? "Creating..." : "Create Reseller"}
                 </Button>
@@ -290,8 +290,10 @@ const AdminResellersPage = () => {
                         <TableCell>{reseller.merchant_count || 0}</TableCell>
                         <TableCell>
                           <Badge
-                            variant={
-                              reseller.is_active ? "default" : "secondary"
+                            className={
+                              reseller.is_active
+                                ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-0"
+                                : "bg-slate-100 text-slate-500 hover:bg-slate-100 border-0"
                             }
                           >
                             {reseller.is_active ? "Active" : "Inactive"}
@@ -383,7 +385,7 @@ const AdminResellersPage = () => {
               <Button
                 onClick={handleSaveEdit}
                 disabled={saving}
-                className="w-full bg-purple-600 hover:bg-purple-700"
+                className="w-full bg-[#cc0000] hover:bg-[#a90000]"
               >
                 {saving ? "Saving..." : "Save Changes"}
               </Button>

@@ -401,7 +401,7 @@ const AdminMerchantsPage = () => {
           </div>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-purple-600 hover:bg-purple-700">
+              <Button className="bg-[#cc0000] hover:bg-[#a90000]">
                 <Plus className="w-4 h-4 mr-2" />
                 New Merchant
               </Button>
@@ -414,7 +414,7 @@ const AdminMerchantsPage = () => {
               <Button
                 onClick={handleCreate}
                 disabled={saving}
-                className="w-full bg-purple-600 hover:bg-purple-700"
+                className="w-full bg-[#cc0000] hover:bg-[#a90000]"
               >
                 {saving ? "Creating..." : "Create Merchant"}
               </Button>
@@ -486,14 +486,20 @@ const AdminMerchantsPage = () => {
                         <TableCell>
                           <div className="flex gap-2">
                             <Badge
-                              variant={
-                                merchant.is_active ? "default" : "secondary"
+                              className={
+                                merchant.is_active
+                                  ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-0"
+                                  : "bg-slate-100 text-slate-500 hover:bg-slate-100 border-0"
                               }
                             >
                               {merchant.is_active ? "Active" : "Inactive"}
                             </Badge>
                             <Badge
-                              variant={merchant.is_open ? "default" : "outline"}
+                              className={
+                                merchant.is_open
+                                  ? "bg-sky-100 text-sky-700 hover:bg-sky-100 border-0"
+                                  : "bg-slate-100 text-slate-400 hover:bg-slate-100 border-0"
+                              }
                             >
                               {merchant.is_open ? "Open" : "Closed"}
                             </Badge>
@@ -535,7 +541,7 @@ const AdminMerchantsPage = () => {
             <Button
               onClick={handleSaveEdit}
               disabled={saving}
-              className="w-full bg-purple-600 hover:bg-purple-700"
+              className="w-full bg-[#cc0000] hover:bg-[#a90000]"
             >
               {saving ? "Saving..." : "Save Changes"}
             </Button>

@@ -28,13 +28,18 @@ import CraveCartPage from "./crave/CartPage";
 import CraveCheckoutPage from "./crave/CheckoutPage";
 import CraveOrderTrackingPage from "./crave/OrderTrackingPage";
 import CraveOrderConfirmationPage from "./crave/OrderConfirmationPage";
+import RpowerOriginalMenuPage from "./rpower-original/MenuPage";
+import RpowerOriginalCartPage from "./rpower-original/CartPage";
+import RpowerOriginalCheckoutPage from "./rpower-original/CheckoutPage";
+import RpowerOriginalOrderTrackingPage from "./rpower-original/OrderTrackingPage";
+import RpowerOriginalOrderConfirmationPage from "./rpower-original/OrderConfirmationPage";
 
 export const DEFAULT_TEMPLATE = "classic";
 
 export const TEMPLATES = {
   classic: {
-    label: "Classic",
-    description: "The original RNOO consumer experience",
+    label: "Template # 1",
+    description: "Classic",
     MenuPage: FuturisticMenuPage,
     CartPage: CartPage,
     CheckoutPage: CheckoutPage,
@@ -42,9 +47,9 @@ export const TEMPLATES = {
     OrderConfirmationPage: OrderConfirmationPage,
   },
   vantage: {
-    label: "Vantage",
+    label: "Template # 2",
     description:
-      "A premium, image-forward layout featuring immersive category headers and a refined minimalist checkout flow.",
+      "Vantage",
     MenuPage: VantageMenuPage,
     CartPage: VantageCartPage,
     CheckoutPage: VantageCheckoutPage,
@@ -52,9 +57,9 @@ export const TEMPLATES = {
     OrderConfirmationPage: VantageOrderConfirmationPage,
   },
   rpower_jim_baldridge: {
-    label: "RPOWER Jim Baldridge Version",
+    label: "Template # 3",
     description:
-      "A legacy tribute theme inspired by RPOWER heritage with a premium dark presentation and memorial tone.",
+      "Jim Baldridge - Version",
     MenuPage: RpowerJimBaldridgeMenuPage,
     CartPage: RpowerJimBaldridgeCartPage,
     CheckoutPage: RpowerJimBaldridgeCheckoutPage,
@@ -62,9 +67,9 @@ export const TEMPLATES = {
     OrderConfirmationPage: RpowerJimBaldridgeOrderConfirmationPage,
   },
   velocity: {
-    label: "Velocity",
+    label: "Template # 4",
     description:
-      "Pure speed and conversion. Dense grid layout, bottom-sheet modifiers, and a frictionless checkout flow inspired by fast-food mobile apps.",
+      "Velocity",
     MenuPage: VelocityMenuPage,
     CartPage: VelocityCartPage,
     CheckoutPage: VelocityCheckoutPage,
@@ -72,14 +77,24 @@ export const TEMPLATES = {
     OrderConfirmationPage: VelocityOrderConfirmationPage,
   },
   crave: {
-    label: "Crave",
+    label: "Template # 5",
     description:
-      "Modern, playful, rounded list-first flow with FAB cart and focused accordion checkout.",
+      "Cravings",
     MenuPage: CraveMenuPage,
     CartPage: CraveCartPage,
     CheckoutPage: CraveCheckoutPage,
     OrderTrackingPage: CraveOrderTrackingPage,
     OrderConfirmationPage: CraveOrderConfirmationPage,
+  },
+  rpower_original: {
+    label: "Template # 6",
+    description:
+      "RPOWER - Original",
+    MenuPage: RpowerOriginalMenuPage,
+    CartPage: RpowerOriginalCartPage,
+    CheckoutPage: RpowerOriginalCheckoutPage,
+    OrderTrackingPage: RpowerOriginalOrderTrackingPage,
+    OrderConfirmationPage: RpowerOriginalOrderConfirmationPage,
   },
   // Future templates go here, e.g.:
   // modern: { label: "Modern", MenuPage: ..., ... }

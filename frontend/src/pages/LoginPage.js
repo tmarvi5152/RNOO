@@ -14,6 +14,7 @@ import {
 } from "../components/ui/card";
 import { toast } from "sonner";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
+import rpowerAdminLogo from "../images/rpower_admin_logo.png";
 
 const LoginPage = () => {
   const { login, isAuthenticated, user } = useAuth();
@@ -64,7 +65,7 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-rpower-slate flex items-center justify-center p-4">
+    <div className="rpower-login-shell min-h-screen flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -73,32 +74,29 @@ const LoginPage = () => {
       >
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-3">
-            <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center">
-              <span className="font-heading font-bold text-2xl text-white">
-                R
-              </span>
-            </div>
-            <div className="text-left">
-              <h1 className="font-heading font-bold text-xl text-white">
-                RPOWER
-              </h1>
-              <p className="text-sm text-gray-400">Online Ordering</p>
-            </div>
-          </div>
+          <img
+            src={rpowerAdminLogo}
+            alt="RPOWER"
+            className="h-12 w-auto object-contain mx-auto"
+          />
+          <p className="text-sm text-[#475569] mt-2">RPOWER Onliine Ordering</p>
         </div>
 
-        <Card className="border-0 shadow-2xl">
+        <Card className="border border-[#dce3ec] shadow-[0_16px_40px_rgba(15,23,42,0.12)]">
           <CardHeader className="text-center">
-            <CardTitle className="font-heading text-2xl">
+            <CardTitle className="font-heading text-2xl text-[#1e293b]">
               Welcome Back
             </CardTitle>
-            <CardDescription>Sign in to access your account</CardDescription>
+            <CardDescription className="text-[#64748b]">
+              Sign in to access your account
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="text-[#1e293b]">
+                  Email
+                </Label>
                 <Input
                   id="email"
                   type="email"
@@ -106,12 +104,14 @@ const LoginPage = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   data-testid="login-email-input"
-                  className="h-12"
+                  className="h-12 border-[#94a3b8] focus-visible:ring-[#cc0000]"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="text-[#1e293b]">
+                  Password
+                </Label>
                 <div className="relative">
                   <Input
                     id="password"
@@ -120,7 +120,7 @@ const LoginPage = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     data-testid="login-password-input"
-                    className="h-12 pr-12"
+                    className="h-12 pr-12 border-[#94a3b8] focus-visible:ring-[#cc0000]"
                   />
                   <button
                     type="button"
@@ -141,7 +141,7 @@ const LoginPage = () => {
 
               <Button
                 type="submit"
-                className="w-full h-12 bg-primary hover:bg-primary-hover active:scale-95 transition-all"
+                className="w-full h-12 bg-[#cc0000] hover:bg-[#a90000] active:scale-95 transition-all text-white"
                 disabled={loading}
                 data-testid="login-submit-btn"
               >
@@ -157,7 +157,7 @@ const LoginPage = () => {
             </form>
 
             <div className="mt-6 text-center">
-              <Link to="/" className="text-sm text-primary hover:underline">
+              <Link to="/" className="text-sm text-[#cc0000] hover:underline">
                 ← Back to Home
               </Link>
             </div>

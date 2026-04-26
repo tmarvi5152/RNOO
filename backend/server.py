@@ -94,7 +94,8 @@ async def _handle_shepherd_order_status_update(shepherd_merchant_id: str, payloa
     try:
         order_ref = (
             payload.get("id") or payload.get("orderId") or payload.get("order_id") or
-            payload.get("OrderId") or payload.get("ref") or payload.get("Ref")
+            payload.get("OrderId") or payload.get("ref") or payload.get("Ref") or
+            payload.get("reference") or payload.get("Reference")
         )
         status_raw = (
             payload.get("status") or payload.get("Status") or
@@ -105,10 +106,30 @@ async def _handle_shepherd_order_status_update(shepherd_merchant_id: str, payloa
             logger.warning(f"ORDERSTATUSUPDATE for {shepherd_merchant_id}: no order ref in payload {payload}")
             return
 
+        # Parse Shepherd reference format: "PX,<shepherd_order_id>,<pos_ticket_number>"
+        # The last segment is the POS ticket number assigned by RPOWER after digesting the order.
+        pos_ticket_number = None
+        ref_mid_segment = None
+        if isinstance(order_ref, str) and order_ref.startswith("PX,"):
+            parts = order_ref.split(",")
+            if len(parts) >= 3:
+                ref_mid_segment = parts[1]
+                last_part = parts[-1]
+                if last_part.isdigit():
+                    pos_ticket_number = int(last_part)
+
+        # Try exact match first (shepherd_order_id stores the full ref string from submission)
         order = await db.orders.find_one(
             {"$or": [{"shepherd_order_id": order_ref}, {"shepherd_order_ref": order_ref}]},
             {"_id": 0}
         )
+
+        # If not found, try matching by the middle segment (Shepherd order ID portion of the reference)
+        if not order and ref_mid_segment:
+            order = await db.orders.find_one(
+                {"shepherd_order_id": {"$regex": re.escape(ref_mid_segment)}},
+                {"_id": 0}
+            )
 
         if not order:
             logger.warning(f"ORDERSTATUSUPDATE: no order found for ref {order_ref} (merchant {shepherd_merchant_id})")
@@ -124,9 +145,16 @@ async def _handle_shepherd_order_status_update(shepherd_merchant_id: str, payloa
         if new_status != old_status:
             update_data["status"] = new_status
 
+        # Store POS ticket number on first receipt (don't overwrite once set)
+        if pos_ticket_number is not None and not order.get("poscnx_ticket_number"):
+            update_data["poscnx_ticket_number"] = pos_ticket_number
+
         await db.orders.update_one({"id": order["id"]}, {"$set": update_data})
 
-        if new_status != old_status:
+        # Broadcast whenever status or ticket number changes so the frontend can update in real time
+        status_changed = new_status != old_status
+        ticket_arrived = pos_ticket_number is not None and not order.get("poscnx_ticket_number")
+        if status_changed or ticket_arrived:
             updated_order = await db.orders.find_one({"id": order["id"]}, {"_id": 0})
             if updated_order:
                 await ws_manager.broadcast_order_event(
@@ -134,7 +162,10 @@ async def _handle_shepherd_order_status_update(shepherd_merchant_id: str, payloa
                     updated_order,
                     order["merchant_id"]
                 )
-            logger.info(f"Webhook: order {order['id'][:8]} status {old_status} -> {new_status}")
+        log_msg = f"Webhook: order {order['id'][:8]} status {old_status} -> {new_status}"
+        if pos_ticket_number is not None:
+            log_msg += f", POS ticket #{pos_ticket_number}"
+        logger.info(log_msg)
     except Exception as e:
         logger.error(f"Error handling ORDERSTATUSUPDATE webhook: {e}")
 

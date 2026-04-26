@@ -230,8 +230,8 @@ const ShepherdPage = () => {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Server className="w-6 h-6 text-primary" />
+                <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center">
+                  <Server className="w-6 h-6 text-slate-500" />
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Shepherd Merchants</p>
@@ -246,8 +246,8 @@ const ShepherdPage = () => {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-semantic-success/10 flex items-center justify-center">
-                  <Link2 className="w-6 h-6 text-semantic-success" />
+                <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center">
+                  <Link2 className="w-6 h-6 text-emerald-600" />
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Linked Merchants</p>
@@ -266,8 +266,8 @@ const ShepherdPage = () => {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-semantic-warning/10 flex items-center justify-center">
-                  <Database className="w-6 h-6 text-semantic-warning" />
+                <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center">
+                  <Database className="w-6 h-6 text-amber-600" />
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Local Merchants</p>
@@ -570,7 +570,7 @@ const ShepherdPage = () => {
                   Cancel
                 </Button>
                 <Button
-                  className="bg-primary hover:bg-primary-hover"
+                  className="bg-[#cc0000] hover:bg-[#a90000]"
                   onClick={handleLinkMerchant}
                   disabled={!selectedShepherdId}
                 >

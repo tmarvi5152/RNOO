@@ -226,11 +226,11 @@ const LogsPage = () => {
 
   const getStatusColor = (code) => {
     if (code >= 200 && code < 300)
-      return "bg-semantic-success/10 text-semantic-success";
+      return "bg-emerald-100 text-emerald-700 border border-emerald-200";
     if (code >= 400 && code < 500)
-      return "bg-semantic-warning/10 text-semantic-warning";
-    if (code >= 500) return "bg-semantic-error/10 text-semantic-error";
-    return "bg-gray-100 text-gray-600";
+      return "bg-amber-100 text-amber-700 border border-amber-200";
+    if (code >= 500) return "bg-red-100 text-red-700 border border-red-200";
+    return "bg-slate-100 text-slate-500";
   };
 
   const getActionColor = (action) => {

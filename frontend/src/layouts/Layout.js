@@ -27,6 +27,7 @@ import {
   Clock,
   Server,
 } from "lucide-react";
+import rpowerAdminLogo from "../images/rpower_admin_logo.png";
 
 const getMerchantLogoUrl = (merchant) => {
   const licenseInfo = merchant?.license_info || {};
@@ -51,16 +52,17 @@ const AdminSidebar = ({
   onNavClick,
 }) => (
   <div
-    className={`flex flex-col h-full ${mobile ? "w-full" : "w-64"} bg-rpower-sidebar text-white`}
+    className={`rpower-admin-sidebar flex flex-col h-full ${mobile ? "w-full" : "w-64"} text-white`}
   >
-    <div className="p-6 border-b border-rpower-bg-dark">
-      <Link to="/admin" className="flex items-center gap-2">
-        <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-          <span className="font-heading font-bold text-white">R</span>
-        </div>
-        <span className="font-heading font-bold text-lg">RPOWER</span>
+    <div className="p-6 border-b border-white/10">
+      <Link to="/admin" className="flex items-center gap-3">
+        <img
+          src={rpowerAdminLogo}
+          alt="RPOWER"
+          className="h-10 w-auto object-contain"
+        />
       </Link>
-      <p className="text-xs text-rpower-text-light/60 mt-1">
+      <p className="text-xs text-white/60 mt-2 tracking-wide">
         Online Ordering Admin
       </p>
     </div>
@@ -75,8 +77,8 @@ const AdminSidebar = ({
             onClick={onNavClick}
             className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
               isActive
-                ? "bg-primary text-white"
-                : "text-rpower-text-light hover:bg-rpower-bg-dark hover:text-white"
+                ? "bg-[#cc0000] text-white shadow-[0_8px_20px_rgba(204,0,0,0.35)]"
+                : "text-white/85 hover:bg-white/10 hover:text-white"
             }`}
           >
             <item.icon className="w-5 h-5" />
@@ -86,9 +88,9 @@ const AdminSidebar = ({
       })}
     </nav>
 
-    <div className="p-4 border-t border-rpower-bg-dark">
+    <div className="p-4 border-t border-white/10">
       <div className="flex items-center gap-3 mb-4 px-4">
-        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
+        <div className="w-10 h-10 rounded-full bg-[#cc0000] flex items-center justify-center">
           <span className="font-heading font-bold">
             {(user?.name || user?.first_name || "U")[0].toUpperCase()}
           </span>
@@ -106,7 +108,7 @@ const AdminSidebar = ({
       </div>
       <Button
         variant="ghost"
-        className="w-full justify-start text-rpower-text-light hover:text-white hover:bg-rpower-bg-dark"
+        className="w-full justify-start text-white/85 hover:text-white hover:bg-white/10"
         onClick={handleLogout}
       >
         <LogOut className="w-5 h-5 mr-3" />
@@ -166,7 +168,7 @@ export const AdminLayout = ({ children }) => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="rpower-admin-shell min-h-screen flex">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:block fixed left-0 top-0 bottom-0 z-30">
         <AdminSidebar
@@ -194,7 +196,7 @@ export const AdminLayout = ({ children }) => {
       {/* Main Content */}
       <div className="flex-1 lg:ml-64">
         {/* Mobile Header */}
-        <header className="lg:hidden sticky top-0 z-20 bg-white border-b px-4 py-3 flex items-center justify-between">
+        <header className="rpower-admin-mobile-header lg:hidden sticky top-0 z-20 px-4 py-3 flex items-center justify-between">
           <Button
             variant="ghost"
             size="icon"
@@ -204,17 +206,16 @@ export const AdminLayout = ({ children }) => {
             <Menu className="w-6 h-6" />
           </Button>
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <span className="font-heading font-bold text-white text-sm">
-                R
-              </span>
-            </div>
-            <span className="font-heading font-bold">RPOWER</span>
+            <img
+              src={rpowerAdminLogo}
+              alt="RPOWER"
+              className="h-8 w-auto object-contain"
+            />
           </div>
           <div className="w-10" />
         </header>
 
-        <main className="p-6">
+        <main className="rpower-admin-main p-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
