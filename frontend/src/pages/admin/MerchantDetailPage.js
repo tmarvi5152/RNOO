@@ -945,6 +945,46 @@ const MerchantDetailPage = () => {
     }));
   };
 
+  const resolveShepherdTaxRows = (shepherdTaxPayload, localMerchant) => {
+    const payload = shepherdTaxPayload?.payload ?? shepherdTaxPayload;
+    const candidates = [
+      payload,
+      payload?.TaxRates,
+      payload?.tax_rates,
+      payload?.taxRates,
+      payload?.rates,
+      payload?.data,
+      localMerchant?.shepherd_tax_rates,
+    ];
+    const arrayData = candidates.find((entry) => Array.isArray(entry));
+    if (!arrayData) return [];
+
+    return arrayData.map((tax, idx) => ({
+      id:
+        tax?.tax_rate_id ||
+        tax?.posId ||
+        tax?.PosId ||
+        tax?.TaxRateId ||
+        tax?.Id ||
+        tax?.id ||
+        `shepherd-tax-${idx}`,
+      name:
+        tax?.name ||
+        tax?.Name ||
+        tax?.tax_name ||
+        tax?.taxName ||
+        tax?.TaxRateId ||
+        tax?.posId ||
+        "N/A",
+      rawRate: tax?.rate ?? tax?.Rate ?? tax?.tax_rate ?? tax?.taxRate,
+      source:
+        Array.isArray(localMerchant?.shepherd_tax_rates) &&
+        arrayData === localMerchant.shepherd_tax_rates
+          ? "local_sync"
+          : "shepherd",
+    }));
+  };
+
   const formatTaxRate = (rawRate) => {
     if (rawRate === null || rawRate === undefined || rawRate === "")
       return "N/A";
@@ -954,12 +994,7 @@ const MerchantDetailPage = () => {
     return `${percent.toFixed(2)}%`;
   };
 
-  const shepherdTaxRows = (taxRates?.TaxRates || []).map((tax, idx) => ({
-    id: tax?.TaxRateId || tax?.Id || `shepherd-tax-${idx}`,
-    name: tax?.Name || tax?.TaxRateId || "N/A",
-    rawRate: tax?.Rate,
-    source: "shepherd",
-  }));
+  const shepherdTaxRows = resolveShepherdTaxRows(taxRates, local_merchant);
   const coreTaxRows = resolveCoreTaxRows(coreTaxRates);
   const effectiveTaxRows =
     coreTaxRows.length > 0 ? coreTaxRows : shepherdTaxRows;

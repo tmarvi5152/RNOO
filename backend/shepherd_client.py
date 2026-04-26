@@ -798,7 +798,9 @@ def build_shepherd_order(order: dict, merchant_shepherd_config: dict) -> dict:
     if tax_amount > 0:
         items.append({
             "pn": "TAX",
+            "n": "TAX",
             "plu": "TAX",
+            "qty": 1,
             "p": format_price(tax_amount),
             "mods": []
         })
@@ -808,7 +810,9 @@ def build_shepherd_order(order: dict, merchant_shepherd_config: dict) -> dict:
     if tip_amount > 0:
         items.append({
             "pn": "TIP",
+            "n": "TIP",
             "plu": "TIP",
+            "qty": 1,
             "p": format_price(tip_amount),
             "mods": []
         })

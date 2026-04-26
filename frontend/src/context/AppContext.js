@@ -190,7 +190,9 @@ export const CartProvider = ({ children }) => {
   };
 
   const subtotal = items.reduce((sum, item) => sum + getItemTotal(item), 0);
-  const tax = subtotal * 0.0825;
+  const configuredTaxRate = Number(process.env.REACT_APP_DEFAULT_TAX_RATE || 0);
+  const tax =
+    subtotal * (Number.isFinite(configuredTaxRate) ? configuredTaxRate : 0);
   const total = subtotal + tax;
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 

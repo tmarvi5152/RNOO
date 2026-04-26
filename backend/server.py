@@ -12,7 +12,7 @@ import asyncio
 import re
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
-from typing import List, Optional, Dict, Any, Set
+from typing import List, Optional, Dict, Any, Set, Tuple
 import uuid
 from datetime import datetime, timezone, timedelta
 import bcrypt
@@ -440,6 +440,89 @@ def build_menu_sync_summary(transformed: dict, shepherd_menu: Any, schedules: Li
     }
 
 
+def normalize_tax_rate_value(raw_rate: Any) -> Optional[float]:
+    """Normalize a tax rate to decimal fraction form (e.g., 5.0 -> 0.05)."""
+    if raw_rate is None:
+        return None
+    try:
+        value = float(raw_rate)
+    except (TypeError, ValueError):
+        return None
+
+    if value < 0:
+        return None
+
+    # Shepherd commonly returns percent values (e.g., 5.0 means 5%).
+    if value > 1:
+        value = value / 100.0
+
+    return round(value, 6)
+
+
+def normalize_shepherd_tax_rates_payload(tax_rates_payload: Any) -> List[dict]:
+    """Normalize Shepherd tax payloads to a stable internal format."""
+    if isinstance(tax_rates_payload, dict):
+        candidates = (
+            tax_rates_payload.get("TaxRates")
+            or tax_rates_payload.get("tax_rates")
+            or tax_rates_payload.get("taxRates")
+            or []
+        )
+    elif isinstance(tax_rates_payload, list):
+        candidates = tax_rates_payload
+    else:
+        candidates = []
+
+    normalized = []
+    for tax in candidates:
+        if not isinstance(tax, dict):
+            continue
+
+        # Menu Sync TaxRateId values correspond to Shepherd tax rate posId.
+        tax_rate_id = (
+            tax.get("posId")
+            or tax.get("PosId")
+            or tax.get("TaxRateId")
+            or tax.get("Id")
+            or tax.get("id")
+        )
+        if not tax_rate_id:
+            continue
+
+        normalized_rate = normalize_tax_rate_value(
+            tax.get("Rate") if tax.get("Rate") is not None else tax.get("rate")
+        )
+
+        normalized.append(
+            {
+                "tax_rate_id": str(tax_rate_id),
+                "name": tax.get("Name") or tax.get("name") or str(tax_rate_id),
+                "rate": normalized_rate if normalized_rate is not None else 0.0,
+                "included": bool(tax.get("Included") if tax.get("Included") is not None else tax.get("included", False)),
+            }
+        )
+
+    return normalized
+
+
+def resolve_default_tax_rate(normalized_tax_rates: List[dict]) -> Tuple[Optional[str], float]:
+    """Pick a stable default tax rate when item-level mapping is missing."""
+    if not normalized_tax_rates:
+        return None, 0.0
+
+    for row in normalized_tax_rates:
+        if str(row.get("tax_rate_id", "")).lower() == "tax1":
+            return row.get("tax_rate_id"), float(row.get("rate") or 0.0)
+
+    for row in normalized_tax_rates:
+        rate = float(row.get("rate") or 0.0)
+        if rate > 0:
+            return row.get("tax_rate_id"), rate
+
+    first = normalized_tax_rates[0]
+    return first.get("tax_rate_id"), float(first.get("rate") or 0.0)
+
+
 @app.middleware("http")
 async def capture_provider_webhook_payloads(request: Request, call_next):
     if not is_provider_webhook_path(request.url.path):
@@ -768,6 +851,8 @@ class MenuItem(BaseModel):
     pos_id: Optional[str] = None  # POS identifier
     pos_data: Optional[str] = None  # Custom key:value pairs
     tax_rate_id: Optional[str] = None  # Tax table identifier
+    tax_rate_percent: Optional[float] = None  # Decimal tax rate (e.g., 0.05)
+    merchant_default_tax_rate_percent: Optional[float] = None
 
 class MenuItemCreate(BaseModel):
     merchant_id: str
@@ -782,6 +867,8 @@ class MenuItemCreate(BaseModel):
     pos_id: Optional[str] = None
     pos_data: Optional[str] = None
     tax_rate_id: Optional[str] = None
+    tax_rate_percent: Optional[float] = None
+    merchant_default_tax_rate_percent: Optional[float] = None
 
 class MenuCategory(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -834,6 +921,8 @@ class CartItem(BaseModel):
     unit_price: float
     plu: Optional[str] = None
     shepherd_pos_id: Optional[str] = None
+    tax_rate_id: Optional[str] = None
+    tax_rate_percent: Optional[float] = None
     modifiers: List[CartItemModifier] = []
     special_instructions: Optional[str] = None
 
@@ -2225,6 +2314,21 @@ async def get_menu_items(
         query["category_id"] = category_id
     
     items = await db.menu_items.find(query, {"_id": 0}).to_list(500)
+
+    merchant = await db.merchants.find_one({"id": merchant_id}, {"_id": 0, "default_tax_rate_percent": 1, "shepherd_tax_rates": 1})
+    merchant_default_tax_rate = normalize_tax_rate_value((merchant or {}).get("default_tax_rate_percent")) or 0.0
+    merchant_tax_rate_map = {
+        str(row.get("tax_rate_id")): normalize_tax_rate_value(row.get("rate")) or 0.0
+        for row in ((merchant or {}).get("shepherd_tax_rates") or [])
+        if isinstance(row, dict) and row.get("tax_rate_id")
+    }
+
+    for item in items:
+        if item.get("tax_rate_percent") is None:
+            rate_from_map = merchant_tax_rate_map.get(str(item.get("tax_rate_id"))) if item.get("tax_rate_id") else None
+            item["tax_rate_percent"] = rate_from_map if rate_from_map is not None else merchant_default_tax_rate
+        item["merchant_default_tax_rate_percent"] = merchant_default_tax_rate
+
     return items
 
 @api_router.get("/menu/item/{item_id}", response_model=MenuItem)
@@ -2232,6 +2336,23 @@ async def get_menu_item(item_id: str):
     item = await db.menu_items.find_one({"id": item_id}, {"_id": 0})
     if not item:
         raise HTTPException(status_code=404, detail="Menu item not found")
+
+    merchant = await db.merchants.find_one(
+        {"id": item.get("merchant_id")},
+        {"_id": 0, "default_tax_rate_percent": 1, "shepherd_tax_rates": 1},
+    )
+    merchant_default_tax_rate = normalize_tax_rate_value((merchant or {}).get("default_tax_rate_percent")) or 0.0
+    merchant_tax_rate_map = {
+        str(row.get("tax_rate_id")): normalize_tax_rate_value(row.get("rate")) or 0.0
+        for row in ((merchant or {}).get("shepherd_tax_rates") or [])
+        if isinstance(row, dict) and row.get("tax_rate_id")
+    }
+
+    if item.get("tax_rate_percent") is None:
+        rate_from_map = merchant_tax_rate_map.get(str(item.get("tax_rate_id"))) if item.get("tax_rate_id") else None
+        item["tax_rate_percent"] = rate_from_map if rate_from_map is not None else merchant_default_tax_rate
+    item["merchant_default_tax_rate_percent"] = merchant_default_tax_rate
+
     return item
 
 @api_router.patch("/menu/items/{item_id}")
@@ -2385,6 +2506,39 @@ async def submit_order_to_shepherd_async(order_id: str, order_dict: dict, mercha
         merchant_id_suffix = merchant_id_digits[:5] or merchant_id[:5]
         order_date = datetime.now(timezone.utc).strftime("%d-%m-%y")
         order_ref = f"R-{order_dict.get('order_number', 0)}-{merchant_id_suffix}-{order_date}"
+
+        ticket_items = []
+        if isinstance(shepherd_order, dict):
+            tickets = shepherd_order.get("tickets") or []
+            if tickets and isinstance(tickets[0], dict):
+                ticket_items = tickets[0].get("items") or []
+
+        tax_tip_items = []
+        for ticket_item in ticket_items:
+            if not isinstance(ticket_item, dict):
+                continue
+            pn_value = str(ticket_item.get("pn") or "").strip().upper()
+            n_value = str(ticket_item.get("n") or "").strip().upper()
+            if pn_value in {"TAX", "TIP"} or n_value in {"TAX", "TIP"}:
+                tax_tip_items.append(ticket_item)
+
+        await log_audit(
+            action="order_shepherd_tax_tip_payload",
+            endpoint="background_task",
+            merchant_id=order_dict["merchant_id"],
+            request_data={
+                "order_id": order_id,
+                "order_number": order_dict.get("order_number"),
+                "shepherd_merchant_id": shepherd_merchant_id,
+                "shepherd_order_ref": order_ref,
+                "subtotal": order_dict.get("subtotal"),
+                "tax": order_dict.get("tax"),
+                "tip": order_dict.get("tip"),
+                "total": order_dict.get("total"),
+                "tax_tip_items": tax_tip_items,
+            },
+            status_code=200,
+        )
         
         logger.info(f"Order {order_id}: Submitting to Shepherd merchant {shepherd_merchant_id} with ref {order_ref}")
         
@@ -2436,6 +2590,23 @@ async def submit_order_to_shepherd_async(order_id: str, order_dict: dict, mercha
             "status_code": 200,
             "created_at": datetime.now(timezone.utc).isoformat()
         })
+
+        await log_audit(
+            action="order_shepherd_submission_succeeded",
+            endpoint="background_task",
+            merchant_id=order_dict["merchant_id"],
+            request_data={
+                "order_id": order_id,
+                "order_number": order_dict.get("order_number"),
+                "shepherd_merchant_id": shepherd_merchant_id,
+                "shepherd_order_ref": order_ref,
+            },
+            response_data={
+                "shepherd_order_id": shepherd_order_id,
+                "shepherd_status": shepherd_status,
+            },
+            status_code=200,
+        )
         
     except Exception as e:
         logger.error(f"Order {order_id}: Failed to submit to Shepherd: {e}")
@@ -2473,13 +2644,37 @@ async def submit_order_to_shepherd_async(order_id: str, order_dict: dict, mercha
 
 @api_router.post("/orders", response_model=Order)
 async def create_order(data: OrderCreate, background_tasks: BackgroundTasks):
+    merchant = await db.merchants.find_one({"id": data.merchant_id}, {"_id": 0})
+    if not merchant:
+        raise HTTPException(status_code=404, detail="Merchant not found")
+
+    merchant_tax_rate_map = {
+        str(row.get("tax_rate_id")): normalize_tax_rate_value(row.get("rate")) or 0.0
+        for row in (merchant.get("shepherd_tax_rates") or [])
+        if isinstance(row, dict) and row.get("tax_rate_id")
+    }
+
+    merchant_default_tax_rate = normalize_tax_rate_value(
+        merchant.get("default_tax_rate_percent")
+    )
+    if merchant_default_tax_rate is None:
+        merchant_default_tax_rate = 0.0
+
     # Enrich cart payload from synced menu data so pn/plu can be sent to Shepherd
     menu_item_ids = list({item.menu_item_id for item in data.items if item.menu_item_id})
     menu_items_lookup = {}
     if menu_item_ids:
         menu_docs = await db.menu_items.find(
-            {"id": {"$in": menu_item_ids}},
-            {"_id": 0, "id": 1, "plu": 1, "pos_id": 1, "modifier_groups": 1}
+            {"id": {"$in": menu_item_ids}, "merchant_id": data.merchant_id},
+            {
+                "_id": 0,
+                "id": 1,
+                "plu": 1,
+                "pos_id": 1,
+                "modifier_groups": 1,
+                "tax_rate_id": 1,
+                "tax_rate_percent": 1,
+            }
         ).to_list(1000)
         menu_items_lookup = {doc.get("id"): doc for doc in menu_docs}
 
@@ -2491,6 +2686,15 @@ async def create_order(data: OrderCreate, background_tasks: BackgroundTasks):
 
         if not item.shepherd_pos_id:
             item.shepherd_pos_id = menu_doc.get("pos_id") or ""
+
+        if not item.tax_rate_id:
+            item.tax_rate_id = menu_doc.get("tax_rate_id")
+
+        if item.tax_rate_percent is None:
+            item.tax_rate_percent = menu_doc.get("tax_rate_percent")
+
+        if item.tax_rate_percent is None and item.tax_rate_id:
+            item.tax_rate_percent = merchant_tax_rate_map.get(str(item.tax_rate_id))
 
         option_lookup = {}
         for group in menu_doc.get("modifier_groups", []):
@@ -2513,14 +2717,43 @@ async def create_order(data: OrderCreate, background_tasks: BackgroundTasks):
         return Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
     subtotal_dec = Decimal("0.00")
+    tax_dec = Decimal("0.00")
+    tax_line_diagnostics = []
     for item in data.items:
         unit_price_dec = Decimal(str(item.unit_price))
         modifier_total_dec = sum((Decimal(str(m.price)) for m in item.modifiers), Decimal("0.00"))
         line_total_dec = (unit_price_dec + modifier_total_dec) * Decimal(item.quantity)
         subtotal_dec += line_total_dec
 
+        line_rate_source = "item_tax_rate_percent"
+        line_rate = normalize_tax_rate_value(item.tax_rate_percent)
+        if line_rate is None and item.tax_rate_id:
+            mapped_rate = merchant_tax_rate_map.get(str(item.tax_rate_id))
+            if mapped_rate is not None:
+                line_rate = mapped_rate
+                line_rate_source = "tax_rate_id_map"
+
+        if line_rate is None:
+            line_rate = merchant_default_tax_rate
+            line_rate_source = "merchant_default" if merchant_default_tax_rate > 0 else "zero_fallback"
+
+        line_rate_dec = Decimal(str(line_rate))
+        line_tax_dec = (line_total_dec * line_rate_dec).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        tax_dec += line_tax_dec
+
+        tax_line_diagnostics.append({
+            "menu_item_id": item.menu_item_id,
+            "name": item.name,
+            "quantity": item.quantity,
+            "tax_rate_id": item.tax_rate_id,
+            "tax_rate_percent": line_rate,
+            "tax_rate_source": line_rate_source,
+            "line_subtotal": float(line_total_dec),
+            "line_tax": float(line_tax_dec),
+        })
+
     subtotal_dec = money(float(subtotal_dec))
-    tax_dec = (subtotal_dec * Decimal("0.0825")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    tax_dec = money(float(tax_dec))
     tip_dec = money(data.payment.tip)
     total_dec = subtotal_dec + tax_dec + tip_dec
     
@@ -2586,16 +2819,21 @@ async def create_order(data: OrderCreate, background_tasks: BackgroundTasks):
         "action": "order_created",
         "merchant_id": data.merchant_id,
         "endpoint": "/api/orders",
-        "request_data": {"order_id": order.id, "total": order.total},
+        "request_data": {
+            "order_id": order.id,
+            "subtotal": order.subtotal,
+            "tax": order.tax,
+            "tip": order.tip,
+            "total": order.total,
+            "merchant_default_tax_rate_percent": merchant_default_tax_rate,
+            "tax_line_diagnostics": tax_line_diagnostics,
+        },
         "status_code": 201,
         "created_at": datetime.now(timezone.utc).isoformat()
     })
     
     # Broadcast new order via WebSocket
     await ws_manager.broadcast_order_event("new_order", doc, data.merchant_id)
-    
-    # Get merchant for Shepherd config
-    merchant = await db.merchants.find_one({"id": data.merchant_id}, {"_id": 0})
     
     # Submit order to Shepherd in background (if configured)
     if merchant and merchant.get("shepherd_config", {}).get("merchant_id"):
@@ -2920,11 +3158,21 @@ async def get_merchant_shepherd_details(
     shepherd_merchant_id = shepherd_config.get("merchant_id")
     
     if not shepherd_merchant_id:
-        return {
+        response = {
             "merchant_id": merchant_id,
             "shepherd_linked": False,
             "message": "Merchant is not linked to Shepherd"
         }
+        await log_audit(
+            action="shepherd_details_fetch_skipped_unlinked",
+            endpoint=f"/api/merchants/{merchant_id}/shepherd-details",
+            user=user,
+            merchant_id=merchant_id,
+            request_data={"shepherd_linked": False},
+            response_data={"message": "Merchant is not linked to Shepherd"},
+            status_code=200,
+        )
+        return response
     
     result = {
         "merchant_id": merchant_id,
@@ -3086,32 +3334,6 @@ async def get_merchant_shepherd_details(
         logger.warning(f"Failed to fetch RPOWER Core API store info: {e}")
         # Non-critical, don't fail the whole request
 
-    # Try to fetch tax data from RPOWER Core API (GetStoreTaxByStore fallback set)
-    try:
-        if core_client is None:
-            core_client = get_rpower_core_client()
-
-        if core_client and core_client.token:
-            site_summary = result.get("site_summary") or {}
-            core_store_id = site_summary.get("rpower_store_id")
-            core_site_code = site_summary.get("rpower_site_code")
-            rpower_cg = shepherd_config.get("rpower_cg")
-
-            if core_store_id or core_site_code or rpower_cg:
-                core_tax = await core_client.get_store_tax_by_store(
-                    store_id=core_store_id,
-                    site_code=core_site_code,
-                    cg=rpower_cg,
-                )
-                result["shepherd_data"]["rpower_tax_rates"] = core_tax
-            else:
-                result["shepherd_data"]["rpower_tax_rates"] = {
-                    "error": "No Core store identifiers available for tax lookup"
-                }
-    except Exception as e:
-        logger.warning(f"Failed to fetch RPOWER Core API tax info: {e}")
-        result["shepherd_data"]["rpower_tax_rates"] = {"error": str(e)}
-    
     try:
         # Fetch menu data
         menu_data = await shepherd.get_menu(shepherd_merchant_id)
@@ -3140,7 +3362,7 @@ async def get_merchant_shepherd_details(
         result["shepherd_data"]["menu_data"] = {"error": str(e)}
     
     try:
-        # Fetch tax rates
+        # Fetch tax rates from Shepherd
         tax_rates = await shepherd.get_tax_rates(shepherd_merchant_id)
         result["shepherd_data"]["tax_rates"] = tax_rates
     except Exception as e:
@@ -3152,6 +3374,24 @@ async def get_merchant_shepherd_details(
         result["shepherd_data"]["schedules"] = schedules
     except Exception as e:
         result["shepherd_data"]["schedules"] = {"error": str(e)}
+
+    await log_audit(
+        action="shepherd_details_fetched",
+        endpoint=f"/api/merchants/{merchant_id}/shepherd-details",
+        user=user,
+        merchant_id=merchant_id,
+        request_data={
+            "shepherd_merchant_id": shepherd_merchant_id,
+            "rpower_cg": shepherd_config.get("rpower_cg"),
+        },
+        response_data={
+            "shepherd_linked": True,
+            "has_hqding": "hqding" in result.get("shepherd_data", {}),
+            "menu_count": len(result.get("shepherd_data", {}).get("menu_summary", [])),
+            "tax_rates_error": result.get("shepherd_data", {}).get("tax_rates", {}).get("error") if isinstance(result.get("shepherd_data", {}).get("tax_rates"), dict) else None,
+        },
+        status_code=200,
+    )
     
     return result
 
@@ -3619,6 +3859,13 @@ async def sync_menu_from_shepherd(
         schedules_data = await shepherd.get_schedules(shepherd_merchant_id)
         tax_rates = await shepherd.get_tax_rates(shepherd_merchant_id)
         hqding_info = await shepherd.get_hqding_info(shepherd_merchant_id)
+        normalized_tax_rates = normalize_shepherd_tax_rates_payload(tax_rates)
+        tax_rate_map = {
+            row.get("tax_rate_id"): float(row.get("rate") or 0.0)
+            for row in normalized_tax_rates
+            if row.get("tax_rate_id")
+        }
+        default_tax_rate_id, default_tax_rate_percent = resolve_default_tax_rate(normalized_tax_rates)
         # schedules endpoint returns a list directly, not {"schedules": [...]}
         schedules = schedules_data if isinstance(schedules_data, list) else schedules_data.get("schedules", [])
         
@@ -3632,6 +3879,13 @@ async def sync_menu_from_shepherd(
             rnoo_only=True,
             schedules=schedules
         )
+
+        for item in transformed.get("items", []):
+            item_tax_rate_id = item.get("tax_rate_id")
+            mapped_rate = tax_rate_map.get(item_tax_rate_id)
+            if mapped_rate is None:
+                mapped_rate = default_tax_rate_percent
+            item["tax_rate_percent"] = normalize_tax_rate_value(mapped_rate) or 0.0
         
         # Clear existing menu data for this merchant
         await db.menu_categories.delete_many({"merchant_id": merchant_id})
@@ -3659,7 +3913,15 @@ async def sync_menu_from_shepherd(
         # Update merchant's last sync timestamp
         await db.merchants.update_one(
             {"id": merchant_id},
-            {"$set": {"last_menu_sync": datetime.now(timezone.utc).isoformat()}}
+            {
+                "$set": {
+                    "last_menu_sync": datetime.now(timezone.utc).isoformat(),
+                    "default_tax_rate_id": default_tax_rate_id,
+                    "default_tax_rate_percent": default_tax_rate_percent,
+                    "shepherd_tax_rates": normalized_tax_rates,
+                    "tax_rates_last_synced": datetime.now(timezone.utc).isoformat(),
+                }
+            }
         )
         
         # Log the sync
@@ -3866,7 +4128,7 @@ async def get_shepherd_tax_rates(
     shepherd = get_shepherd_client()
     if not shepherd:
         raise HTTPException(status_code=503, detail="Shepherd API not configured")
-    
+
     try:
         tax_rates = await shepherd.get_tax_rates(shepherd_merchant_id)
         return {"tax_rates": tax_rates}
@@ -4630,6 +4892,24 @@ async def sync_order_statuses_background():
                     
                     # Broadcast status change via WebSocket if status changed
                     if status_changed:
+                        await log_audit(
+                            action="order_status_synced_from_shepherd",
+                            endpoint="background_task",
+                            merchant_id=order["merchant_id"],
+                            request_data={
+                                "order_id": order["id"],
+                                "order_number": order.get("order_number"),
+                                "old_status": old_status,
+                                "new_status": new_status,
+                                "shepherd_status_raw": shepherd_status_raw,
+                                "shepherd_order_ref": used_ref,
+                            },
+                            response_data={
+                                "status_changed": True,
+                            },
+                            status_code=200,
+                        )
+
                         updated_order = await db.orders.find_one({"id": order["id"]}, {"_id": 0})
                         if updated_order:
                             await ws_manager.broadcast_order_event(

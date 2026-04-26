@@ -5,12 +5,21 @@ const roundMoney = (value) => {
   return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
 };
 
+const normalizeTaxRate = (value) => {
+  if (value === null || value === undefined) return null;
+  const numeric = Number(value);
+  if (Number.isNaN(numeric) || numeric < 0) return null;
+  if (numeric > 1) return numeric / 100;
+  return numeric;
+};
+
 export const useCartStore = create(
   persist(
     (set, get) => ({
       items: [],
       merchantId: null,
       merchantSlug: null,
+      defaultTaxRate: 0,
 
       addItem: (
         item,
@@ -33,6 +42,8 @@ export const useCartStore = create(
           name: item.name,
           plu: item.plu || "",
           shepherd_pos_id: item.shepherd_pos_id || item.pos_id || "",
+          taxRateId: item.tax_rate_id || null,
+          taxRatePercent: normalizeTaxRate(item.tax_rate_percent),
           basePrice: item.price,
           image: item.image_url,
           quantity,
@@ -52,6 +63,10 @@ export const useCartStore = create(
           items: [...state.items, cartItem],
           merchantId: merchantId || state.merchantId,
           merchantSlug: merchantSlug || state.merchantSlug,
+          defaultTaxRate:
+            state.defaultTaxRate ||
+            normalizeTaxRate(item.merchant_default_tax_rate_percent) ||
+            0,
         }));
 
         return cartItem;
@@ -134,7 +149,12 @@ export const useCartStore = create(
       },
 
       clearCart: () => {
-        set({ items: [], merchantId: null, merchantSlug: null });
+        set({
+          items: [],
+          merchantId: null,
+          merchantSlug: null,
+          defaultTaxRate: 0,
+        });
       },
 
       getItemCount: () => {
@@ -149,12 +169,20 @@ export const useCartStore = create(
         return roundMoney(subtotal);
       },
 
-      getTax: (rate = 0.0825) => {
-        const subtotal = get().getSubtotal();
-        return roundMoney(subtotal * rate);
+      getTax: (rate = null) => {
+        const fallbackRate =
+          normalizeTaxRate(rate) ?? normalizeTaxRate(get().defaultTaxRate) ?? 0;
+
+        const tax = get().items.reduce((sum, item) => {
+          const itemRate =
+            normalizeTaxRate(item.taxRatePercent) ?? fallbackRate;
+          return sum + Number(item.totalPrice || 0) * itemRate;
+        }, 0);
+
+        return roundMoney(tax);
       },
 
-      getTotal: (rate = 0.0825) => {
+      getTotal: (rate = null) => {
         const subtotal = get().getSubtotal();
         const tax = get().getTax(rate);
         return roundMoney(subtotal + tax);

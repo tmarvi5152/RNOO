@@ -227,6 +227,8 @@ const CartPage = () => {
           name: item.name,
           quantity: item.quantity,
           unit_price: item.unit_price,
+          tax_rate_id: item.tax_rate_id || null,
+          tax_rate_percent: item.tax_rate_percent ?? null,
           modifiers: item.modifiers || [],
           special_instructions: item.special_instructions || "",
           plu: item.plu,

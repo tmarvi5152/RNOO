@@ -280,6 +280,8 @@ const CheckoutPage = () => {
           name: item.name,
           quantity: item.quantity,
           unit_price: item.basePrice,
+          tax_rate_id: item.taxRateId || null,
+          tax_rate_percent: item.taxRatePercent ?? null,
           plu: item.plu || "",
           shepherd_pos_id: item.shepherd_pos_id || "",
           modifiers: (item.modifiers || []).map((mod) => ({
