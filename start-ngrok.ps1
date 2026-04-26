@@ -47,6 +47,29 @@ if ($existing) {
     Start-Sleep -Seconds 1
 }
 
+function Wait-NgrokTunnels {
+    param(
+        [int]$MinTunnels = 1,
+        [int]$MaxWaitSeconds = 15
+    )
+
+    $waited = 0
+    while ($waited -lt $MaxWaitSeconds) {
+        Start-Sleep -Seconds 1
+        $waited++
+        try {
+            $response = Invoke-RestMethod -Uri "http://localhost:4040/api/tunnels" -ErrorAction Stop
+            if ($response.tunnels -and $response.tunnels.Count -ge $MinTunnels) {
+                return $response.tunnels
+            }
+        } catch {
+            # Not ready yet
+        }
+    }
+
+    return $null
+}
+
 # ── 3. Start ngrok tunnel(s) ───────────────────────────────────────────────────
 Write-Host ""
 Write-Host "Starting ngrok tunnel for backend (port $BackendPort)..." -ForegroundColor Green
@@ -54,8 +77,10 @@ Write-Host "Starting ngrok tunnel for backend (port $BackendPort)..." -Foregroun
 if ($AlsoTunnelFrontend) {
     # Run with config file for multiple tunnels
     $tmpConfig = Join-Path $env:TEMP "rnoo-ngrok.yml"
+    $safeToken = ($savedToken -replace '"', '\\"')
     @"
 version: "3"
+authtoken: "$safeToken"
 tunnels:
   backend:
     proto: http
@@ -65,27 +90,26 @@ tunnels:
     addr: $FrontendPort
 "@ | Set-Content $tmpConfig
     Start-Process -FilePath "ngrok" -ArgumentList "start", "--all", "--config", $tmpConfig -WindowStyle Minimized
+    Write-Host "Waiting for ngrok dual tunnels to initialize..." -ForegroundColor Gray
+    $tunnels = Wait-NgrokTunnels -MinTunnels 2 -MaxWaitSeconds 15
+
+    if (-not $tunnels) {
+        Write-Host "[!] Dual tunnel startup failed, retrying backend-only tunnel..." -ForegroundColor Yellow
+
+        $retryExisting = Get-Process -Name ngrok -ErrorAction SilentlyContinue
+        if ($retryExisting) {
+            $retryExisting | Stop-Process -Force
+            Start-Sleep -Seconds 1
+        }
+
+        Start-Process -FilePath "ngrok" -ArgumentList "http", $BackendPort -WindowStyle Minimized
+        Write-Host "Waiting for backend tunnel to initialize..." -ForegroundColor Gray
+        $tunnels = Wait-NgrokTunnels -MinTunnels 1 -MaxWaitSeconds 15
+    }
 } else {
     Start-Process -FilePath "ngrok" -ArgumentList "http", $BackendPort -WindowStyle Minimized
-}
-
-# ── 4. Wait for ngrok API to be ready ─────────────────────────────────────────
-Write-Host "Waiting for ngrok to initialize..." -ForegroundColor Gray
-$maxWait = 15
-$waited = 0
-$tunnels = $null
-while ($waited -lt $maxWait) {
-    Start-Sleep -Seconds 1
-    $waited++
-    try {
-        $response = Invoke-RestMethod -Uri "http://localhost:4040/api/tunnels" -ErrorAction Stop
-        if ($response.tunnels -and $response.tunnels.Count -gt 0) {
-            $tunnels = $response.tunnels
-            break
-        }
-    } catch {
-        # Not ready yet
-    }
+    Write-Host "Waiting for ngrok to initialize..." -ForegroundColor Gray
+    $tunnels = Wait-NgrokTunnels -MinTunnels 1 -MaxWaitSeconds 15
 }
 
 if (-not $tunnels) {

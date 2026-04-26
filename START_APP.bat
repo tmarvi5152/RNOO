@@ -59,17 +59,13 @@ if %ERRORLEVEL% EQU 0 (
     echo   [OK] Port 3456 is available
 )
 
-:: Start ngrok tunnel for backend webhooks
+:: Start ngrok tunnel for backend only
 echo.
-echo [4/5] Starting ngrok tunnel (port 8765)...
-taskkill /F /IM ngrok.exe >NUL 2>&1
-timeout /t 1 /nobreak >NUL
-start /B ngrok http 8765 >NUL 2>&1
-
-:: Wait for ngrok API and grab the public URL, then write it to backend/.env
-echo   Waiting for ngrok to initialize...
-powershell -ExecutionPolicy Bypass -Command ^
-    "$waited=0; $url=$null; while($waited -lt 15){Start-Sleep 1; $waited++; try{$r=Invoke-RestMethod 'http://localhost:4040/api/tunnels' -EA Stop; $t=$r.tunnels|Where-Object{$_.public_url -like 'https://*'}|Select-Object -First 1; if($t){$url=$t.public_url.TrimEnd('/'); break}}catch{}}; if($url){$env_file='%~dp0backend\.env'; $c=if(Test-Path $env_file){Get-Content $env_file -Raw}else{''}; if($c -match '(?m)^WEBHOOK_BASE_URL\s*=.*$'){$c=$c -replace '(?m)^WEBHOOK_BASE_URL\s*=.*$',\"WEBHOOK_BASE_URL=$url\"}else{$c=$c.TrimEnd()+\"`nWEBHOOK_BASE_URL=$url`n\"}; Set-Content $env_file $c -NoNewline; Write-Host \"  [OK] ngrok URL: $url\" -ForegroundColor Green}else{Write-Host '  [!] ngrok did not start - webhooks will be disabled' -ForegroundColor Yellow}"
+echo [4/5] Starting ngrok tunnel (backend only)...
+powershell -ExecutionPolicy Bypass -File "%~dp0start-ngrok.ps1"
+if %ERRORLEVEL% NEQ 0 (
+    echo   [!] ngrok setup failed. Continuing startup without public tunnel.
+)
 
 :: Start the application
 echo.
@@ -86,6 +82,7 @@ echo   Backend:  http://127.0.0.1:8765
 echo   Frontend: http://localhost:3456
 echo   ngrok:    http://localhost:4040
 echo.
+echo   Public URLs are shown in ngrok startup output above
 echo   Wait ~30 seconds for frontend to compile
 echo   then open: http://localhost:3456
 echo.

@@ -92,6 +92,8 @@ async def subscribe_shepherd_webhooks_on_startup():
 async def _handle_shepherd_order_status_update(shepherd_merchant_id: str, payload: dict):
     """Handle ORDERSTATUSUPDATE webhook push from Shepherd."""
     try:
+        resolved_merchant_id = await resolve_local_merchant_id(shepherd_merchant_id)
+
         order_ref = (
             payload.get("id") or payload.get("orderId") or payload.get("order_id") or
             payload.get("OrderId") or payload.get("ref") or payload.get("Ref") or
@@ -103,6 +105,19 @@ async def _handle_shepherd_order_status_update(shepherd_merchant_id: str, payloa
         )
 
         if not order_ref:
+            await db.audit_logs.insert_one({
+                "id": str(uuid.uuid4()),
+                "merchant_id": resolved_merchant_id,
+                "action": "shepherd_orderstatusupdate_ignored_no_ref",
+                "endpoint": f"/api/webhooks/shepherd/{shepherd_merchant_id}",
+                "request_data": {
+                    "shepherd_merchant_id": shepherd_merchant_id,
+                    "status_raw": status_raw,
+                    "payload": payload,
+                },
+                "status_code": 400,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
             logger.warning(f"ORDERSTATUSUPDATE for {shepherd_merchant_id}: no order ref in payload {payload}")
             return
 
@@ -132,6 +147,22 @@ async def _handle_shepherd_order_status_update(shepherd_merchant_id: str, payloa
             )
 
         if not order:
+            await db.audit_logs.insert_one({
+                "id": str(uuid.uuid4()),
+                "merchant_id": resolved_merchant_id,
+                "action": "shepherd_orderstatusupdate_unmatched",
+                "endpoint": f"/api/webhooks/shepherd/{shepherd_merchant_id}",
+                "request_data": {
+                    "shepherd_merchant_id": shepherd_merchant_id,
+                    "order_ref": order_ref,
+                    "reference_mid_segment": ref_mid_segment,
+                    "status_raw": status_raw,
+                    "parsed_pos_ticket_number": pos_ticket_number,
+                    "payload": payload,
+                },
+                "status_code": 404,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
             logger.warning(f"ORDERSTATUSUPDATE: no order found for ref {order_ref} (merchant {shepherd_merchant_id})")
             return
 
@@ -154,6 +185,33 @@ async def _handle_shepherd_order_status_update(shepherd_merchant_id: str, payloa
         # Broadcast whenever status or ticket number changes so the frontend can update in real time
         status_changed = new_status != old_status
         ticket_arrived = pos_ticket_number is not None and not order.get("poscnx_ticket_number")
+
+        await db.audit_logs.insert_one({
+            "id": str(uuid.uuid4()),
+            "merchant_id": order.get("merchant_id") or resolved_merchant_id,
+            "action": "shepherd_orderstatusupdate_processed",
+            "endpoint": f"/api/webhooks/shepherd/{shepherd_merchant_id}",
+            "request_data": {
+                "shepherd_merchant_id": shepherd_merchant_id,
+                "order_ref": order_ref,
+                "reference_mid_segment": ref_mid_segment,
+                "status_raw": status_raw,
+                "parsed_pos_ticket_number": pos_ticket_number,
+                "payload": payload,
+            },
+            "response_data": {
+                "order_id": order.get("id"),
+                "order_number": order.get("order_number"),
+                "old_status": old_status,
+                "new_status": new_status,
+                "status_changed": status_changed,
+                "ticket_arrived": ticket_arrived,
+                "stored_pos_ticket_number": update_data.get("poscnx_ticket_number", order.get("poscnx_ticket_number")),
+            },
+            "status_code": 200,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+
         if status_changed or ticket_arrived:
             updated_order = await db.orders.find_one({"id": order["id"]}, {"_id": 0})
             if updated_order:
@@ -167,6 +225,21 @@ async def _handle_shepherd_order_status_update(shepherd_merchant_id: str, payloa
             log_msg += f", POS ticket #{pos_ticket_number}"
         logger.info(log_msg)
     except Exception as e:
+        await db.audit_logs.insert_one({
+            "id": str(uuid.uuid4()),
+            "merchant_id": resolved_merchant_id,
+            "action": "shepherd_orderstatusupdate_failed",
+            "endpoint": f"/api/webhooks/shepherd/{shepherd_merchant_id}",
+            "request_data": {
+                "shepherd_merchant_id": shepherd_merchant_id,
+                "payload": payload,
+            },
+            "response_data": {
+                "error": str(e),
+            },
+            "status_code": 500,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
         logger.error(f"Error handling ORDERSTATUSUPDATE webhook: {e}")
 
 
@@ -304,7 +377,7 @@ def extract_merchant_id_from_payload(payload: dict) -> Optional[str]:
     if not isinstance(payload, dict):
         return None
 
-    for key in ("merchant_id", "merchantId", "shepherd_merchant_id", "shepherdMerchantId"):
+    for key in ("merchant_id", "merchantId", "shepherd_merchant_id", "shepherdMerchantId", "mid", "MID"):
         value = payload.get(key)
         if isinstance(value, str) and value:
             return value
@@ -314,6 +387,37 @@ def extract_merchant_id_from_payload(payload: dict) -> Optional[str]:
         return extract_merchant_id_from_payload(raw_json)
 
     return None
+
+
+def extract_shepherd_merchant_id_from_path(path: str) -> Optional[str]:
+    match = re.search(r"/webhooks/shepherd/([^/?#]+)", path or "", re.IGNORECASE)
+    if not match:
+        return None
+    return match.group(1)
+
+
+async def resolve_local_merchant_id(merchant_identifier: Optional[str]) -> Optional[str]:
+    """
+    Resolve a merchant identifier to the local merchant id used by RBAC filters.
+    Accepts either local merchant id or shepherd_config.merchant_id.
+    """
+    if not merchant_identifier:
+        return None
+
+    merchant = await db.merchants.find_one(
+        {
+            "$or": [
+                {"id": merchant_identifier},
+                {"shepherd_config.merchant_id": merchant_identifier},
+            ]
+        },
+        {"_id": 0, "id": 1},
+    )
+    if merchant:
+        return merchant.get("id")
+
+    # Fallback to raw identifier so super-admins still get merchant context in logs.
+    return merchant_identifier
 
 
 def is_provider_webhook_path(path: str) -> bool:
@@ -356,14 +460,20 @@ async def capture_provider_webhook_payloads(request: Request, call_next):
         status_code = response.status_code
         return response
     finally:
+        payload_merchant_id = extract_merchant_id_from_payload(parsed_payload)
+        path_merchant_id = extract_shepherd_merchant_id_from_path(request.url.path)
+        resolved_merchant_id = await resolve_local_merchant_id(path_merchant_id or payload_merchant_id)
+
         await db.audit_logs.insert_one({
             "id": str(uuid.uuid4()),
-            "merchant_id": extract_merchant_id_from_payload(parsed_payload),
+            "merchant_id": resolved_merchant_id,
             "action": "provider_webhook_received",
             "endpoint": request.url.path,
             "request_data": {
                 "provider": extract_provider_name_from_path(request.url.path),
                 "method": request.method,
+                "payload_merchant_id": payload_merchant_id,
+                "path_merchant_id": path_merchant_id,
                 "content_type": content_type,
                 "headers": {
                     "user-agent": request.headers.get("user-agent"),

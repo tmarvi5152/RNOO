@@ -234,17 +234,26 @@ const LogsPage = () => {
   };
 
   const getActionColor = (action) => {
+    if (action === "shepherd_orderstatusupdate_processed")
+      return "bg-emerald-100 text-emerald-700 border border-emerald-200";
+    if (action === "shepherd_orderstatusupdate_unmatched")
+      return "bg-amber-100 text-amber-700 border border-amber-200";
+    if (action === "shepherd_orderstatusupdate_ignored_no_ref")
+      return "bg-orange-100 text-orange-700 border border-orange-200";
+    if (action === "shepherd_orderstatusupdate_failed")
+      return "bg-red-100 text-red-700 border border-red-200";
+
     if (action?.includes("created") || action?.includes("success"))
-      return "text-green-600";
+      return "bg-emerald-50 text-emerald-700 border border-emerald-100";
     if (
       action?.includes("deleted") ||
       action?.includes("failed") ||
       action?.includes("error")
     )
-      return "text-red-600";
+      return "bg-red-50 text-red-700 border border-red-100";
     if (action?.includes("updated") || action?.includes("sync"))
-      return "text-blue-600";
-    return "text-gray-700";
+      return "bg-blue-50 text-blue-700 border border-blue-100";
+    return "bg-slate-50 text-slate-700 border border-slate-200";
   };
 
   const uniqueActions = useMemo(() => {
@@ -629,7 +638,7 @@ const LogsPage = () => {
                           <div className="flex items-center gap-2">
                             <FileText className="w-4 h-4 text-gray-400" />
                             <span
-                              className={`font-medium ${getActionColor(log.action)}`}
+                              className={`font-medium text-xs px-2 py-1 rounded-md ${getActionColor(log.action)}`}
                             >
                               {log.action?.replace(/_/g, " ")}
                             </span>
