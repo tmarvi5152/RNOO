@@ -158,9 +158,9 @@ const JukeboxItemModal = ({ item, merchantId, merchantSlug, onClose }) => {
           <div className="flex items-start justify-between gap-3">
             <div>
               <h3 className="text-3xl juke-item-title">{item.name}</h3>
-              <p className="text-sm text-black/70 mt-1">
-                {item.description || "Classic diner favorite."}
-              </p>
+              {item.description && (
+                <p className="text-sm text-black/70 mt-1">{item.description}</p>
+              )}
             </div>
             <button
               onClick={onClose}
@@ -488,9 +488,11 @@ const JukeboxMenuPage = () => {
                         <p className="juke-item-title text-[1.7rem] leading-none pr-1">
                           {item.name}
                         </p>
-                        <p className="text-xs text-black/65 mt-1.5 line-clamp-3 max-w-[20ch] sm:max-w-none">
-                          {item.description || "Classic plate"}
-                        </p>
+                        {item.description && (
+                          <p className="text-xs text-black/65 mt-1.5 line-clamp-3 max-w-[20ch] sm:max-w-none">
+                            {item.description}
+                          </p>
+                        )}
                       </div>
                       <div className="mt-2 flex items-center justify-between gap-2">
                         <span className="font-mono text-sm">

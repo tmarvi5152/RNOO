@@ -252,9 +252,11 @@ const RpowerJimBaldridgeMenuPage = () => {
                       </span>
                     </div>
 
-                    <p className="mt-1.5 text-xs text-white/65 line-clamp-3">
-                      {item.description || "Crafted fresh and made to order."}
-                    </p>
+                    {item.description && (
+                      <p className="mt-1.5 text-xs text-white/65 line-clamp-3">
+                        {item.description}
+                      </p>
+                    )}
 
                     <div className="mt-auto pt-2 flex items-center text-[11px] text-white/60">
                       <Sparkles className="w-3.5 h-3.5 mr-1.5 text-[#f6c453]" />

@@ -550,9 +550,11 @@ const CraveMenuPage = () => {
               <p className="font-bold text-sm lg:text-base text-slate-900 truncate">
                 {item.name}
               </p>
-              <p className="text-xs lg:text-sm text-slate-500 line-clamp-1 mt-0.5">
-                {item.description || "Freshly made to order"}
-              </p>
+              {item.description && (
+                <p className="text-xs lg:text-sm text-slate-500 line-clamp-1 mt-0.5">
+                  {item.description}
+                </p>
+              )}
               <p className="mt-1 text-sm lg:text-base font-bold text-[var(--crv-accent)]">
                 ${(item.price || 0).toFixed(2)}
               </p>
