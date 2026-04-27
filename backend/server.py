@@ -22,6 +22,7 @@ import httpx
 import xml.etree.ElementTree as ET
 import json
 from decimal import Decimal, ROUND_HALF_UP
+from collections import Counter
 
 # Import Shepherd client
 from shepherd_client import (
@@ -988,6 +989,28 @@ class Order(BaseModel):
     shepherd_status: Optional[str] = None     # Status from Shepherd/POS
     shepherd_status_updated_at: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class UpsellSuggestionRequest(BaseModel):
+    cart_item_ids: List[str] = []
+    customer_email: Optional[str] = None
+    limit: int = 4
+
+
+class UpsellEventCreate(BaseModel):
+    merchant_id: str
+    event_type: str
+    source: str = "unknown"
+    suggestion_item_id: Optional[str] = None
+    suggestion_item_name: Optional[str] = None
+    suggestion_category_id: Optional[str] = None
+    suggestion_category_name: Optional[str] = None
+    trigger_item_ids: List[str] = []
+    customer_email: Optional[str] = None
+    customer_phone: Optional[str] = None
+    customer_name: Optional[str] = None
+    session_id: Optional[str] = None
+    metadata: Dict[str, Any] = {}
 
 # Audit Log
 class AuditLog(BaseModel):
@@ -3607,6 +3630,401 @@ async def sync_all_order_statuses_from_shepherd(
         "synced_count": synced_count,
         "failed_count": failed_count,
         "results": results
+    }
+
+
+@api_router.post("/upsell/suggestions/{merchant_id}")
+async def get_upsell_suggestions(
+    merchant_id: str,
+    data: UpsellSuggestionRequest,
+):
+    merchant = await db.merchants.find_one(
+        {"id": merchant_id, "is_active": True},
+        {"_id": 0, "id": 1},
+    )
+    if not merchant:
+        raise HTTPException(status_code=404, detail="Merchant not found")
+
+    all_items = await db.menu_items.find(
+        {"merchant_id": merchant_id, "is_available": True},
+        {"_id": 0},
+    ).to_list(1000)
+    if not all_items:
+        return []
+
+    categories = await db.menu_categories.find(
+        {"merchant_id": merchant_id, "is_active": True},
+        {"_id": 0, "id": 1, "name": 1},
+    ).to_list(500)
+    category_name_by_id = {str(c.get("id")): c.get("name") for c in categories if c.get("id")}
+
+    cart_item_ids = {str(item_id) for item_id in (data.cart_item_ids or []) if item_id}
+    cart_items = [item for item in all_items if str(item.get("id")) in cart_item_ids]
+    cart_categories = {str(item.get("category_id")) for item in cart_items if item.get("category_id")}
+
+    candidates = [item for item in all_items if str(item.get("id")) not in cart_item_ids]
+    if cart_categories:
+        preferred = [
+            item
+            for item in candidates
+            if str(item.get("category_id") or "") not in cart_categories
+        ]
+        if preferred:
+            candidates = preferred
+
+    if not candidates:
+        return []
+
+    since = datetime.now(timezone.utc) - timedelta(days=30)
+    recent_orders = await db.orders.find(
+        {
+            "merchant_id": merchant_id,
+            "created_at": {"$gte": since.isoformat()},
+        },
+        {"_id": 0, "items": 1},
+    ).to_list(500)
+
+    item_popularity: Counter = Counter()
+    for order in recent_orders:
+        for order_item in order.get("items", []):
+            item_id = str(order_item.get("menu_item_id") or "")
+            if not item_id:
+                continue
+            item_popularity[item_id] += int(order_item.get("quantity") or 1)
+
+    customer_ordered_ids = set()
+    customer_email = (data.customer_email or "").strip().lower()
+    if customer_email:
+        customer_orders = await db.orders.find(
+            {
+                "merchant_id": merchant_id,
+                "customer.email": customer_email,
+            },
+            {"_id": 0, "items": 1},
+        ).to_list(150)
+        for order in customer_orders:
+            for order_item in order.get("items", []):
+                item_id = order_item.get("menu_item_id")
+                if item_id:
+                    customer_ordered_ids.add(str(item_id))
+
+    avg_cart_price = 0.0
+    if cart_items:
+        avg_cart_price = sum(float(item.get("price") or 0) for item in cart_items) / len(cart_items)
+
+    scored = []
+    for item in candidates:
+        item_id = str(item.get("id") or "")
+        if not item_id:
+            continue
+
+        popularity = float(item_popularity.get(item_id, 0))
+        category_id = str(item.get("category_id") or "")
+        price = float(item.get("price") or 0)
+
+        score = popularity
+        reason = "Popular with this location"
+
+        if cart_categories and category_id and category_id not in cart_categories:
+            score += 3.0
+            reason = "Great add-on from another category"
+
+        if customer_email and item_id not in customer_ordered_ids:
+            score += 1.5
+
+        if avg_cart_price > 0 and price > 0 and price <= avg_cart_price * 0.75:
+            score += 0.5
+
+        scored.append(
+            {
+                **item,
+                "category_name": category_name_by_id.get(category_id),
+                "recommendation_score": round(score, 2),
+                "reason": reason,
+            }
+        )
+
+    scored.sort(key=lambda row: row.get("recommendation_score", 0), reverse=True)
+    limit = max(1, min(int(data.limit or 4), 8))
+    return scored[:limit]
+
+
+@api_router.post("/upsell/events")
+async def track_upsell_event(data: UpsellEventCreate):
+    allowed_event_types = {"impression", "click", "add"}
+    event_type = (data.event_type or "").strip().lower()
+    if event_type not in allowed_event_types:
+        raise HTTPException(status_code=400, detail="Invalid upsell event type")
+
+    merchant = await db.merchants.find_one(
+        {"id": data.merchant_id, "is_active": True},
+        {"_id": 0, "id": 1},
+    )
+    if not merchant:
+        raise HTTPException(status_code=404, detail="Merchant not found")
+
+    doc = data.model_dump()
+    doc["id"] = str(uuid.uuid4())
+    doc["event_type"] = event_type
+    doc["created_at"] = datetime.now(timezone.utc).isoformat()
+
+    await db.upsell_events.insert_one(doc)
+    return {"ok": True, "id": doc["id"]}
+
+
+@api_router.get("/dashboard/upsell-kpis")
+async def get_dashboard_upsell_kpis(
+    merchant_id: Optional[str] = None,
+    merchant_ids: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    limit: int = Query(default=10, ge=1, le=100),
+    current_user: dict = Depends(get_current_user),
+):
+    allowed_merchant_ids: Optional[List[str]] = None
+
+    if current_user["role"] == UserRole.MERCHANT.value:
+        merchant_scope = current_user.get("merchant_ids") or []
+        if not merchant_scope and current_user.get("merchant_id"):
+            merchant_scope = [current_user.get("merchant_id")]
+        allowed_merchant_ids = [str(mid) for mid in merchant_scope if mid]
+        if not allowed_merchant_ids:
+            return {
+                "summary": {
+                    "impressions": 0,
+                    "clicks": 0,
+                    "adds": 0,
+                    "ctr": 0,
+                    "add_rate": 0,
+                    "unique_customers": 0,
+                },
+                "by_location": [],
+                "by_customer": [],
+            }
+    elif current_user["role"] == UserRole.RESELLER.value:
+        reseller_merchants = await db.merchants.find(
+            {"reseller_id": current_user.get("reseller_id")},
+            {"_id": 0, "id": 1},
+        ).to_list(2000)
+        allowed_merchant_ids = [str(row.get("id")) for row in reseller_merchants if row.get("id")]
+        if not allowed_merchant_ids:
+            return {
+                "summary": {
+                    "impressions": 0,
+                    "clicks": 0,
+                    "adds": 0,
+                    "ctr": 0,
+                    "add_rate": 0,
+                    "unique_customers": 0,
+                },
+                "by_location": [],
+                "by_customer": [],
+            }
+
+    requested_ids: List[str] = []
+    if merchant_id:
+        requested_ids.append(str(merchant_id))
+    if merchant_ids:
+        requested_ids.extend([mid.strip() for mid in merchant_ids.split(",") if mid.strip()])
+
+    query: Dict[str, Any] = {}
+    if allowed_merchant_ids is not None:
+        query["merchant_id"] = {"$in": allowed_merchant_ids}
+
+    if requested_ids:
+        requested_set = set(requested_ids)
+        if allowed_merchant_ids is not None:
+            requested_set &= set(allowed_merchant_ids)
+        query["merchant_id"] = {"$in": list(requested_set)}
+
+    created_at_filter: Dict[str, str] = {}
+    if start_date:
+        created_at_filter["$gte"] = f"{start_date}T00:00:00+00:00"
+    if end_date:
+        created_at_filter["$lte"] = f"{end_date}T23:59:59.999999+00:00"
+    if created_at_filter:
+        query["created_at"] = created_at_filter
+
+    events = await db.upsell_events.find(query, {"_id": 0}).to_list(10000)
+    if not events:
+        return {
+            "summary": {
+                "impressions": 0,
+                "clicks": 0,
+                "adds": 0,
+                "ctr": 0,
+                "add_rate": 0,
+                "unique_customers": 0,
+            },
+            "by_location": [],
+            "by_customer": [],
+        }
+
+    merchant_ids_seen = sorted({str(event.get("merchant_id")) for event in events if event.get("merchant_id")})
+    merchant_docs = await db.merchants.find(
+        {"id": {"$in": merchant_ids_seen}},
+        {
+            "_id": 0,
+            "id": 1,
+            "name": 1,
+            "license_info": 1,
+            "location_name": 1,
+            "store_name": 1,
+            "license_name": 1,
+        },
+    ).to_list(len(merchant_ids_seen) or 1)
+
+    merchant_name_lookup: Dict[str, str] = {}
+    for merchant in merchant_docs:
+        merchant_id_value = str(merchant.get("id") or "")
+        if not merchant_id_value:
+            continue
+        license_info = merchant.get("license_info") or {}
+        merchant_name_lookup[merchant_id_value] = (
+            license_info.get("license_name")
+            or merchant.get("license_name")
+            or merchant.get("location_name")
+            or merchant.get("store_name")
+            or merchant.get("name")
+            or f"Merchant {merchant_id_value[-4:]}"
+        )
+
+    impression_count = 0
+    click_count = 0
+    add_count = 0
+    summary_customer_keys = set()
+    location_stats: Dict[str, Dict[str, Any]] = {}
+    customer_stats: Dict[str, Dict[str, Any]] = {}
+
+    for event in events:
+        event_type = str(event.get("event_type") or "").lower()
+        merchant_id_value = str(event.get("merchant_id") or "")
+        location_name = merchant_name_lookup.get(
+            merchant_id_value,
+            f"Merchant {merchant_id_value[-4:]}" if merchant_id_value else "Unknown",
+        )
+
+        email = str(event.get("customer_email") or "").strip().lower()
+        phone = str(event.get("customer_phone") or "").strip()
+        customer_name = str(event.get("customer_name") or "").strip()
+
+        customer_key = email or phone or "anonymous"
+        if customer_key != "anonymous":
+            summary_customer_keys.add(customer_key)
+
+        if event_type == "impression":
+            impression_count += 1
+        elif event_type == "click":
+            click_count += 1
+        elif event_type == "add":
+            add_count += 1
+
+        if merchant_id_value not in location_stats:
+            location_stats[merchant_id_value] = {
+                "merchant_id": merchant_id_value,
+                "location_name": location_name,
+                "impressions": 0,
+                "clicks": 0,
+                "adds": 0,
+                "customer_keys": set(),
+            }
+
+        if customer_key != "anonymous":
+            location_stats[merchant_id_value]["customer_keys"].add(customer_key)
+
+        if event_type == "impression":
+            location_stats[merchant_id_value]["impressions"] += 1
+        elif event_type == "click":
+            location_stats[merchant_id_value]["clicks"] += 1
+        elif event_type == "add":
+            location_stats[merchant_id_value]["adds"] += 1
+
+        if customer_key not in customer_stats:
+            customer_stats[customer_key] = {
+                "customer_key": customer_key,
+                "customer_name": customer_name,
+                "customer_email": email,
+                "customer_phone": phone,
+                "impressions": 0,
+                "clicks": 0,
+                "adds": 0,
+                "merchant_ids": set(),
+            }
+
+        if customer_name and not customer_stats[customer_key]["customer_name"]:
+            customer_stats[customer_key]["customer_name"] = customer_name
+
+        if email:
+            customer_stats[customer_key]["customer_email"] = email
+        if phone:
+            customer_stats[customer_key]["customer_phone"] = phone
+
+        if merchant_id_value:
+            customer_stats[customer_key]["merchant_ids"].add(merchant_id_value)
+
+        if event_type == "impression":
+            customer_stats[customer_key]["impressions"] += 1
+        elif event_type == "click":
+            customer_stats[customer_key]["clicks"] += 1
+        elif event_type == "add":
+            customer_stats[customer_key]["adds"] += 1
+
+    by_location = []
+    for row in location_stats.values():
+        impressions = row["impressions"]
+        clicks = row["clicks"]
+        adds = row["adds"]
+        by_location.append(
+            {
+                "merchant_id": row["merchant_id"],
+                "location_name": row["location_name"],
+                "impressions": impressions,
+                "clicks": clicks,
+                "adds": adds,
+                "ctr": round((clicks / impressions) * 100, 2) if impressions > 0 else 0,
+                "add_rate": round((adds / impressions) * 100, 2) if impressions > 0 else 0,
+                "unique_customers": len(row["customer_keys"]),
+            }
+        )
+
+    by_location.sort(key=lambda row: (row["adds"], row["impressions"]), reverse=True)
+
+    by_customer = []
+    for row in customer_stats.values():
+        impressions = row["impressions"]
+        clicks = row["clicks"]
+        adds = row["adds"]
+        merchant_ids_for_customer = sorted(row["merchant_ids"])
+
+        by_customer.append(
+            {
+                "customer_key": row["customer_key"],
+                "customer_name": row["customer_name"] or "Guest",
+                "customer_email": row["customer_email"],
+                "customer_phone": row["customer_phone"],
+                "impressions": impressions,
+                "clicks": clicks,
+                "adds": adds,
+                "ctr": round((clicks / impressions) * 100, 2) if impressions > 0 else 0,
+                "add_rate": round((adds / impressions) * 100, 2) if impressions > 0 else 0,
+                "merchant_ids": merchant_ids_for_customer,
+                "location_count": len(merchant_ids_for_customer),
+            }
+        )
+
+    by_customer.sort(key=lambda row: (row["adds"], row["impressions"]), reverse=True)
+
+    return {
+        "summary": {
+            "impressions": impression_count,
+            "clicks": click_count,
+            "adds": add_count,
+            "ctr": round((click_count / impression_count) * 100, 2) if impression_count > 0 else 0,
+            "add_rate": round((add_count / impression_count) * 100, 2) if impression_count > 0 else 0,
+            "unique_customers": len(summary_customer_keys),
+        },
+        "by_location": by_location[:limit],
+        "by_customer": by_customer[:limit],
     }
 
 

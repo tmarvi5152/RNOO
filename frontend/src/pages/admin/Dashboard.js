@@ -291,6 +291,175 @@ const calculateRevenueTrend = (currentRevenue, previousRevenue) => {
   return 0;
 };
 
+const getOrderItemCategoryId = (item, menuMetaLookup = {}) => {
+  if (item?.category_id) {
+    return String(item.category_id);
+  }
+
+  const menuKey = item?.menu_item_id || item?.itemId;
+  const meta = menuMetaLookup[menuKey] || null;
+  if (meta?.category_id) {
+    return String(meta.category_id);
+  }
+
+  return null;
+};
+
+const buildOrderBasedUpsellKpis = (
+  orders,
+  merchantLookup = {},
+  menuMetaLookup = {},
+) => {
+  const locationStats = {};
+  const customerStats = {};
+  const summaryCustomerKeys = new Set();
+
+  let impressions = 0;
+  let clicks = 0;
+  let adds = 0;
+
+  (orders || []).forEach((order) => {
+    const orderItems = order?.items || [];
+    if (orderItems.length === 0) {
+      return;
+    }
+
+    impressions += 1;
+    const merchantId = order?.merchant_id || "unknown";
+    const merchantRecord = merchantLookup[merchantId] || order?.merchant;
+    const locationName = getMerchantLocationName(merchantRecord, merchantId);
+
+    const categorySet = new Set();
+    orderItems.forEach((item) => {
+      const categoryId = getOrderItemCategoryId(item, menuMetaLookup);
+      if (categoryId) {
+        categorySet.add(categoryId);
+      }
+    });
+
+    const isMultiCategoryOrder = categorySet.size >= 2;
+    if (isMultiCategoryOrder) {
+      clicks += 1;
+      adds += 1;
+    }
+
+    if (!locationStats[merchantId]) {
+      locationStats[merchantId] = {
+        merchant_id: merchantId,
+        location_name: locationName,
+        impressions: 0,
+        clicks: 0,
+        adds: 0,
+        customer_keys: new Set(),
+      };
+    }
+
+    locationStats[merchantId].impressions += 1;
+    if (isMultiCategoryOrder) {
+      locationStats[merchantId].clicks += 1;
+      locationStats[merchantId].adds += 1;
+    }
+
+    const email = String(order?.customer?.email || "")
+      .trim()
+      .toLowerCase();
+    const phone = String(order?.customer?.phone || "").trim();
+    const name = String(
+      order?.customer?.name || order?.customer?.full_name || "",
+    ).trim();
+    const customerKey = email || phone || name || "anonymous";
+
+    if (customerKey !== "anonymous") {
+      summaryCustomerKeys.add(customerKey);
+      locationStats[merchantId].customer_keys.add(customerKey);
+    }
+
+    if (!customerStats[customerKey]) {
+      customerStats[customerKey] = {
+        customer_key: customerKey,
+        customer_name: name || "Guest",
+        customer_email: email,
+        customer_phone: phone,
+        impressions: 0,
+        clicks: 0,
+        adds: 0,
+        merchant_ids: new Set(),
+      };
+    }
+
+    customerStats[customerKey].impressions += 1;
+    if (isMultiCategoryOrder) {
+      customerStats[customerKey].clicks += 1;
+      customerStats[customerKey].adds += 1;
+    }
+    if (merchantId) {
+      customerStats[customerKey].merchant_ids.add(merchantId);
+    }
+  });
+
+  const byLocation = Object.values(locationStats)
+    .map((row) => {
+      const rowImpressions = row.impressions || 0;
+      return {
+        merchant_id: row.merchant_id,
+        location_name: row.location_name,
+        impressions: rowImpressions,
+        clicks: row.clicks,
+        adds: row.adds,
+        ctr: rowImpressions > 0 ? (row.clicks / rowImpressions) * 100 : 0,
+        add_rate: rowImpressions > 0 ? (row.adds / rowImpressions) * 100 : 0,
+        unique_customers: row.customer_keys.size,
+      };
+    })
+    .sort((a, b) => b.adds - a.adds);
+
+  const byCustomer = Object.values(customerStats)
+    .map((row) => {
+      const rowImpressions = row.impressions || 0;
+      const merchantIds = Array.from(row.merchant_ids || []);
+      return {
+        customer_key: row.customer_key,
+        customer_name: row.customer_name,
+        customer_email: row.customer_email,
+        customer_phone: row.customer_phone,
+        impressions: rowImpressions,
+        clicks: row.clicks,
+        adds: row.adds,
+        ctr: rowImpressions > 0 ? (row.clicks / rowImpressions) * 100 : 0,
+        add_rate: rowImpressions > 0 ? (row.adds / rowImpressions) * 100 : 0,
+        merchant_ids: merchantIds,
+        location_count: merchantIds.length,
+      };
+    })
+    .sort((a, b) => b.adds - a.adds);
+
+  return {
+    summary: {
+      impressions,
+      clicks,
+      adds,
+      ctr: impressions > 0 ? (clicks / impressions) * 100 : 0,
+      add_rate: impressions > 0 ? (adds / impressions) * 100 : 0,
+      unique_customers: summaryCustomerKeys.size,
+    },
+    by_location: byLocation,
+    by_customer: byCustomer,
+  };
+};
+
+const EMPTY_UPSELL_KPIS = {
+  summary: {
+    impressions: 0,
+    clicks: 0,
+    adds: 0,
+    ctr: 0,
+    add_rate: 0,
+    unique_customers: 0,
+  },
+  by_location: [],
+  by_customer: [],
+};
+
 const AdminDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -325,6 +494,7 @@ const AdminDashboard = () => {
   const [customerSegmentFilter, setCustomerSegmentFilter] = useState("all");
   const [customerSort, setCustomerSort] = useState("top_spenders");
   const [liveOrdersDialogOpen, setLiveOrdersDialogOpen] = useState(false);
+  const [upsellKpis, setUpsellKpis] = useState(EMPTY_UPSELL_KPIS);
 
   // Merchant multi-select filter
   const [allOrders, setAllOrders] = useState([]);
@@ -334,6 +504,7 @@ const AdminDashboard = () => {
   const [filteredStats, setFilteredStats] = useState(null);
   const selectorRef = useRef(null);
   const menuPriceLookupRef = useRef({});
+  const menuMetaLookupRef = useRef({});
 
   const computeAnalytics = useCallback(
     (orders, merchantRecords = []) => {
@@ -695,6 +866,14 @@ const AdminDashboard = () => {
       });
 
       setOrdersPerMinute((lastHourOrders.length / 60).toFixed(1));
+
+      setUpsellKpis(
+        buildOrderBasedUpsellKpis(
+          orders,
+          merchantLookup,
+          menuMetaLookupRef.current,
+        ),
+      );
     },
     [dateRange, customDateFrom, customDateTo],
   );
@@ -743,6 +922,17 @@ const AdminDashboard = () => {
               return lookup;
             }, {});
 
+          menuMetaLookupRef.current = menuResponses
+            .flat()
+            .reduce((lookup, item) => {
+              if (item?.id) {
+                lookup[item.id] = {
+                  category_id: item.category_id || null,
+                };
+              }
+              return lookup;
+            }, {});
+
           setAllOrders(ordersData);
           setRecentOrders(ordersData.slice(0, 5));
           computeAnalytics(ordersData, merchantsRes.data || []);
@@ -756,6 +946,44 @@ const AdminDashboard = () => {
         const orderParams = { limit: 200 };
         const ordersRes = await apiService.getOrders(orderParams);
         const ordersData = ordersRes.data.orders || ordersRes.data;
+
+        const merchantIds = [
+          ...new Set(ordersData.map((o) => o.merchant_id)),
+        ].filter(Boolean);
+        const menuResponses = await Promise.all(
+          merchantIds.map(async (merchantId) => {
+            try {
+              const response = await apiService.getMenuItems(merchantId);
+              return response.data || [];
+            } catch (error) {
+              console.error(
+                `Failed to load menu items for merchant ${merchantId}:`,
+                error,
+              );
+              return [];
+            }
+          }),
+        );
+
+        menuPriceLookupRef.current = menuResponses
+          .flat()
+          .reduce((lookup, item) => {
+            if (item?.id) {
+              lookup[item.id] = Number(item.price) || 0;
+            }
+            return lookup;
+          }, {});
+
+        menuMetaLookupRef.current = menuResponses
+          .flat()
+          .reduce((lookup, item) => {
+            if (item?.id) {
+              lookup[item.id] = {
+                category_id: item.category_id || null,
+              };
+            }
+            return lookup;
+          }, {});
 
         setAllOrders(ordersData);
         setRecentOrders(ordersData.slice(0, 5));
@@ -1267,15 +1495,15 @@ const AdminDashboard = () => {
                 transition={{ duration: 0.6, delay: 0.3 }}
               >
                 <Card className="border shadow-sm h-full">
-                  <CardHeader>
+                  <CardHeader className="pb-3">
                     <CardTitle className="font-heading flex items-center gap-2 text-lg">
                       <Trophy className="w-5 h-5 text-yellow-500" />
                       Top Performing Merchants
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-2">
+                  <CardContent className="space-y-1.5 max-h-[320px] overflow-y-auto pr-1">
                     {merchantMetrics.length > 0 ? (
-                      merchantMetrics.slice(0, 5).map((merchant, idx) => (
+                      merchantMetrics.slice(0, 12).map((merchant, idx) => (
                         <motion.div
                           key={merchant.id}
                           initial={{ opacity: 0, x: -10 }}
@@ -1283,19 +1511,19 @@ const AdminDashboard = () => {
                           transition={{ delay: 0.3 + idx * 0.1 }}
                           className={`flex items-center justify-between rounded-xl border transition-colors ${
                             idx === 0
-                              ? "p-4 bg-gradient-to-r from-amber-50 via-yellow-50 to-white border-yellow-300 shadow-sm"
-                              : "p-3 bg-gradient-to-r from-gray-50 to-gray-25 border-gray-100 hover:border-yellow-300"
+                              ? "p-3 bg-gradient-to-r from-amber-50 via-yellow-50 to-white border-yellow-300 shadow-sm"
+                              : "p-2.5 bg-gradient-to-r from-gray-50 to-gray-25 border-gray-100 hover:border-yellow-300"
                           }`}
                         >
                           <div className="flex items-center gap-3 flex-1">
-                            <Badge className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-white font-bold px-2.5 py-1">
+                            <Badge className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-white font-bold px-2 py-0.5">
                               #{idx + 1}
                             </Badge>
                             <div className="min-w-0 flex-1">
                               <p
                                 className={`truncate text-gray-900 ${
                                   idx === 0
-                                    ? "text-base font-bold"
+                                    ? "text-sm font-bold"
                                     : "text-sm font-semibold"
                                 }`}
                               >
@@ -1312,7 +1540,7 @@ const AdminDashboard = () => {
                           <div className="text-right">
                             <p
                               className={`font-bold text-gray-900 ${
-                                idx === 0 ? "text-2xl leading-none" : "text-lg"
+                                idx === 0 ? "text-lg leading-none" : "text-base"
                               }`}
                             >
                               $
@@ -1347,24 +1575,24 @@ const AdminDashboard = () => {
                 transition={{ duration: 0.6, delay: 0.4 }}
               >
                 <Card className="border shadow-sm h-full">
-                  <CardHeader>
+                  <CardHeader className="pb-3">
                     <CardTitle className="font-heading flex items-center gap-2 text-lg">
                       <Flame className="w-5 h-5 text-orange-500" />
                       Top Selling Items
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-2">
+                  <CardContent className="space-y-1.5 max-h-[320px] overflow-y-auto pr-1">
                     {topItems.length > 0 ? (
-                      topItems.slice(0, 5).map((item, idx) => (
+                      topItems.slice(0, 12).map((item, idx) => (
                         <motion.div
                           key={item.name}
                           initial={{ opacity: 0, x: -10 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: 0.4 + idx * 0.1 }}
-                          className="flex items-center justify-between p-3 bg-gradient-to-r from-orange-50 to-amber-25 rounded-lg border border-orange-100 hover:border-orange-300 transition-colors"
+                          className="flex items-center justify-between p-2.5 bg-gradient-to-r from-orange-50 to-amber-25 rounded-lg border border-orange-100 hover:border-orange-300 transition-colors"
                         >
                           <div className="flex items-center gap-3 flex-1">
-                            <span className="text-lg font-bold text-orange-500">
+                            <span className="text-base font-bold text-orange-500">
                               #{idx + 1}
                             </span>
                             <div className="min-w-0 flex-1">
@@ -1377,7 +1605,7 @@ const AdminDashboard = () => {
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="font-bold text-lg text-green-600">
+                            <p className="font-bold text-base text-green-600">
                               $
                               {item.revenue.toLocaleString("en-US", {
                                 minimumFractionDigits: 2,
@@ -1457,6 +1685,163 @@ const AdminDashboard = () => {
                     <p className="text-xs text-orange-600 mt-2">
                       No activity 60+ days
                     </p>
+                  </CardContent>
+                </Card>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.55 }}
+              className="space-y-4"
+            >
+              <Card className="border shadow-sm">
+                <CardHeader>
+                  <CardTitle className="font-heading flex items-center gap-2 text-lg">
+                    <Zap className="w-5 h-5 text-indigo-500" />
+                    Suggestive Selling KPI (Order-Based)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                    <div className="rounded-lg border bg-gray-50 p-3">
+                      <p className="text-xs text-gray-500">Orders Analyzed</p>
+                      <p className="text-2xl font-bold text-gray-900 mt-1">
+                        {loading ? "..." : upsellKpis.summary.impressions || 0}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border bg-gray-50 p-3">
+                      <p className="text-xs text-gray-500">
+                        Cross-Category Orders
+                      </p>
+                      <p className="text-2xl font-bold text-gray-900 mt-1">
+                        {loading ? "..." : upsellKpis.summary.clicks || 0}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border bg-gray-50 p-3">
+                      <p className="text-xs text-gray-500">Single-Category Orders</p>
+                      <p className="text-2xl font-bold text-gray-900 mt-1">
+                        {loading
+                          ? "..."
+                          : Math.max(
+                              (upsellKpis.summary.impressions || 0) -
+                                (upsellKpis.summary.clicks || 0),
+                              0,
+                            )}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border bg-gray-50 p-3">
+                      <p className="text-xs text-gray-500">Cross-Category Rate</p>
+                      <p className="text-2xl font-bold text-gray-900 mt-1">
+                        {loading
+                          ? "..."
+                          : `${Number(upsellKpis.summary.ctr || 0).toFixed(1)}%`}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border bg-gray-50 p-3">
+                      <p className="text-xs text-gray-500">Attach Rate</p>
+                      <p className="text-2xl font-bold text-gray-900 mt-1">
+                        {loading
+                          ? "..."
+                          : `${Number(upsellKpis.summary.add_rate || 0).toFixed(1)}%`}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border bg-gray-50 p-3">
+                      <p className="text-xs text-gray-500">Unique Customers</p>
+                      <p className="text-2xl font-bold text-gray-900 mt-1">
+                        {loading
+                          ? "..."
+                          : upsellKpis.summary.unique_customers || 0}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Card className="border shadow-sm">
+                  <CardHeader>
+                    <CardTitle className="font-heading text-base">
+                      Suggestive Selling by Location
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+                    {loading ? (
+                      <p className="text-sm text-gray-500">
+                        Loading location KPI...
+                      </p>
+                    ) : upsellKpis.by_location.length > 0 ? (
+                      upsellKpis.by_location.slice(0, 12).map((row) => (
+                        <div
+                          key={row.merchant_id}
+                          className="rounded-lg border p-3 bg-gray-50"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-semibold text-gray-900 truncate">
+                              {row.location_name}
+                            </p>
+                            <Badge className="bg-indigo-100 text-indigo-700">
+                              {Number(row.add_rate || 0).toFixed(1)}% attach
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {row.impressions} orders • {row.clicks} cross-category
+                            • {row.unique_customers} customers
+                          </p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-500">
+                        No suggestive-selling location data yet.
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="border shadow-sm">
+                  <CardHeader>
+                    <CardTitle className="font-heading text-base">
+                      Suggestive Selling by Customer
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+                    {loading ? (
+                      <p className="text-sm text-gray-500">
+                        Loading customer KPI...
+                      </p>
+                    ) : upsellKpis.by_customer.length > 0 ? (
+                      upsellKpis.by_customer.slice(0, 12).map((row) => {
+                        const label =
+                          row.customer_name ||
+                          row.customer_email ||
+                          row.customer_phone ||
+                          "Guest";
+                        return (
+                          <div
+                            key={row.customer_key}
+                            className="rounded-lg border p-3 bg-gray-50"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="text-sm font-semibold text-gray-900 truncate">
+                                {label}
+                              </p>
+                              <Badge className="bg-green-100 text-green-700">
+                                {Number(row.add_rate || 0).toFixed(1)}% attach
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {row.impressions} orders • {row.clicks} cross-category
+                              • {row.location_count} locations
+                            </p>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="text-sm text-gray-500">
+                        No suggestive-selling customer data yet.
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
               </div>
