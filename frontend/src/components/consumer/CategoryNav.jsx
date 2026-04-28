@@ -42,7 +42,14 @@ const CategoryNav = ({ categories, selectedCategory, onSelectCategory }) => {
       className="relative px-1"
     >
       <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-2 sm:p-3">
-        <div className="flex flex-wrap gap-2 sm:gap-3">
+        <div
+          className="flex gap-2 sm:gap-3 overflow-x-auto pb-1"
+          style={{
+            WebkitOverflowScrolling: "touch",
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+          }}
+        >
           {categories.map((category, index) => {
             const isSelected = selectedCategory === category.id;
             const emoji = getCategoryEmoji(category.name);
@@ -56,7 +63,7 @@ const CategoryNav = ({ categories, selectedCategory, onSelectCategory }) => {
                 onClick={() => onSelectCategory(category.id)}
                 className={`
                   relative flex items-center gap-2 px-3.5 py-2.5 sm:px-4 sm:py-2.5 rounded-xl
-                  border transition-all duration-300 min-h-[46px]
+                  border transition-all duration-300 min-h-[46px] whitespace-nowrap shrink-0
                   ${
                     isSelected
                       ? "bg-orange-500/20 border-orange-500/50 text-white shadow-[0_0_0_1px_rgba(249,115,22,0.25)]"

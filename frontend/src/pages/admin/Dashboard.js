@@ -1720,7 +1720,9 @@ const AdminDashboard = () => {
                       </p>
                     </div>
                     <div className="rounded-lg border bg-gray-50 p-3">
-                      <p className="text-xs text-gray-500">Single-Category Orders</p>
+                      <p className="text-xs text-gray-500">
+                        Single-Category Orders
+                      </p>
                       <p className="text-2xl font-bold text-gray-900 mt-1">
                         {loading
                           ? "..."
@@ -1732,7 +1734,9 @@ const AdminDashboard = () => {
                       </p>
                     </div>
                     <div className="rounded-lg border bg-gray-50 p-3">
-                      <p className="text-xs text-gray-500">Cross-Category Rate</p>
+                      <p className="text-xs text-gray-500">
+                        Cross-Category Rate
+                      </p>
                       <p className="text-2xl font-bold text-gray-900 mt-1">
                         {loading
                           ? "..."
@@ -1786,8 +1790,8 @@ const AdminDashboard = () => {
                             </Badge>
                           </div>
                           <p className="text-xs text-gray-500 mt-1">
-                            {row.impressions} orders • {row.clicks} cross-category
-                            • {row.unique_customers} customers
+                            {row.impressions} orders • {row.clicks}{" "}
+                            cross-category • {row.unique_customers} customers
                           </p>
                         </div>
                       ))
@@ -1831,8 +1835,8 @@ const AdminDashboard = () => {
                               </Badge>
                             </div>
                             <p className="text-xs text-gray-500 mt-1">
-                              {row.impressions} orders • {row.clicks} cross-category
-                              • {row.location_count} locations
+                              {row.impressions} orders • {row.clicks}{" "}
+                              cross-category • {row.location_count} locations
                             </p>
                           </div>
                         );

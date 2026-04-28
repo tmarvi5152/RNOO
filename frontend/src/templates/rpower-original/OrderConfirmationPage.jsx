@@ -203,7 +203,7 @@ const RpowerOriginalOrderConfirmationPage = () => {
           <div className="ro-panel p-5 space-y-3">
             <button
               className="ro-btn-primary w-full py-3 text-sm"
-              onClick={() => navigate(`/track/${orderId}`)}
+              onClick={() => window.open(`/track/${orderId}`, "_blank")}
             >
               Track My Order
             </button>

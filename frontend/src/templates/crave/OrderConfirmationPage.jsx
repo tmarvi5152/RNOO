@@ -118,7 +118,7 @@ const CraveOrderConfirmationPage = () => {
               <button
                 type="button"
                 onClick={() =>
-                  navigate(`/track/${encodeURIComponent(orderId)}`)
+                  window.open(`/track/${encodeURIComponent(orderId)}`, "_blank")
                 }
                 className="w-full h-12 rounded-full bg-[var(--crv-accent)] text-white font-bold inline-flex items-center justify-center gap-2"
               >

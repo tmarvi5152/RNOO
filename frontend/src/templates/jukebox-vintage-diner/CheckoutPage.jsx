@@ -158,9 +158,11 @@ const JukeboxCheckoutPage = () => {
       const res = await apiService.createOrder(payload);
       clearCart();
       toast.success("Order placed");
-      navigate(
+      window.open(
         `/order-confirmation?orderId=${encodeURIComponent(res.data.id)}&merchantSlug=${encodeURIComponent(slug)}&paymentMethod=${encodeURIComponent(paymentMethod)}`,
+        "_blank",
       );
+      navigate(`/order/${slug}`);
     } catch (err) {
       console.error("Failed to place order", err);
       let msg = "Failed to place order";
@@ -415,7 +417,9 @@ const JukeboxCheckoutPage = () => {
                           onClick={() => {
                             setTipSelection(percent);
                             setCustomTipInput("");
-                            setTip(Number(((subtotal * percent) / 100).toFixed(2)));
+                            setTip(
+                              Number(((subtotal * percent) / 100).toFixed(2)),
+                            );
                           }}
                           className={`juke-checkout-btn h-10 text-xs ${tipSelection === percent ? "active" : ""}`}
                         >

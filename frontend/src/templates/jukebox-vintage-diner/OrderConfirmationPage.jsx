@@ -110,7 +110,7 @@ const JukeboxOrderConfirmationPage = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
             <button
-              onClick={() => navigate(`/track/${orderId}`)}
+              onClick={() => window.open(`/track/${orderId}`, "_blank")}
               className="juke-checkout-btn active h-11 text-xs"
             >
               Track order

@@ -247,9 +247,11 @@ const VelocityCheckoutPage = () => {
       setTipSelection(null);
       setCustomTipInput("");
       toast.success("Order placed!");
-      navigate(
+      window.open(
         `/order-confirmation?orderId=${encodeURIComponent(res.data.id)}&merchantSlug=${encodeURIComponent(slug)}&paymentMethod=${encodeURIComponent(paymentMethod)}`,
+        "_blank",
       );
+      navigate(`/order/${slug}`);
     } catch (err) {
       console.error("Failed to place order:", err);
       let msg = "Failed to place order";

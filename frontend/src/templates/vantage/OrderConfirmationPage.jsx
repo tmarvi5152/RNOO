@@ -122,7 +122,7 @@ const VantageOrderConfirmationPage = () => {
           <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Button
               className="rounded-full"
-              onClick={() => navigate(`/track/${orderId}`)}
+              onClick={() => window.open(`/track/${orderId}`, "_blank")}
             >
               Track Order
             </Button>

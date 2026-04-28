@@ -194,9 +194,11 @@ const RpowerOriginalCheckoutPage = () => {
       const res = await apiService.createOrder(payload);
       clearCart();
       toast.success("Order placed!");
-      navigate(
+      window.open(
         `/order-confirmation?orderId=${encodeURIComponent(res.data.id)}&merchantSlug=${encodeURIComponent(slug)}&paymentMethod=${encodeURIComponent(paymentMethod)}`,
+        "_blank",
       );
+      navigate(`/order/${slug}`);
     } catch (err) {
       const detail = err.response?.data?.detail;
       let msg = "Failed to place order";

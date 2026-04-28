@@ -69,6 +69,8 @@ const JUKEBOX_THEME = `
   background-size: 12px 12px;
 }
 
+.juke-cat-btn-strip::-webkit-scrollbar { display: none; }
+
 .juke-cat-btn {
   border: 2px solid #6d6f72;
   background: linear-gradient(180deg, #f5f0e4, #ddd6c8);

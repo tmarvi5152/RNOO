@@ -205,7 +205,9 @@ const VelocityOrderConfirmationPage = () => {
         >
           <button
             type="button"
-            onClick={() => navigate(`/track/${encodeURIComponent(orderId)}`)}
+            onClick={() =>
+              window.open(`/track/${encodeURIComponent(orderId)}`, "_blank")
+            }
             className="w-full h-14 rounded-2xl vel-accent-bg font-black text-base flex items-center justify-center gap-2"
           >
             Track Order

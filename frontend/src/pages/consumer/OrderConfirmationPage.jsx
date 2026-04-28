@@ -50,7 +50,7 @@ const OrderConfirmationPage = () => {
   };
 
   const handleTrackOrder = () => {
-    navigate(`/track/${encodeURIComponent(orderId)}`);
+    window.open(`/track/${encodeURIComponent(orderId)}`, "_blank");
   };
 
   if (!orderId) {

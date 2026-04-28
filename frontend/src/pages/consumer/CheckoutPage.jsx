@@ -329,9 +329,11 @@ const CheckoutPage = () => {
       // Show success with order ID
       toast.success("Order placed successfully!");
 
-      navigate(
+      window.open(
         `/order-confirmation?orderId=${encodeURIComponent(res.data.id)}&merchantSlug=${encodeURIComponent(slug)}&paymentMethod=${encodeURIComponent(paymentMethod)}`,
+        "_blank",
       );
+      navigate(`/order/${slug}`);
     } catch (err) {
       console.error("Failed to place order:", err);
 

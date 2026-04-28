@@ -460,12 +460,19 @@ const JukeboxMenuPage = () => {
             </div>
 
             <div className="juke-checker mt-3 mb-2 rounded" />
-            <div className="flex gap-2 flex-wrap">
+            <div
+              className="juke-cat-btn-strip flex gap-2 overflow-x-auto pb-2"
+              style={{
+                WebkitOverflowScrolling: "touch",
+                scrollbarWidth: "none",
+                msOverflowStyle: "none",
+              }}
+            >
               {categories.map((cat) => (
                 <button
                   key={cat.id}
                   onClick={() => setSelectedCategory(cat.id)}
-                  className={`juke-cat-btn h-9 px-4 rounded ${selectedCategory === cat.id ? "active" : ""}`}
+                  className={`juke-cat-btn h-9 px-4 rounded whitespace-nowrap shrink-0 ${selectedCategory === cat.id ? "active" : ""}`}
                 >
                   {cat.name}
                 </button>
