@@ -237,8 +237,8 @@ body.rpower-original-theme .ro-qty {
 }
 
 body.rpower-original-theme .ro-qty button {
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -253,15 +253,25 @@ body.rpower-original-theme .ro-qty button:hover {
   background: rgba(30,41,59,0.92);
 }
 
+body.rpower-original-theme .ro-qty button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(211, 173, 103, 0.35);
+}
+
+body.rpower-original-theme .ro-qty button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 body.rpower-original-theme .ro-qty span {
-  min-width: 36px;
+  min-width: 44px;
   text-align: center;
   font-weight: 700;
   font-size: 0.875rem;
   color: var(--ro-text);
   border-left: 1px solid var(--ro-border);
   border-right: 1px solid var(--ro-border);
-  line-height: 32px;
+  line-height: 44px;
 }
 
 /* ── Inputs ──────────────────────────────────────────────────────────── */

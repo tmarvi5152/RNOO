@@ -297,6 +297,7 @@ const OriginalModal = ({ item, merchantId, merchantSlug, onClose }) => {
           <div className="ro-qty">
             <button
               onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+              disabled={quantity <= 1}
               aria-label="Decrease"
             >
               <Minus className="w-3.5 h-3.5" />
@@ -759,6 +760,7 @@ const RpowerOriginalMenuPage = () => {
                                     cartItem.quantity - 1,
                                   )
                                 }
+                                disabled={cartItem.quantity <= 1}
                                 aria-label="Decrease"
                               >
                                 <Minus className="w-3.5 h-3.5" />

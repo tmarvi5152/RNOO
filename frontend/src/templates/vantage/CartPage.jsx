@@ -122,7 +122,7 @@ const VantageCartPage = () => {
                       </div>
                       <button
                         onClick={() => removeItem(item.id)}
-                        className="text-black/40 hover:text-red-600"
+                        className="w-11 h-11 rounded-full inline-flex items-center justify-center text-black/40 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
                         aria-label="Remove item"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -135,7 +135,9 @@ const VantageCartPage = () => {
                           onClick={() =>
                             updateQuantity(item.id, item.quantity - 1)
                           }
-                          className="w-7 h-7 rounded-full bg-white hover:bg-black/5 flex items-center justify-center"
+                          disabled={item.quantity <= 1}
+                          className="w-11 h-11 rounded-full bg-white hover:bg-black/5 flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                          aria-label="Decrease quantity"
                         >
                           <Minus className="w-3.5 h-3.5" />
                         </button>
@@ -146,7 +148,8 @@ const VantageCartPage = () => {
                           onClick={() =>
                             updateQuantity(item.id, item.quantity + 1)
                           }
-                          className="w-7 h-7 rounded-full bg-white hover:bg-black/5 flex items-center justify-center"
+                          className="w-11 h-11 rounded-full bg-white hover:bg-black/5 flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
+                          aria-label="Increase quantity"
                         >
                           <Plus className="w-3.5 h-3.5" />
                         </button>

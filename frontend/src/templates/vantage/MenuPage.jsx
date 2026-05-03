@@ -149,7 +149,8 @@ const VantageMenuModal = ({ item, merchantId, merchantSlug, onClose }) => {
       >
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 z-10 rounded-full bg-white/80 p-2 hover:bg-white"
+          className="absolute top-3 right-3 z-10 w-11 h-11 rounded-full bg-white/80 hover:bg-white inline-flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
+          aria-label="Close item details"
         >
           <X className="w-4 h-4" />
         </button>
@@ -292,17 +293,18 @@ const VantageMenuModal = ({ item, merchantId, merchantSlug, onClose }) => {
           <div className="inline-flex items-center gap-2 bg-black/5 rounded-full px-2 py-1">
             <button
               onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-              className="w-10 h-10 rounded-full bg-white flex items-center justify-center"
+              disabled={quantity <= 1}
+              className="w-11 h-11 rounded-full bg-white flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 disabled:opacity-40 disabled:cursor-not-allowed"
               aria-label="Decrease quantity"
             >
               <Minus className="w-4 h-4" />
             </button>
-            <span className="w-9 text-center text-sm font-medium">
+            <span className="w-10 text-center text-sm font-medium">
               {quantity}
             </span>
             <button
               onClick={() => setQuantity((q) => q + 1)}
-              className="w-10 h-10 rounded-full bg-white flex items-center justify-center"
+              className="w-11 h-11 rounded-full bg-white flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
               aria-label="Increase quantity"
             >
               <Plus className="w-4 h-4" />

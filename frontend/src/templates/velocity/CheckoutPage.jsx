@@ -55,13 +55,13 @@ const Section = ({ title, children }) => (
 
 /* Toggle pill */
 const PillToggle = ({ options, value, onChange }) => (
-  <div className="flex gap-2">
+  <div className="flex gap-3">
     {options.map((opt) => (
       <button
         key={opt.value}
         type="button"
         onClick={() => onChange(opt.value)}
-        className={`flex-1 h-10 rounded-xl font-bold text-sm transition-colors ${
+        className={`flex-1 h-12 rounded-xl font-bold text-sm transition-colors ${
           value === opt.value
             ? "vel-accent-bg"
             : "bg-[#f4f4f4] text-black/60 hover:bg-[#eee]"

@@ -167,7 +167,8 @@ const VelocityModifierModal = ({ item, merchantId, merchantSlug, onClose }) => {
         {/* close */}
         <button
           onClick={onClose}
-          className="absolute top-3 right-4 z-10 w-8 h-8 rounded-full bg-[#f4f4f4] flex items-center justify-center"
+          className="absolute top-3 right-4 z-10 w-11 h-11 rounded-full bg-[#f4f4f4] flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vel-accent)]/35"
+          aria-label="Close item details"
         >
           <X className="w-4 h-4" />
         </button>
@@ -324,18 +325,19 @@ const VelocityModifierModal = ({ item, merchantId, merchantSlug, onClose }) => {
             <button
               type="button"
               onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-              className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm"
+              disabled={quantity <= 1}
+              className="w-11 h-11 rounded-full bg-white flex items-center justify-center shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vel-accent)]/35 disabled:opacity-40 disabled:cursor-not-allowed"
               aria-label="Decrease quantity"
             >
               <Minus className="w-4 h-4" />
             </button>
-            <span className="w-9 text-center font-bold text-sm">
+            <span className="w-10 text-center font-bold text-sm">
               {quantity}
             </span>
             <button
               type="button"
               onClick={() => setQuantity((q) => q + 1)}
-              className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm"
+              className="w-11 h-11 rounded-full bg-white flex items-center justify-center shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vel-accent)]/35"
               aria-label="Increase quantity"
             >
               <Plus className="w-4 h-4" />

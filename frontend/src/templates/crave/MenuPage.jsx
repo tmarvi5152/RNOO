@@ -160,7 +160,8 @@ const CraveModifierModal = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 transition-colors flex items-center justify-center"
+            className="w-11 h-11 rounded-full bg-slate-100 hover:bg-slate-200 transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+            aria-label="Close item details"
           >
             <X className="w-4 h-4" />
           </button>
@@ -206,7 +207,7 @@ const CraveModifierModal = ({
                   </span>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {(group.options || []).map((opt) => {
                     const count = Number(
                       selectedCounts[group.id]?.[opt.id] || 0,
@@ -214,7 +215,7 @@ const CraveModifierModal = ({
                     return (
                       <div
                         key={opt.id}
-                        className="flex items-center justify-between py-2.5 border-b border-slate-100 last:border-b-0"
+                        className="flex items-center justify-between py-3 border-b border-slate-100 last:border-b-0"
                       >
                         <div>
                           <p className="text-sm md:text-base font-medium text-slate-800">
@@ -226,18 +227,19 @@ const CraveModifierModal = ({
                             </p>
                           )}
                         </div>
-                        <div className="inline-flex items-center rounded-full border border-slate-300 bg-white px-1 py-1">
+                        <div className="inline-flex items-center rounded-full border border-slate-300 bg-white px-1.5 py-1.5">
                           <button
                             type="button"
                             onClick={() =>
                               setOptionCount(group, opt.id, count - 1)
                             }
-                            className="w-9 h-9 rounded-full hover:bg-slate-100 transition-colors flex items-center justify-center"
+                            disabled={count <= 0}
+                            className="w-10 h-10 rounded-full hover:bg-slate-100 transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 disabled:opacity-40 disabled:cursor-not-allowed"
                             aria-label={`Decrease ${opt.name}`}
                           >
                             <Minus className="w-3.5 h-3.5" />
                           </button>
-                          <span className="w-8 text-center text-sm font-bold">
+                          <span className="w-9 text-center text-sm font-bold">
                             {count}
                           </span>
                           <button
@@ -245,7 +247,7 @@ const CraveModifierModal = ({
                             onClick={() =>
                               setOptionCount(group, opt.id, count + 1)
                             }
-                            className="w-9 h-9 rounded-full hover:bg-slate-100 transition-colors flex items-center justify-center"
+                            className="w-10 h-10 rounded-full hover:bg-slate-100 transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
                             aria-label={`Increase ${opt.name}`}
                           >
                             <Plus className="w-3.5 h-3.5" />
@@ -634,7 +636,8 @@ const CraveMenuPage = () => {
                       <button
                         type="button"
                         onClick={() => removeItem(item.id)}
-                        className="text-slate-400 hover:text-red-500"
+                        className="w-11 h-11 rounded-full inline-flex items-center justify-center text-slate-400 hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+                        aria-label="Remove item"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -646,11 +649,13 @@ const CraveMenuPage = () => {
                           onClick={() =>
                             updateQuantity(item.id, item.quantity - 1)
                           }
-                          className="w-7 h-7 rounded-full flex items-center justify-center"
+                          disabled={item.quantity <= 1}
+                          className="w-11 h-11 rounded-full flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 disabled:opacity-40 disabled:cursor-not-allowed"
+                          aria-label="Decrease quantity"
                         >
                           <Minus className="w-3.5 h-3.5" />
                         </button>
-                        <span className="w-7 text-center text-sm font-bold">
+                        <span className="w-8 text-center text-sm font-bold">
                           {item.quantity}
                         </span>
                         <button
@@ -658,7 +663,8 @@ const CraveMenuPage = () => {
                           onClick={() =>
                             updateQuantity(item.id, item.quantity + 1)
                           }
-                          className="w-7 h-7 rounded-full flex items-center justify-center"
+                          className="w-11 h-11 rounded-full flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+                          aria-label="Increase quantity"
                         >
                           <Plus className="w-3.5 h-3.5" />
                         </button>

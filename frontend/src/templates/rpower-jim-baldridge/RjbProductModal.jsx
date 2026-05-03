@@ -367,7 +367,7 @@ const RjbProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                           return (
                             <>
                               {prefixModifiers.length > 0 && (
-                                <div className="space-y-2">
+                                <div className="space-y-3">
                                   <div className="flex items-center gap-2 mb-2">
                                     <h4 className="text-sm font-semibold text-[#e8ba53]">
                                       Prefix Modifiers
@@ -424,7 +424,7 @@ const RjbProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                                               option.allow_duplicates,
                                             )
                                           }
-                                          className="rjb-prefix-option flex items-center gap-2 px-3 py-2 rounded-lg bg-[#e8ba5312] border border-[#e8ba5358] text-white hover:bg-[#e8ba5320] transition-all"
+                                          className="rjb-prefix-option flex items-center gap-2 px-3 py-2 rounded-lg bg-[#e8ba5312] border border-[#e8ba5358] text-white hover:bg-[#e8ba5320] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8ba53]/60"
                                           whileHover={{ scale: 1.04 }}
                                           whileTap={{ scale: 0.95 }}
                                         >
@@ -439,7 +439,8 @@ const RjbProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                                               </span>
                                               <button
                                                 onClick={handleRemoveOne}
-                                                className="w-5 h-5 rounded-full bg-[#cf2030] hover:bg-[#b11928] flex items-center justify-center transition-colors"
+                                                className="w-10 h-10 rounded-full bg-[#cf2030] hover:bg-[#b11928] flex items-center justify-center transition-colors"
+                                                aria-label={`Remove one ${option.name}`}
                                               >
                                                 <Minus className="w-3 h-3 text-white" />
                                               </button>
@@ -458,7 +459,7 @@ const RjbProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                               )}
 
                               {regularOptions.length > 0 && (
-                                <div className="space-y-2">
+                                <div className="space-y-3">
                                   {prefixModifiers.length > 0 && (
                                     <div className="border-t border-[#e8ba532a] pt-3">
                                       <h4 className="text-sm font-semibold text-white/70 mb-2">
@@ -473,7 +474,7 @@ const RjbProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                                     </p>
                                   )}
 
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     {regularOptions.map((option) => {
                                       const isSelected = isOptionSelected(
                                         group.id,
@@ -493,7 +494,7 @@ const RjbProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                                               false,
                                             )
                                           }
-                                          className={`rjb-option-button relative flex items-center justify-between p-3 rounded-xl border transition-all duration-200 ${
+                                          className={`rjb-option-button relative flex items-center justify-between p-3 rounded-xl border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8ba53]/60 ${
                                             isSelected
                                               ? "bg-[#e8ba5322] border-[#e8ba53] text-white"
                                               : "bg-[#f5f7fb08] border-[#e8ba532f] text-white/80 hover:border-[#e8ba5370]"
@@ -558,7 +559,8 @@ const RjbProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                 <div className="rjb-modal-qty-wrap flex items-center gap-1.5 bg-[#f5f7fb08] rounded-xl p-1.5 border border-[#e8ba532a]">
                   <motion.button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="rjb-modal-qty-btn w-10 h-10 rounded-md bg-[#1d2633] hover:bg-[#263245] flex items-center justify-center"
+                    disabled={quantity <= 1}
+                    className="rjb-modal-qty-btn w-11 h-11 rounded-md bg-[#1d2633] hover:bg-[#263245] flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8ba53]/60 disabled:opacity-40 disabled:cursor-not-allowed"
                     whileTap={{ scale: 0.9 }}
                     aria-label="Decrease quantity"
                   >
@@ -569,7 +571,7 @@ const RjbProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                   </span>
                   <motion.button
                     onClick={() => setQuantity(quantity + 1)}
-                    className="rjb-modal-qty-btn w-10 h-10 rounded-md bg-[#1d2633] hover:bg-[#263245] flex items-center justify-center"
+                    className="rjb-modal-qty-btn w-11 h-11 rounded-md bg-[#1d2633] hover:bg-[#263245] flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e8ba53]/60"
                     whileTap={{ scale: 0.9 }}
                     aria-label="Increase quantity"
                   >

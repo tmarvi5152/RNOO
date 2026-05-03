@@ -182,7 +182,7 @@ const VelocityOrderTrackingPage = () => {
           <button
             type="button"
             onClick={() => loadOrder(true)}
-            className="w-9 h-9 rounded-full bg-[#f4f4f4] flex items-center justify-center"
+            className="w-11 h-11 rounded-full bg-[#f4f4f4] flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vel-accent)]/35"
             aria-label="Refresh"
           >
             <RefreshCw

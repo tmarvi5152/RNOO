@@ -98,7 +98,8 @@ const CraveCartPage = () => {
                     <button
                       type="button"
                       onClick={() => removeItem(item.id)}
-                      className="text-slate-400 hover:text-red-500"
+                      className="w-11 h-11 rounded-full inline-flex items-center justify-center text-slate-400 hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+                      aria-label="Remove item"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -111,11 +112,13 @@ const CraveCartPage = () => {
                         onClick={() =>
                           updateQuantity(item.id, item.quantity - 1)
                         }
-                        className="w-7 h-7 rounded-full flex items-center justify-center"
+                        disabled={item.quantity <= 1}
+                        className="w-11 h-11 rounded-full flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 disabled:opacity-40 disabled:cursor-not-allowed"
+                        aria-label="Decrease quantity"
                       >
                         <Minus className="w-3.5 h-3.5" />
                       </button>
-                      <span className="w-7 text-center text-sm font-bold">
+                      <span className="w-8 text-center text-sm font-bold">
                         {item.quantity}
                       </span>
                       <button
@@ -123,7 +126,8 @@ const CraveCartPage = () => {
                         onClick={() =>
                           updateQuantity(item.id, item.quantity + 1)
                         }
-                        className="w-7 h-7 rounded-full flex items-center justify-center"
+                        className="w-11 h-11 rounded-full flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+                        aria-label="Increase quantity"
                       >
                         <Plus className="w-3.5 h-3.5" />
                       </button>

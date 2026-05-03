@@ -302,20 +302,22 @@ const FloatingPad = ({ slug }) => {
               <button
                 aria-label="Decrease quantity"
                 onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                className="w-6 h-6 border border-black/25 bg-white"
+                disabled={item.quantity <= 1}
+                className="w-11 h-11 rounded-md border border-black/25 bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/25 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 -
               </button>
               <button
                 aria-label="Increase quantity"
                 onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                className="w-6 h-6 border border-black/25 bg-white"
+                className="w-11 h-11 rounded-md border border-black/25 bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/25"
               >
                 +
               </button>
               <button
+                aria-label="Remove item"
                 onClick={() => removeItem(item.id)}
-                className="ml-auto w-6 h-6 border border-red-300 bg-red-100 text-red-800"
+                className="ml-auto w-11 h-11 rounded-md border border-red-300 bg-red-100 text-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
               >
                 x
               </button>

@@ -110,7 +110,7 @@ const VelocityCartPage = () => {
                   <button
                     type="button"
                     onClick={() => removeItem(item.id)}
-                    className="shrink-0 text-black/30 hover:text-red-500 transition-colors"
+                    className="shrink-0 w-11 h-11 rounded-full inline-flex items-center justify-center text-black/30 hover:text-red-500 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vel-accent)]/35"
                     aria-label="Remove"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -123,17 +123,20 @@ const VelocityCartPage = () => {
                     <button
                       type="button"
                       onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                      className="w-7 h-7 rounded-full bg-white flex items-center justify-center shadow-sm"
+                      disabled={item.quantity <= 1}
+                      className="w-11 h-11 rounded-full bg-white flex items-center justify-center shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vel-accent)]/35 disabled:opacity-40 disabled:cursor-not-allowed"
+                      aria-label="Decrease quantity"
                     >
                       <Minus className="w-3.5 h-3.5" />
                     </button>
-                    <span className="w-6 text-center text-sm font-bold">
+                    <span className="w-8 text-center text-sm font-bold">
                       {item.quantity}
                     </span>
                     <button
                       type="button"
                       onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                      className="w-7 h-7 rounded-full bg-white flex items-center justify-center shadow-sm"
+                      className="w-11 h-11 rounded-full bg-white flex items-center justify-center shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vel-accent)]/35"
+                      aria-label="Increase quantity"
                     >
                       <Plus className="w-3.5 h-3.5" />
                     </button>
