@@ -5,6 +5,7 @@ import { apiService } from "../../context/AppContext";
 import { useOrderWebSocket } from "../../hooks/useOrderWebSocket";
 import { toast } from "sonner";
 import { useJukeboxTheme } from "./JukeboxTheme";
+import { getOrderHandoffCopy } from "../../lib/orderHandoff";
 
 const DISPLAY_STEPS = [
   { label: "Received", statuses: ["pending", "confirmed"] },
@@ -74,6 +75,12 @@ const JukeboxOrderTrackingPage = () => {
     return (activeIdx / (DISPLAY_STEPS.length - 1)) * 100;
   }, [activeIdx]);
 
+  const handoff = getOrderHandoffCopy({
+    deliveryType: order?.delivery_type,
+    customerName: order?.customer?.name,
+    customerPhone: order?.customer?.phone,
+  });
+
   if (loading) {
     return (
       <div className="juke-shell min-h-screen grid place-items-center">
@@ -115,9 +122,8 @@ const JukeboxOrderTrackingPage = () => {
               <p className="text-xs uppercase tracking-[0.15em] text-black/65">
                 Route 66 Tracker
               </p>
-              <h1 className="juke-item-title text-4xl">
-                Order #{order.order_number || order.id}
-              </h1>
+              <h1 className="juke-item-title text-4xl">Track Order</h1>
+              <p className="text-black/70">{handoff.title}</p>
               <p className="text-black/70">
                 Status:{" "}
                 <span className="font-semibold capitalize">{order.status}</span>

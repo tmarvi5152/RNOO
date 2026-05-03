@@ -1,14 +1,17 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { CheckCircle2, Copy, Disc3, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { useJukeboxTheme } from "./JukeboxTheme";
+import { apiService } from "../../context/AppContext";
+import { getOrderHandoffCopy } from "../../lib/orderHandoff";
 
 const JukeboxOrderConfirmationPage = () => {
   useJukeboxTheme();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [copied, setCopied] = useState(false);
+  const [orderDetails, setOrderDetails] = useState(null);
 
   const orderId = searchParams.get("orderId") || "";
   const merchantSlug = searchParams.get("merchantSlug") || "";
@@ -28,11 +31,35 @@ const JukeboxOrderConfirmationPage = () => {
     [orderId],
   );
 
+  useEffect(() => {
+    if (!orderId) return;
+    let cancelled = false;
+
+    apiService
+      .getOrderPublic(orderId, { _ts: Date.now() })
+      .then((res) => {
+        if (!cancelled) setOrderDetails(res.data);
+      })
+      .catch(() => {
+        if (!cancelled) setOrderDetails(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [orderId]);
+
+  const handoff = getOrderHandoffCopy({
+    deliveryType: orderDetails?.delivery_type,
+    customerName: orderDetails?.customer?.name,
+    customerPhone: orderDetails?.customer?.phone,
+  });
+
   const copyOrderId = async () => {
     try {
       await navigator.clipboard.writeText(orderId);
       setCopied(true);
-      toast.success("Order ID copied");
+      toast.success("Order reference copied");
       setTimeout(() => setCopied(false), 1600);
     } catch {
       toast.error("Unable to copy order ID");
@@ -93,14 +120,12 @@ const JukeboxOrderConfirmationPage = () => {
           <div className="juke-ticket-card mt-5 p-4 text-left">
             <div className="flex items-center justify-between gap-2">
               <p className="text-xs uppercase tracking-wider text-white/75">
-                Ticket Number
+                Handoff
               </p>
               <Disc3 className="w-5 h-5 text-white/90" />
             </div>
-            <p className="mt-2 text-lg font-mono break-all">{orderId}</p>
-            <p className="text-xs text-white/75 mt-2">
-              Keep this handy if you call the counter.
-            </p>
+            <p className="mt-2 text-base font-semibold">{handoff.title}</p>
+            <p className="text-xs text-white/75 mt-2">{handoff.detail}</p>
             {paymentMethodLabel && (
               <p className="text-xs uppercase tracking-wide text-white/85 mt-3">
                 Payment: {paymentMethodLabel}
@@ -127,7 +152,7 @@ const JukeboxOrderConfirmationPage = () => {
               onClick={copyOrderId}
               className="juke-checkout-btn h-11 text-xs inline-flex items-center justify-center gap-2"
             >
-              <Copy className="w-4 h-4" /> {copied ? "Copied" : "Copy ticket"}
+              <Copy className="w-4 h-4" /> {copied ? "Copied" : "Copy reference"}
             </button>
             <button
               onClick={shareTracking}

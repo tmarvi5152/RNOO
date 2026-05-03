@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useRpowerOriginalTheme } from "./RpowerOriginalTheme";
 import RpowerOriginalHeroBanner from "./HeroBanner";
 import { apiService } from "../../context/AppContext";
+import { getOrderHandoffCopy } from "../../lib/orderHandoff";
 
 const PAYMENT_LABELS = {
   demo_card: "Demo Credit Card",
@@ -21,6 +22,7 @@ const RpowerOriginalOrderConfirmationPage = () => {
   const [searchParams] = useSearchParams();
   const [copied, setCopied] = useState(false);
   const [posTicket, setPosTicket] = useState(null);
+  const [orderDetails, setOrderDetails] = useState(null);
 
   const orderId = searchParams.get("orderId") || "";
   const merchantSlug = searchParams.get("merchantSlug") || "";
@@ -37,6 +39,9 @@ const RpowerOriginalOrderConfirmationPage = () => {
     const check = async () => {
       try {
         const res = await apiService.getOrderPublic(orderId);
+        if (!cancelled) {
+          setOrderDetails(res?.data || null);
+        }
         const ticket = res?.data?.poscnx_ticket_number;
         if (ticket && !cancelled) {
           setPosTicket(ticket);
@@ -71,11 +76,17 @@ const RpowerOriginalOrderConfirmationPage = () => {
 
   if (!orderId) return null;
 
+  const handoff = getOrderHandoffCopy({
+    deliveryType: orderDetails?.delivery_type,
+    customerName: orderDetails?.customer?.name,
+    customerPhone: orderDetails?.customer?.phone,
+  });
+
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(orderId);
       setCopied(true);
-      toast.success("Order number copied");
+      toast.success("Order reference copied");
       setTimeout(() => setCopied(false), 1500);
     } catch {
       toast.error("Unable to copy");
@@ -139,7 +150,7 @@ const RpowerOriginalOrderConfirmationPage = () => {
               </p>
             </div>
 
-            {/* Order number */}
+            {/* Handoff details */}
             <div
               className="px-6 py-5 text-center"
               style={{
@@ -148,12 +159,15 @@ const RpowerOriginalOrderConfirmationPage = () => {
                 borderBottom: "1px solid rgba(255,255,255,0.16)",
               }}
             >
-              <p className="ro-label mb-2">Order Number</p>
+              <p className="ro-label mb-2">Handoff</p>
               <p
-                className="text-xl font-bold mb-3 break-all"
+                className="text-xl font-bold mb-1"
                 style={{ color: "#f8fafc" }}
               >
-                {orderId}
+                {handoff.title}
+              </p>
+              <p className="text-sm mb-3" style={{ color: "#cbd5e1" }}>
+                {handoff.detail}
               </p>
               {posTicket && (
                 <p className="text-sm mb-3" style={{ color: "#cbd5e1" }}>
@@ -171,7 +185,7 @@ const RpowerOriginalOrderConfirmationPage = () => {
                 className="ro-btn-outline inline-flex items-center gap-2 px-4 py-2 text-xs"
               >
                 <Copy className="w-3.5 h-3.5" />
-                {copied ? "Copied!" : "Copy Number"}
+                {copied ? "Copied!" : "Copy Order Reference"}
               </button>
             </div>
 
@@ -225,7 +239,7 @@ const RpowerOriginalOrderConfirmationPage = () => {
           </div>
 
           <p className="text-xs text-center mt-4" style={{ color: "#94a3b8" }}>
-            Powered by RPOWER POS · Keep your order number for your records
+            Powered by RPOWER POS · Keep your order reference for support
           </p>
         </motion.div>
       </div>

@@ -1,8 +1,10 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowRight, CheckCircle2, MapPin } from "lucide-react";
 import { useCraveTheme } from "./CraveTheme";
+import { apiService } from "../../context/AppContext";
+import { getOrderHandoffCopy } from "../../lib/orderHandoff";
 
 const CraveOrderConfirmationPage = () => {
   useCraveTheme();
@@ -12,6 +14,7 @@ const CraveOrderConfirmationPage = () => {
   const orderId = searchParams.get("orderId") || "";
   const merchantSlug = searchParams.get("merchantSlug") || "";
   const paymentMethod = searchParams.get("paymentMethod") || "";
+  const [orderDetails, setOrderDetails] = useState(null);
 
   const paymentMethodLabelMap = {
     demo_card: "Demo Credit Card",
@@ -21,6 +24,30 @@ const CraveOrderConfirmationPage = () => {
     google_pay: "Google Pay",
   };
   const paymentMethodLabel = paymentMethodLabelMap[paymentMethod] || "";
+
+  useEffect(() => {
+    if (!orderId) return;
+    let cancelled = false;
+
+    apiService
+      .getOrderPublic(orderId, { _ts: Date.now() })
+      .then((res) => {
+        if (!cancelled) setOrderDetails(res.data);
+      })
+      .catch(() => {
+        if (!cancelled) setOrderDetails(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [orderId]);
+
+  const handoff = getOrderHandoffCopy({
+    deliveryType: orderDetails?.delivery_type,
+    customerName: orderDetails?.customer?.name,
+    customerPhone: orderDetails?.customer?.phone,
+  });
 
   if (!orderId) {
     return (
@@ -61,9 +88,7 @@ const CraveOrderConfirmationPage = () => {
             <h1 className="text-4xl lg:text-5xl font-black text-slate-900 mt-1">
               We've got it!
             </h1>
-            <p className="text-sm text-slate-500 mt-2">
-              Order #{orderId.slice(-8).toUpperCase()}
-            </p>
+            <p className="text-sm text-slate-500 mt-2">{handoff.title}</p>
             {paymentMethodLabel && (
               <p className="text-xs text-slate-400 mt-1">
                 Payment:{" "}
@@ -75,11 +100,13 @@ const CraveOrderConfirmationPage = () => {
 
             <div className="mt-5 rounded-2xl bg-red-50 border border-red-100 p-4 text-left">
               <p className="text-xs font-bold uppercase tracking-wider text-red-500 mb-2">
-                Pickup Location
+                {orderDetails?.delivery_type === "DELIVERY"
+                  ? "Delivery Handoff"
+                  : "Pickup Handoff"}
               </p>
               <p className="text-sm font-semibold text-slate-800 flex items-start gap-2">
                 <MapPin className="w-4 h-4 mt-0.5 text-red-500" />
-                Front counter pickup. Please show your order number at arrival.
+                {handoff.title}. {handoff.detail}
               </p>
             </div>
           </div>

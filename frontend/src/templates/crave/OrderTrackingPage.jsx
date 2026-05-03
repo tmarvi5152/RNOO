@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useCraveTheme } from "./CraveTheme";
+import { getOrderHandoffCopy } from "../../lib/orderHandoff";
 
 const TIMELINE = [
   {
@@ -107,6 +108,11 @@ const CraveOrderTrackingPage = () => {
   }
 
   const phoneNumber = order.customer?.phone || order.merchant?.phone || "";
+  const handoff = getOrderHandoffCopy({
+    deliveryType: order.delivery_type,
+    customerName: order.customer?.name,
+    customerPhone: order.customer?.phone,
+  });
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_8%_0%,#ffe4e6_0%,#f8fafc_36%)] text-slate-900">
@@ -120,9 +126,8 @@ const CraveOrderTrackingPage = () => {
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div className="flex-1 min-w-0">
-            <h1 className="font-bold text-base truncate">
-              Order #{order.order_number || orderId.slice(-6).toUpperCase()}
-            </h1>
+            <h1 className="font-bold text-base truncate">Track Order</h1>
+            <p className="text-xs text-slate-500 truncate">{handoff.title}</p>
             <p className="text-xs text-slate-500 capitalize">{order.status}</p>
           </div>
           {isConnected && (
@@ -209,9 +214,9 @@ const CraveOrderTrackingPage = () => {
           </p>
           <div className="mt-4 text-sm space-y-2 text-slate-600">
             <div className="flex justify-between">
-              <span>Order #</span>
+              <span>Customer</span>
               <span className="font-semibold text-slate-900">
-                {order.order_number || "-"}
+                {order.customer?.name || "-"}
               </span>
             </div>
             <div className="flex justify-between">

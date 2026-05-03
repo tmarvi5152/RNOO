@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "../../components/ui/button";
@@ -6,12 +6,15 @@ import { Badge } from "../../components/ui/badge";
 import { CheckCircle2, Copy, Share2, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { useVantageTheme } from "./VantageTheme";
+import { apiService } from "../../context/AppContext";
+import { getOrderHandoffCopy } from "../../lib/orderHandoff";
 
 const VantageOrderConfirmationPage = () => {
   useVantageTheme();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [copied, setCopied] = useState(false);
+  const [orderDetails, setOrderDetails] = useState(null);
   const orderId = searchParams.get("orderId") || "";
   const merchantSlug = searchParams.get("merchantSlug") || "";
   const paymentMethod = searchParams.get("paymentMethod") || "";
@@ -28,6 +31,30 @@ const VantageOrderConfirmationPage = () => {
   const trackingLink = useMemo(() => {
     return `${window.location.origin}/track/${orderId}`;
   }, [orderId]);
+
+  useEffect(() => {
+    if (!orderId) return;
+    let cancelled = false;
+
+    apiService
+      .getOrderPublic(orderId, { _ts: Date.now() })
+      .then((res) => {
+        if (!cancelled) setOrderDetails(res.data);
+      })
+      .catch(() => {
+        if (!cancelled) setOrderDetails(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [orderId]);
+
+  const handoff = getOrderHandoffCopy({
+    deliveryType: orderDetails?.delivery_type,
+    customerName: orderDetails?.customer?.name,
+    customerPhone: orderDetails?.customer?.phone,
+  });
 
   const handleCopy = async () => {
     try {
@@ -89,6 +116,11 @@ const VantageOrderConfirmationPage = () => {
           <p className="mt-3 text-black/65">
             Your order is confirmed and has been sent to the kitchen.
           </p>
+
+          <div className="mt-4 p-4 rounded-2xl bg-white/70 border border-black/10 text-left">
+            <p className="text-sm font-semibold">{handoff.title}</p>
+            <p className="text-xs text-black/65 mt-1">{handoff.detail}</p>
+          </div>
 
           <div className="mt-7 p-4 rounded-2xl bg-[linear-gradient(120deg,_rgba(255,255,255,0.8)_0%,_rgba(246,239,227,0.85)_100%)] border border-black/10">
             <p className="text-xs uppercase tracking-[0.14em] text-black/50">

@@ -13,6 +13,7 @@ import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { Skeleton } from "../../components/ui/skeleton";
 import { toast } from "sonner";
+import { getOrderHandoffCopy } from "../../lib/orderHandoff";
 import {
   CheckCircle,
   Clock,
@@ -280,6 +281,11 @@ const OrderTrackingPage = () => {
   const currentStepIndex = getCurrentStepIndex();
   const estimatedTime = getEstimatedTime();
   const isCancelled = order.status === "cancelled";
+  const handoff = getOrderHandoffCopy({
+    deliveryType: order.delivery_type,
+    customerName: order.customer?.name,
+    customerPhone: order.customer?.phone,
+  });
 
   return (
     <div className="min-h-screen consumer-theme-shell">
@@ -296,9 +302,8 @@ const OrderTrackingPage = () => {
           </Button>
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold mb-2">
-                Order #{order.order_number}
-              </h1>
+              <h1 className="text-3xl font-bold mb-2">Track Order</h1>
+              <p className="text-sm mb-2">{handoff.title}</p>
               <div className="flex items-center gap-2 consumer-theme-muted">
                 <Calendar className="w-4 h-4" />
                 <span>{new Date(order.created_at).toLocaleString()}</span>

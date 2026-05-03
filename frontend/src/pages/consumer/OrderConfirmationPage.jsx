@@ -5,6 +5,8 @@ import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader } from "../../components/ui/card";
 import { Check, Sparkles, Copy, CheckCircle, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
+import { apiService } from "../../context/AppContext";
+import { getOrderHandoffCopy } from "../../lib/orderHandoff";
 
 const OrderConfirmationPage = () => {
   const [searchParams] = useSearchParams();
@@ -13,6 +15,7 @@ const OrderConfirmationPage = () => {
   const merchantSlug = searchParams.get("merchantSlug");
   const paymentMethod = searchParams.get("paymentMethod") || "";
   const [copied, setCopied] = useState(false);
+  const [orderDetails, setOrderDetails] = useState(null);
   // Capture the placed-at time once on mount so it doesn't change on re-renders
   const placedAtRef = useRef(new Date().toLocaleTimeString());
 
@@ -21,6 +24,30 @@ const OrderConfirmationPage = () => {
       navigate("/", { replace: true });
     }
   }, [orderId, navigate]);
+
+  useEffect(() => {
+    if (!orderId) return;
+    let cancelled = false;
+
+    apiService
+      .getOrderPublic(orderId, { _ts: Date.now() })
+      .then((res) => {
+        if (!cancelled) setOrderDetails(res.data);
+      })
+      .catch(() => {
+        if (!cancelled) setOrderDetails(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [orderId]);
+
+  const handoff = getOrderHandoffCopy({
+    deliveryType: orderDetails?.delivery_type,
+    customerName: orderDetails?.customer?.name,
+    customerPhone: orderDetails?.customer?.phone,
+  });
 
   const paymentMethodLabelMap = {
     demo_card: "Demo Credit Card",
@@ -130,9 +157,9 @@ const OrderConfirmationPage = () => {
               className="flex items-start gap-3 p-4 consumer-theme-accent-soft border rounded-xl"
             >
               <Sparkles className="w-5 h-5 flex-shrink-0 mt-0.5" />
-              <div className="text-sm">
-                Please save your Order ID for reference. The restaurant has
-                received your order and will begin preparation shortly.
+              <div className="text-sm text-left">
+                <p className="font-semibold mb-1">{handoff.title}</p>
+                <p>{handoff.detail}</p>
               </div>
             </motion.div>
 

@@ -7,6 +7,7 @@ import { AlertCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useRpowerOriginalTheme } from "./RpowerOriginalTheme";
 import RpowerOriginalHeroBanner from "./HeroBanner";
+import { getOrderHandoffCopy } from "../../lib/orderHandoff";
 
 // ─── Step definitions ─────────────────────────────────────────────────────────
 
@@ -185,6 +186,12 @@ const RpowerOriginalOrderTrackingPage = () => {
     return map[order.status] || order.status;
   }, [order]);
 
+  const handoff = getOrderHandoffCopy({
+    deliveryType: order?.delivery_type,
+    customerName: order?.customer?.name,
+    customerPhone: order?.customer?.phone,
+  });
+
   // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -266,9 +273,12 @@ const RpowerOriginalOrderTrackingPage = () => {
           className="ro-panel p-6 mb-5"
           style={{ borderLeft: "4px solid var(--ro-red)" }}
         >
-          <p className="ro-label mb-1">Order Reference</p>
-          <p className="text-2xl font-bold mb-3" style={{ color: "#f8fafc" }}>
-            #{orderId}
+          <p className="ro-label mb-1">Handoff</p>
+          <p className="text-2xl font-bold mb-1" style={{ color: "#f8fafc" }}>
+            {handoff.title}
+          </p>
+          <p className="text-sm mb-3" style={{ color: "#cbd5e1" }}>
+            {handoff.detail}
           </p>
           {order.poscnx_ticket_number && (
             <p className="text-sm mb-3" style={{ color: "#cbd5e1" }}>

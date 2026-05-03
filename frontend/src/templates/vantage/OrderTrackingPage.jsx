@@ -8,6 +8,7 @@ import { Badge } from "../../components/ui/badge";
 import { AlertCircle, ArrowLeft, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useVantageTheme } from "./VantageTheme";
+import { getOrderHandoffCopy } from "../../lib/orderHandoff";
 
 const STATUS_STEPS = [
   "pending",
@@ -133,6 +134,12 @@ const VantageOrderTrackingPage = () => {
     return Math.max(0, STATUS_STEPS.indexOf(order.status));
   }, [order]);
 
+  const handoff = getOrderHandoffCopy({
+    deliveryType: order?.delivery_type,
+    customerName: order?.customer?.name,
+    customerPhone: order?.customer?.phone,
+  });
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#f8f8f5] flex items-center justify-center">
@@ -173,7 +180,7 @@ const VantageOrderTrackingPage = () => {
             <h1 className="text-4xl md:text-5xl font-light tracking-wide">
               Track Order
             </h1>
-            <p className="text-black/60 mt-1">Order #{order.order_number}</p>
+            <p className="text-black/60 mt-1">{handoff.title}</p>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="vantage-pill px-3 py-1">

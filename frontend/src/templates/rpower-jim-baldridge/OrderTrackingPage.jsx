@@ -13,6 +13,7 @@ import {
   useRpowerJimBaldridgeTheme,
 } from "./Theme";
 import LegacyLockup from "./LegacyLockup";
+import { getOrderHandoffCopy } from "../../lib/orderHandoff";
 
 const STATUS_STEPS = [
   "pending",
@@ -172,6 +173,12 @@ const RpowerJimBaldridgeOrderTrackingPage = () => {
     return Math.max(0, STATUS_STEPS.indexOf(order.status));
   }, [order]);
 
+  const handoff = getOrderHandoffCopy({
+    deliveryType: order?.delivery_type,
+    customerName: order?.customer?.name,
+    customerPhone: order?.customer?.phone,
+  });
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0f1115] flex items-center justify-center">
@@ -213,7 +220,7 @@ const RpowerJimBaldridgeOrderTrackingPage = () => {
             <h1 className="text-4xl md:text-5xl font-light tracking-wide">
               Track Order
             </h1>
-            <p className="text-white/60 mt-1">Order #{order.order_number}</p>
+            <p className="text-white/60 mt-1">{handoff.title}</p>
             <LegacyLockup className="mt-2" compact />
           </div>
           <div className="flex items-center gap-2">

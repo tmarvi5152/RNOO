@@ -6,6 +6,7 @@ import { useOrderWebSocket } from "../../hooks/useOrderWebSocket";
 import { AlertCircle, ArrowLeft, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useVelocityTheme } from "./VelocityTheme";
+import { getOrderHandoffCopy } from "../../lib/orderHandoff";
 
 /* Deduplicated display steps */
 const DISPLAY_STEPS = [
@@ -154,6 +155,11 @@ const VelocityOrderTrackingPage = () => {
   const tax = order.tax || 0;
   const tip = order.tip || 0;
   const total = order.total || 0;
+  const handoff = getOrderHandoffCopy({
+    deliveryType: order.delivery_type,
+    customerName: order.customer?.name,
+    customerPhone: order.customer?.phone,
+  });
 
   return (
     <div className="min-h-screen bg-[#f4f4f4] text-[#111]">
@@ -168,8 +174,9 @@ const VelocityOrderTrackingPage = () => {
         </button>
         <div className="flex-1 min-w-0">
           <h1 className="font-black text-lg leading-tight truncate">
-            Order #{order.order_number || orderId.slice(-6).toUpperCase()}
+            Track Order
           </h1>
+          <p className="text-xs text-black/50 truncate">{handoff.title}</p>
           <p className="text-xs text-black/40 capitalize">{order.status}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -285,7 +292,7 @@ const VelocityOrderTrackingPage = () => {
             )}
             {order.customer?.name && (
               <p>
-                <span className="font-semibold">Name:</span>{" "}
+                <span className="font-semibold">Customer:</span>{" "}
                 {order.customer.name}
               </p>
             )}

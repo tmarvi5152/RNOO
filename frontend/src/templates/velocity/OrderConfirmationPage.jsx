@@ -1,9 +1,11 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { CheckCircle2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { useVelocityTheme } from "./VelocityTheme";
+import { apiService } from "../../context/AppContext";
+import { getOrderHandoffCopy } from "../../lib/orderHandoff";
 
 /* Simple QR placeholder rendered as SVG grid */
 const QrPlaceholder = ({ value }) => {
@@ -53,6 +55,7 @@ const VelocityOrderConfirmationPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [copied, setCopied] = useState(false);
+  const [orderDetails, setOrderDetails] = useState(null);
 
   const orderId = searchParams.get("orderId") || "";
   const merchantSlug = searchParams.get("merchantSlug") || "";
@@ -75,11 +78,35 @@ const VelocityOrderConfirmationPage = () => {
       : orderId.toUpperCase();
   }, [orderId]);
 
+  useEffect(() => {
+    if (!orderId) return;
+    let cancelled = false;
+
+    apiService
+      .getOrderPublic(orderId, { _ts: Date.now() })
+      .then((res) => {
+        if (!cancelled) setOrderDetails(res.data);
+      })
+      .catch(() => {
+        if (!cancelled) setOrderDetails(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [orderId]);
+
+  const handoff = getOrderHandoffCopy({
+    deliveryType: orderDetails?.delivery_type,
+    customerName: orderDetails?.customer?.name,
+    customerPhone: orderDetails?.customer?.phone,
+  });
+
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(orderId);
       setCopied(true);
-      toast.success("Order ID copied");
+      toast.success("Order reference copied");
       setTimeout(() => setCopied(false), 1500);
     } catch {
       toast.error("Unable to copy");
@@ -136,12 +163,12 @@ const VelocityOrderConfirmationPage = () => {
           transition={{ delay: 0.15 }}
           className="text-7xl font-black leading-none tracking-tighter text-[#111] cursor-pointer"
           onClick={handleCopy}
-          title="Tap to copy order ID"
+          title="Tap to copy order reference"
         >
           #{shortId}
         </motion.h1>
         <p className="text-sm text-black/40 mt-2">
-          {copied ? "Copied!" : "Tap number to copy full ID"}
+          {copied ? "Copied!" : "Tap number to copy full reference"}
         </p>
 
         {/* ETA */}
@@ -165,7 +192,15 @@ const VelocityOrderConfirmationPage = () => {
               <QrPlaceholder value={orderId} />
             </div>
           </div>
-          <p className="text-xs text-black/30 mt-2">Show this code at pickup</p>
+          <div className="mt-3 rounded-xl border border-[#eee] bg-[#fffaf0] px-3 py-2 text-left">
+            <p className="text-xs font-black uppercase tracking-wider text-black/45">
+              Handoff
+            </p>
+            <p className="text-sm font-bold text-[#111] mt-1">
+              {handoff.title}
+            </p>
+            <p className="text-xs text-black/50 mt-1">{handoff.detail}</p>
+          </div>
 
           {paymentMethodLabel && (
             <p className="text-xs text-black/40 mt-3">

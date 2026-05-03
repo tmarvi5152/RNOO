@@ -12,11 +12,13 @@ import {
   useRpowerJimBaldridgeTheme,
 } from "./Theme";
 import LegacyLockup from "./LegacyLockup";
+import { getOrderHandoffCopy } from "../../lib/orderHandoff";
 
 const RpowerJimBaldridgeOrderConfirmationPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [copied, setCopied] = useState(false);
+  const [orderDetails, setOrderDetails] = useState(null);
   const [legacyMode, setLegacyMode] = useState(
     getPersistedRpowerJimBaldridgeLegacyMode(),
   );
@@ -38,6 +40,30 @@ const RpowerJimBaldridgeOrderConfirmationPage = () => {
   const trackingLink = useMemo(() => {
     return `${window.location.origin}/track/${orderId}`;
   }, [orderId]);
+
+  useEffect(() => {
+    if (!orderId) return;
+    let cancelled = false;
+
+    apiService
+      .getOrderPublic(orderId, { _ts: Date.now() })
+      .then((res) => {
+        if (!cancelled) setOrderDetails(res.data);
+      })
+      .catch(() => {
+        if (!cancelled) setOrderDetails(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [orderId]);
+
+  const handoff = getOrderHandoffCopy({
+    deliveryType: orderDetails?.delivery_type,
+    customerName: orderDetails?.customer?.name,
+    customerPhone: orderDetails?.customer?.phone,
+  });
 
   useEffect(() => {
     if (!merchantSlug) {
@@ -133,16 +159,17 @@ const RpowerJimBaldridgeOrderConfirmationPage = () => {
 
           <div className="mt-7 p-4 rounded-2xl bg-black/30 border border-[#f6c45333]">
             <p className="text-xs uppercase tracking-[0.14em] text-white/50">
-              Order ID
+              Handoff
             </p>
-            <p className="text-xl font-mono mt-2 break-all">{orderId}</p>
+            <p className="text-lg font-semibold mt-2">{handoff.title}</p>
+            <p className="text-sm text-white/65 mt-1">{handoff.detail}</p>
             <Button
               variant="outline"
               className="mt-3 rounded-full"
               onClick={handleCopy}
             >
               <Copy className="w-4 h-4 mr-2" />
-              {copied ? "Copied" : "Copy ID"}
+              {copied ? "Copied" : "Copy Reference"}
             </Button>
           </div>
 
