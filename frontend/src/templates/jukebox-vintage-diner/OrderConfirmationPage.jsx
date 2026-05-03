@@ -152,7 +152,8 @@ const JukeboxOrderConfirmationPage = () => {
               onClick={copyOrderId}
               className="juke-checkout-btn h-11 text-xs inline-flex items-center justify-center gap-2"
             >
-              <Copy className="w-4 h-4" /> {copied ? "Copied" : "Copy reference"}
+              <Copy className="w-4 h-4" />{" "}
+              {copied ? "Copied" : "Copy reference"}
             </button>
             <button
               onClick={shareTracking}
