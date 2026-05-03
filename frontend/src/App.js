@@ -3,7 +3,6 @@ import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "./components/ui/sonner";
 import { AuthProvider, CartProvider, useAuth } from "./context/AppContext";
-import { ThemeProvider } from "./context/ThemeContext";
 
 // Pages
 import HomePage from "./pages/HomePage";
@@ -134,14 +133,12 @@ function AppRoutes() {
 function App() {
   return (
     <BrowserRouter>
-      <ThemeProvider>
-        <AuthProvider>
-          <CartProvider>
-            <AppRoutes />
-            <Toaster position="top-right" richColors closeButton />
-          </CartProvider>
-        </AuthProvider>
-      </ThemeProvider>
+      <AuthProvider>
+        <CartProvider>
+          <AppRoutes />
+          <Toaster position="top-right" richColors closeButton />
+        </CartProvider>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

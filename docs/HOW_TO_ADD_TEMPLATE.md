@@ -100,7 +100,7 @@ Use this prompt when you're ready to build a new template:
 
 > I want to add a new consumer storefront template called **"[NAME]"** to the RNOO frontend template system.
 >
-> **Design style:** [describe the visual style, e.g. "dark mode, minimal, card-based layout" or "colorful, mobile-first, grid-style menu"]
+> **Design style:** [describe the visual style, e.g. "minimal, card-based layout" or "colorful, mobile-first, grid-style menu"]
 >
 > **Differences from classic:** [describe what should be different, e.g. "show featured items hero at top, hide category sidebar, use bottom sheet cart instead of floating cart"]
 >

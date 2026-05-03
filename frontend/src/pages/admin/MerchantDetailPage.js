@@ -83,79 +83,85 @@ const FullMenuViewer = ({ menuData, taxRates, schedules }) => {
   const [expandedMenus, setExpandedMenus] = React.useState({});
   const [expandedSections, setExpandedSections] = React.useState({});
 
-  const menus = menuData?.Menus || [];
+  const menus = React.useMemo(() => menuData?.Menus || [], [menuData]);
 
-  const normalizeMoney = (value) => {
+  const normalizeMoney = React.useCallback((value) => {
     const numeric = Number(value);
     if (Number.isNaN(numeric)) return 0;
     // Shepherd price fields are cents in menu payloads.
     return numeric / 100;
-  };
+  }, []);
 
-  const getItemPriceRows = (item) => {
-    const prices = Array.isArray(item?.Prices) ? item.Prices : [];
-    if (prices.length > 0) {
-      return prices.map((price, idx) => ({
-        id: `price-${idx}`,
-        amount: normalizeMoney(price?.Price || 0),
-        name: price?.Name || "Default",
-        scheduleId: price?.ScheduleId,
-      }));
-    }
+  const getItemPriceRows = React.useCallback(
+    (item) => {
+      const prices = Array.isArray(item?.Prices) ? item.Prices : [];
+      if (prices.length > 0) {
+        return prices.map((price, idx) => ({
+          id: `price-${idx}`,
+          amount: normalizeMoney(price?.Price || 0),
+          name: price?.Name || "Default",
+          scheduleId: price?.ScheduleId,
+        }));
+      }
 
-    if (item?.Price !== undefined && item?.Price !== null) {
-      return [
-        {
-          id: "base-price",
-          amount: normalizeMoney(item.Price),
-          name: "Default",
-          scheduleId: item?.ScheduleId,
-        },
-      ];
-    }
+      if (item?.Price !== undefined && item?.Price !== null) {
+        return [
+          {
+            id: "base-price",
+            amount: normalizeMoney(item.Price),
+            name: "Default",
+            scheduleId: item?.ScheduleId,
+          },
+        ];
+      }
 
-    return [];
-  };
+      return [];
+    },
+    [normalizeMoney],
+  );
 
-  const getModifierGroups = (item) => {
-    const modPrompts = Array.isArray(item?.ModPrompts) ? item.ModPrompts : [];
-    if (modPrompts.length > 0) {
-      return modPrompts.map((group, idx) => ({
-        id: group?.PosId || group?.Name || `group-${idx}`,
-        name: group?.Name || group?.PosId || `Modifier Group ${idx + 1}`,
-        minMods: group?.MinMods ?? 0,
-        maxMods: group?.MaxMods ?? 0,
-        options: Array.isArray(group?.Modifiers)
-          ? group.Modifiers.map((mod, modIdx) => ({
-              id: mod?.Mid || mod?.PosId || `mod-${idx}-${modIdx}`,
+  const getModifierGroups = React.useCallback(
+    (item) => {
+      const modPrompts = Array.isArray(item?.ModPrompts) ? item.ModPrompts : [];
+      if (modPrompts.length > 0) {
+        return modPrompts.map((group, idx) => ({
+          id: group?.PosId || group?.Name || `group-${idx}`,
+          name: group?.Name || group?.PosId || `Modifier Group ${idx + 1}`,
+          minMods: group?.MinMods ?? 0,
+          maxMods: group?.MaxMods ?? 0,
+          options: Array.isArray(group?.Modifiers)
+            ? group.Modifiers.map((mod, modIdx) => ({
+                id: mod?.Mid || mod?.PosId || `mod-${idx}-${modIdx}`,
+                name: mod?.Name || mod?.PosId || "Unnamed Modifier",
+                price: normalizeMoney(mod?.Price || 0),
+              }))
+            : [],
+        }));
+      }
+
+      const directModifiers = Array.isArray(item?.Modifiers)
+        ? item.Modifiers
+        : [];
+      if (directModifiers.length > 0) {
+        return [
+          {
+            id: "direct-modifiers",
+            name: "Modifiers",
+            minMods: 0,
+            maxMods: 0,
+            options: directModifiers.map((mod, idx) => ({
+              id: mod?.Mid || mod?.PosId || `direct-mod-${idx}`,
               name: mod?.Name || mod?.PosId || "Unnamed Modifier",
               price: normalizeMoney(mod?.Price || 0),
-            }))
-          : [],
-      }));
-    }
+            })),
+          },
+        ];
+      }
 
-    const directModifiers = Array.isArray(item?.Modifiers)
-      ? item.Modifiers
-      : [];
-    if (directModifiers.length > 0) {
-      return [
-        {
-          id: "direct-modifiers",
-          name: "Modifiers",
-          minMods: 0,
-          maxMods: 0,
-          options: directModifiers.map((mod, idx) => ({
-            id: mod?.Mid || mod?.PosId || `direct-mod-${idx}`,
-            name: mod?.Name || mod?.PosId || "Unnamed Modifier",
-            price: normalizeMoney(mod?.Price || 0),
-          })),
-        },
-      ];
-    }
-
-    return [];
-  };
+      return [];
+    },
+    [normalizeMoney],
+  );
 
   const menuAnalytics = React.useMemo(() => {
     const summary = {
@@ -214,7 +220,7 @@ const FullMenuViewer = ({ menuData, taxRates, schedules }) => {
       uniqueScheduleCount: summary.uniqueScheduleIds.size,
       uniqueTaxRateCount: summary.uniqueTaxRateIds.size,
     };
-  }, [menus]);
+  }, [menus, getItemPriceRows, getModifierGroups]);
 
   const toggleMenu = (menuId) => {
     setExpandedMenus((prev) => ({ ...prev, [menuId]: !prev[menuId] }));
@@ -754,15 +760,8 @@ const MerchantDetailPage = () => {
 
   // Frontend template state
   const [templateValue, setTemplateValue] = useState(DEFAULT_TEMPLATE);
-  const [themeModeValue, setThemeModeValue] = useState("system");
   const [legacyModeEnabled, setLegacyModeEnabled] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
-
-  const themeModeOptions = [
-    { value: "system", label: "System Default" },
-    { value: "light", label: "Force Light" },
-    { value: "dark", label: "Force Dark" },
-  ];
 
   const loadMerchantDetails = useCallback(async () => {
     try {
@@ -799,7 +798,6 @@ const MerchantDetailPage = () => {
     setTemplateValue(
       merchantData?.local_merchant?.frontend_template || DEFAULT_TEMPLATE,
     );
-    setThemeModeValue(merchantData?.local_merchant?.theme_mode || "system");
     setLegacyModeEnabled(
       Boolean(
         merchantData?.local_merchant?.shepherd_config?.rjb_legacy_mode ?? false,
@@ -861,13 +859,18 @@ const MerchantDetailPage = () => {
         merchantData?.local_merchant?.shepherd_config || {};
       await api.patch(`/merchants/${merchantId}`, {
         frontend_template: templateValue,
-        theme_mode: themeModeValue,
         shepherd_config: {
           ...existingConfig,
           rjb_legacy_mode: legacyModeEnabled,
         },
       });
-      toast.success("Frontend template updated");
+
+      const merchantSlug = merchantData?.local_merchant?.slug;
+      if (merchantSlug) {
+        sessionStorage.removeItem(`rnoo_presentation_${merchantSlug}`);
+      }
+
+      toast.success("Frontend template updated. Storefront cache cleared.");
       loadMerchantDetails();
     } catch (err) {
       console.error("Failed to save template:", err);
@@ -1024,12 +1027,10 @@ const MerchantDetailPage = () => {
   const fieldValueMonoClass =
     "text-sm font-semibold font-mono text-gray-900 leading-tight";
   const savedTemplate = local_merchant?.frontend_template || DEFAULT_TEMPLATE;
-  const savedThemeMode = local_merchant?.theme_mode || "system";
   const savedLegacyMode = Boolean(
     local_merchant?.shepherd_config?.rjb_legacy_mode ?? false,
   );
   const isTemplateDirty = templateValue !== savedTemplate;
-  const isThemeModeDirty = themeModeValue !== savedThemeMode;
   const isLegacyDirty = legacyModeEnabled !== savedLegacyMode;
   const isRpowerLegacyTemplate = templateValue === "rpower_jim_baldridge";
 
@@ -1206,42 +1207,18 @@ const MerchantDetailPage = () => {
                   ))}
                 </select>
               </div>
-              {isTemplateDirty || isThemeModeDirty || isLegacyDirty ? (
+              {isTemplateDirty || isLegacyDirty ? (
                 <Badge variant="outline">Unsaved changes</Badge>
               ) : null}
               <Button
                 size="sm"
                 onClick={handleSaveTemplate}
                 disabled={
-                  savingTemplate ||
-                  (!isTemplateDirty && !isThemeModeDirty && !isLegacyDirty)
+                  savingTemplate || (!isTemplateDirty && !isLegacyDirty)
                 }
               >
                 {savingTemplate ? "Saving…" : "Save Template"}
               </Button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 block mb-1">
-                  Storefront Theme Mode
-                </label>
-                <select
-                  className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                  value={themeModeValue}
-                  onChange={(e) => setThemeModeValue(e.target.value)}
-                >
-                  {themeModeOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-1 text-xs text-gray-600">
-                  Controls whether the consumer storefront follows the device
-                  theme or is forced to light or dark mode.
-                </p>
-              </div>
             </div>
 
             <div className="border rounded-md p-3 bg-gray-50">

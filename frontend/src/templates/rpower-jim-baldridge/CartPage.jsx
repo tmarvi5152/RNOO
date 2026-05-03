@@ -41,7 +41,7 @@ const RpowerJimBaldridgeCartPage = () => {
 
   useRpowerJimBaldridgeTheme(legacyMode);
 
-  const loadMerchantThemeMode = useCallback(async () => {
+  const loadMerchantLegacyMode = useCallback(async () => {
     try {
       const res = await apiService.getMerchantBySlug(slug);
       const enabled = Boolean(res.data?.shepherd_config?.rjb_legacy_mode);
@@ -53,8 +53,8 @@ const RpowerJimBaldridgeCartPage = () => {
   }, [slug]);
 
   useEffect(() => {
-    loadMerchantThemeMode();
-  }, [loadMerchantThemeMode]);
+    loadMerchantLegacyMode();
+  }, [loadMerchantLegacyMode]);
 
   const itemCount = getItemCount();
   const subtotal = getSubtotal();

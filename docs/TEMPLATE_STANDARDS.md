@@ -346,10 +346,10 @@ Use this checklist before shipping a new template:
 
 | Template key           | Folder                            | Style                     | Accent color |
 | ---------------------- | --------------------------------- | ------------------------- | ------------ |
-| `classic`              | `pages/consumer/`                 | Dark futuristic, orange   | `#f97316`    |
-| `vantage`              | `templates/vantage/`              | Light minimalist, black   | `#000000`    |
-| `velocity`             | `templates/velocity/`             | Light speed, orange-red   | `#ff4405`    |
-| `crave`                | `templates/crave/`                | Light modern, red         | `#ef4444`    |
-| `rpower_jim_baldridge` | `templates/rpower-jim-baldridge/` | Dark legacy tribute, gold | `#f6c453`    |
+| `classic`              | `pages/consumer/`                 | Futuristic, orange        | `#f97316`    |
+| `vantage`              | `templates/vantage/`              | Minimalist, black         | `#000000`    |
+| `velocity`             | `templates/velocity/`             | Speed-forward, orange-red | `#ff4405`    |
+| `crave`                | `templates/crave/`                | Modern, red               | `#ef4444`    |
+| `rpower_jim_baldridge` | `templates/rpower-jim-baldridge/` | Legacy tribute, gold      | `#f6c453`    |
 
 See [`HOW_TO_ADD_TEMPLATE.md`](../frontend/src/templates/HOW_TO_ADD_TEMPLATE.md) for the scaffolding process, then use this document to verify compliance before merging.

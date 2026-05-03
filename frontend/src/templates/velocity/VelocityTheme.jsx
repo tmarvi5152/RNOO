@@ -5,7 +5,7 @@ const VELOCITY_STYLE_ID = "velocity-theme";
 const VELOCITY_STYLES = `
   :root {
     --vel-accent: #ff4405;
-    --vel-accent-light: #fff1ed;
+    --vel-accent-soft: #fff1ed;
     --vel-bg: #f4f4f4;
     --vel-card: #ffffff;
     --vel-border: #e8e8e8;

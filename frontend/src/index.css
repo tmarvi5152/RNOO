@@ -34,7 +34,6 @@ code {
 
 @layer base {
   :root {
-    color-scheme: light;
     --background: 0 0% 100%;
     --foreground: 200 11% 15%;
     --card: 0 0% 100%;
@@ -68,41 +67,6 @@ code {
     --theme-app-accent: #cc0000;
     --theme-app-accent-contrast: #ffffff;
     --theme-app-focus-ring: rgba(204, 0, 0, 0.22);
-  }
-
-  :root[data-theme-resolved="dark"],
-  .dark {
-    color-scheme: dark;
-    --background: 0 0% 9%;
-    --foreground: 0 0% 87%;
-    --card: 0 0% 9%;
-    --card-foreground: 0 0% 87%;
-    --popover: 0 0% 9%;
-    --popover-foreground: 0 0% 87%;
-    --primary: 0 100% 40%;
-    --primary-foreground: 0 0% 100%;
-    --muted: 0 0% 23%;
-    --muted-foreground: 0 0% 73%;
-    --accent: 176 70% 41%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 60% 40%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 23%;
-    --input: 0 0% 23%;
-    --ring: 17 76% 51%;
-    --chart-1: 17 76% 51%;
-    --chart-2: 176 70% 41%;
-    --chart-3: 148 43% 61%;
-    --chart-4: 38 81% 56%;
-    --chart-5: 0 60% 65%;
-    --theme-app-bg: #0f1115;
-    --theme-app-bg-elevated: #181c23;
-    --theme-app-text: #f5f7fb;
-    --theme-app-text-muted: #a8b0bc;
-    --theme-app-border: rgba(255, 255, 255, 0.12);
-    --theme-app-accent: #ff6b57;
-    --theme-app-accent-contrast: #111827;
-    --theme-app-focus-ring: rgba(255, 107, 87, 0.28);
   }
 
   :root[data-theme-brand="vantage"] {
@@ -182,8 +146,4 @@ code {
 /* Glass morphism */
 .glass {
   @apply backdrop-blur-xl bg-white/70;
-}
-
-.glass-dark {
-  @apply backdrop-blur-xl bg-black/70;
 }

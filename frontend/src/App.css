@@ -50,6 +50,14 @@
 
 /* Shared consumer theme utilities */
 .consumer-theme-shell {
+  --theme-app-bg: #0f1115;
+  --theme-app-bg-elevated: #181c23;
+  --theme-app-text: #f5f7fb;
+  --theme-app-text-muted: #a8b0bc;
+  --theme-app-border: rgba(255, 255, 255, 0.12);
+  --theme-app-accent: #f97316;
+  --theme-app-accent-contrast: #ffffff;
+  --theme-app-focus-ring: rgba(249, 115, 22, 0.28);
   background:
     radial-gradient(
       circle at top,
@@ -158,23 +166,6 @@
 }
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
-}
-
-/* Custom scrollbar for dark theme */
-.dark-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-.dark-scrollbar::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 3px;
-}
-.dark-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
-}
-.dark-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
 }
 
 /* Glassmorphism base */

@@ -46,7 +46,7 @@ const RpowerJimBaldridgeOrderConfirmationPage = () => {
     }
 
     let cancelled = false;
-    const loadMerchantThemeMode = async () => {
+    const loadMerchantLegacyMode = async () => {
       try {
         const merchantRes = await apiService.getMerchantBySlug(merchantSlug);
         const enabled = Boolean(
@@ -63,7 +63,7 @@ const RpowerJimBaldridgeOrderConfirmationPage = () => {
       }
     };
 
-    loadMerchantThemeMode();
+    loadMerchantLegacyMode();
     return () => {
       cancelled = true;
     };

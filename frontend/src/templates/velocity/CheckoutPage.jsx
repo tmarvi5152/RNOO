@@ -479,7 +479,7 @@ const VelocityCheckoutPage = () => {
                 }}
                 className={`w-full h-13 px-4 rounded-xl border-2 flex items-center gap-3 text-sm font-semibold transition-colors ${
                   paymentMethod === id
-                    ? "border-[var(--vel-accent)] bg-[var(--vel-accent-light)] text-[var(--vel-accent)]"
+                    ? "border-[var(--vel-accent)] bg-[var(--vel-accent-soft)] text-[var(--vel-accent)]"
                     : "border-[#e8e8e8] bg-white text-black/70 hover:border-black/30"
                 }`}
                 style={{ height: "52px" }}

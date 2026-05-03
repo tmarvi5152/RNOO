@@ -144,7 +144,7 @@ const RpowerJimBaldridgeOrderTrackingPage = () => {
     }
 
     let cancelled = false;
-    const loadMerchantThemeMode = async () => {
+    const loadMerchantLegacyMode = async () => {
       try {
         const merchantRes = await apiService.getMerchant(merchantId);
         const enabled = Boolean(
@@ -161,7 +161,7 @@ const RpowerJimBaldridgeOrderTrackingPage = () => {
       }
     };
 
-    loadMerchantThemeMode();
+    loadMerchantLegacyMode();
     return () => {
       cancelled = true;
     };
