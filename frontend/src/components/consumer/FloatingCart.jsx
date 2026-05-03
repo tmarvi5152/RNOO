@@ -78,40 +78,48 @@ const FloatingCart = ({ merchantSlug }) => {
               onClick={() => setIsExpanded(true)}
               className={`
                 relative flex items-center gap-2 px-3.5 py-2
-                bg-gradient-to-r from-zinc-900 to-zinc-800
-                border border-white/10 rounded-full
+                consumer-theme-panel-strong rounded-full
                 shadow-2xl shadow-black/50
-                hover:border-orange-500/50 hover:shadow-orange-500/20
+                hover:shadow-black/60
                 transition-all duration-300 cursor-pointer
-                ${recentlyAdded ? "animate-pulse ring-2 ring-orange-500" : ""}
+                ${recentlyAdded ? "animate-pulse" : ""}
               `}
+              style={
+                recentlyAdded
+                  ? { boxShadow: "0 0 0 2px var(--theme-app-accent)" }
+                  : undefined
+              }
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.98 }}
             >
               {/* Glow Effect */}
-              <div className="absolute inset-0 rounded-full bg-orange-500/10 blur-xl opacity-50" />
+              <div
+                className="absolute inset-0 rounded-full blur-xl opacity-50"
+                style={{
+                  background:
+                    "color-mix(in srgb, var(--theme-app-accent) 14%, transparent)",
+                }}
+              />
 
               <motion.div
-                className="relative flex items-center justify-center w-8 h-8 bg-orange-500 rounded-full"
+                className="relative flex items-center justify-center w-8 h-8 rounded-full consumer-theme-accent-bg"
                 animate={recentlyAdded ? { scale: [1, 1.2, 1] } : {}}
                 transition={{ duration: 0.3 }}
               >
-                <ShoppingBag className="w-4 h-4 text-white" />
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-white text-orange-500 rounded-full text-[10px] font-bold flex items-center justify-center">
+                <ShoppingBag className="w-4 h-4" />
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center consumer-theme-panel consumer-theme-accent">
                   {itemCount}
                 </span>
               </motion.div>
 
               <div className="flex flex-col items-start">
-                <span className="text-xs text-zinc-400 uppercase tracking-wider">
+                <span className="text-xs consumer-theme-muted uppercase tracking-wider">
                   Your Order
                 </span>
-                <span className="text-white font-semibold">
-                  ${total.toFixed(2)}
-                </span>
+                <span className="font-semibold">${total.toFixed(2)}</span>
               </div>
 
-              <ChevronRight className="w-4 h-4 text-zinc-400 ml-1" />
+              <ChevronRight className="w-4 h-4 consumer-theme-muted ml-1" />
             </motion.button>
           ) : (
             /* Expanded State */
@@ -120,30 +128,32 @@ const FloatingCart = ({ merchantSlug }) => {
               layoutId="cart-container"
               className="
                 w-[250px] max-h-[68vh]
-                bg-zinc-900/95 backdrop-blur-xl
-                border border-white/10 rounded-2xl
+                consumer-theme-panel-strong backdrop-blur-xl rounded-2xl
                 shadow-2xl shadow-black/50
                 overflow-hidden
               "
             >
               {/* Header */}
-              <div className="flex items-center justify-between p-3 border-b border-white/10">
+              <div
+                className="flex items-center justify-between p-3 border-b"
+                style={{ borderColor: "var(--theme-app-border)" }}
+              >
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center justify-center w-8 h-8 bg-orange-500 rounded-full">
-                    <ShoppingBag className="w-4 h-4 text-white" />
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full consumer-theme-accent-bg">
+                    <ShoppingBag className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-white text-sm font-semibold">Your Order</h3>
-                    <p className="text-xs text-zinc-400">
+                    <h3 className="text-sm font-semibold">Your Order</h3>
+                    <p className="text-xs consumer-theme-muted">
                       {itemCount} item{itemCount > 1 ? "s" : ""}
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={() => setIsExpanded(false)}
-                  className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                  className="p-2 rounded-full consumer-theme-icon-button"
                 >
-                  <X className="w-4 h-4 text-zinc-400" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
@@ -158,15 +168,14 @@ const FloatingCart = ({ merchantSlug }) => {
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: 20, height: 0 }}
                       className="
-                        relative p-2.5 bg-white/5 rounded-xl
-                        border border-white/5
-                        hover:border-white/10 transition-colors
+                        relative p-2.5 consumer-theme-panel rounded-xl
+                        transition-colors
                       "
                     >
                       <div className="flex gap-3">
                         {/* Item Image */}
                         {hasValidImage(item) ? (
-                          <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-800 flex-shrink-0">
+                          <div className="w-10 h-10 rounded-lg overflow-hidden consumer-theme-panel-strong flex-shrink-0">
                             <img
                               src={item.image}
                               alt={item.name}
@@ -180,24 +189,24 @@ const FloatingCart = ({ merchantSlug }) => {
                             />
                           </div>
                         ) : (
-                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500/20 to-orange-600/20 flex items-center justify-center flex-shrink-0">
-                            <Sparkles className="w-4 h-4 text-orange-400" />
+                          <div className="w-10 h-10 rounded-lg consumer-theme-accent-soft flex items-center justify-center flex-shrink-0">
+                            <Sparkles className="w-4 h-4" />
                           </div>
                         )}
 
                         {/* Item Details */}
                         <div className="flex-1 min-w-0">
-                          <h4 className="text-white text-sm font-medium truncate">
+                          <h4 className="text-sm font-medium truncate">
                             {item.name}
                           </h4>
                           {item.modifiers?.length > 0 && (
-                            <p className="text-[11px] text-zinc-400 truncate">
+                            <p className="text-[11px] consumer-theme-muted truncate">
                               {item.modifiers
                                 .map((m) => m.option_name)
                                 .join(", ")}
                             </p>
                           )}
-                          <p className="text-orange-400 text-sm font-semibold mt-0.5">
+                          <p className="text-sm font-semibold mt-0.5 consumer-theme-accent">
                             ${item.totalPrice.toFixed(2)}
                           </p>
                         </div>
@@ -205,9 +214,9 @@ const FloatingCart = ({ merchantSlug }) => {
                         {/* Remove Button */}
                         <button
                           onClick={() => removeItem(item.id)}
-                          className="absolute top-1.5 right-1.5 p-1 hover:bg-red-500/20 rounded-full transition-colors group"
+                          className="absolute top-1.5 right-1.5 p-1 rounded-full transition-colors group consumer-theme-icon-button"
                         >
-                          <Trash2 className="w-3.5 h-3.5 text-zinc-500 group-hover:text-red-400" />
+                          <Trash2 className="w-3.5 h-3.5 group-hover:text-red-400" />
                         </button>
                       </div>
 
@@ -217,20 +226,20 @@ const FloatingCart = ({ merchantSlug }) => {
                           onClick={() =>
                             updateQuantity(item.id, item.quantity - 1)
                           }
-                          className="w-6 h-6 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+                          className="w-6 h-6 flex items-center justify-center rounded-full consumer-theme-button-secondary"
                         >
-                          <Minus className="w-3 h-3 text-white" />
+                          <Minus className="w-3 h-3" />
                         </button>
-                        <span className="text-white text-sm font-medium w-6 text-center">
+                        <span className="text-sm font-medium w-6 text-center">
                           {item.quantity}
                         </span>
                         <button
                           onClick={() =>
                             updateQuantity(item.id, item.quantity + 1)
                           }
-                          className="w-6 h-6 flex items-center justify-center bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+                          className="w-6 h-6 flex items-center justify-center rounded-full consumer-theme-button-secondary"
                         >
-                          <Plus className="w-3 h-3 text-white" />
+                          <Plus className="w-3 h-3" />
                         </button>
                       </div>
                     </motion.div>
@@ -239,18 +248,26 @@ const FloatingCart = ({ merchantSlug }) => {
               </div>
 
               {/* Summary */}
-              <div className="p-3 border-t border-white/10 space-y-2">
+              <div
+                className="p-3 border-t space-y-2"
+                style={{ borderColor: "var(--theme-app-border)" }}
+              >
                 <div className="flex justify-between text-sm">
-                  <span className="text-zinc-400">Subtotal</span>
-                  <span className="text-white">${subtotal.toFixed(2)}</span>
+                  <span className="consumer-theme-muted">Subtotal</span>
+                  <span>${subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-zinc-400">Tax</span>
-                  <span className="text-white">${tax.toFixed(2)}</span>
+                  <span className="consumer-theme-muted">Tax</span>
+                  <span>${tax.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-sm font-semibold pt-2 border-t border-white/10">
-                  <span className="text-white">Total</span>
-                  <span className="text-orange-400">${total.toFixed(2)}</span>
+                <div
+                  className="flex justify-between text-sm font-semibold pt-2 border-t"
+                  style={{ borderColor: "var(--theme-app-border)" }}
+                >
+                  <span>Total</span>
+                  <span className="consumer-theme-accent">
+                    ${total.toFixed(2)}
+                  </span>
                 </div>
 
                 <motion.button
@@ -260,10 +277,9 @@ const FloatingCart = ({ merchantSlug }) => {
                   }}
                   className="
                     w-full py-2.5 mt-2
-                    bg-gradient-to-r from-orange-500 to-orange-600
-                    hover:from-orange-400 hover:to-orange-500
-                    text-sm text-white font-semibold rounded-xl
-                    shadow-lg shadow-orange-500/25
+                    consumer-theme-button
+                    text-sm font-semibold rounded-xl
+                    shadow-lg shadow-black/20
                     flex items-center justify-center gap-2
                     transition-all duration-300
                   "

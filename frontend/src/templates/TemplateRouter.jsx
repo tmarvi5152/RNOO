@@ -11,37 +11,59 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../context/AppContext";
+import { useTheme } from "../context/ThemeContext";
 import { TEMPLATES, DEFAULT_TEMPLATE } from "./registry";
 
 // Module-level in-memory cache (cleared on page refresh, supplements sessionStorage)
 const _cache = {};
+const DEFAULT_PRESENTATION = {
+  template: DEFAULT_TEMPLATE,
+  themeMode: "system",
+};
 
-async function resolveTemplate(slug) {
+async function resolvePresentation(slug) {
   if (!slug) {
     // Fallback: read last visited merchant slug from sessionStorage
     const lastSlug = sessionStorage.getItem("rnoo_last_slug");
-    if (lastSlug) return resolveTemplate(lastSlug);
-    return DEFAULT_TEMPLATE;
+    if (lastSlug) return resolvePresentation(lastSlug);
+    return DEFAULT_PRESENTATION;
   }
 
   if (_cache[slug]) return _cache[slug];
 
-  const stored = sessionStorage.getItem(`rnoo_tmpl_${slug}`);
-  if (stored && TEMPLATES[stored]) {
-    _cache[slug] = stored;
-    return stored;
+  const stored = sessionStorage.getItem(`rnoo_presentation_${slug}`);
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      if (parsed?.template && TEMPLATES[parsed.template]) {
+        _cache[slug] = {
+          template: parsed.template,
+          themeMode: parsed.themeMode || "system",
+        };
+        return _cache[slug];
+      }
+    } catch {
+      sessionStorage.removeItem(`rnoo_presentation_${slug}`);
+    }
   }
 
   try {
     const res = await api.get(`/merchants/slug/${slug}`);
     const tmpl = res.data?.frontend_template || DEFAULT_TEMPLATE;
     const resolved = TEMPLATES[tmpl] ? tmpl : DEFAULT_TEMPLATE;
-    _cache[slug] = resolved;
-    sessionStorage.setItem(`rnoo_tmpl_${slug}`, resolved);
+    const presentation = {
+      template: resolved,
+      themeMode: res.data?.theme_mode || "system",
+    };
+    _cache[slug] = presentation;
+    sessionStorage.setItem(
+      `rnoo_presentation_${slug}`,
+      JSON.stringify(presentation),
+    );
     sessionStorage.setItem("rnoo_last_slug", slug);
-    return resolved;
+    return presentation;
   } catch {
-    return DEFAULT_TEMPLATE;
+    return DEFAULT_PRESENTATION;
   }
 }
 
@@ -55,18 +77,24 @@ function withTemplatePage(pageKey) {
   function TemplatePage() {
     const { slug } = useParams();
     const [Page, setPage] = useState(() => defaultPage);
+    const { setStorefrontTheme } = useTheme();
 
     useEffect(() => {
       let cancelled = false;
-      resolveTemplate(slug).then((tmpl) => {
+      resolvePresentation(slug).then((presentation) => {
         if (cancelled) return;
-        const pages = TEMPLATES[tmpl] || TEMPLATES[DEFAULT_TEMPLATE];
+        const templateKey = presentation.template || DEFAULT_TEMPLATE;
+        const pages = TEMPLATES[templateKey] || TEMPLATES[DEFAULT_TEMPLATE];
+        setStorefrontTheme({
+          brand: templateKey,
+          mode: presentation.themeMode || "system",
+        });
         setPage(() => pages[pageKey] || defaultPage);
       });
       return () => {
         cancelled = true;
       };
-    }, [slug]);
+    }, [pageKey, setStorefrontTheme, slug]);
 
     return <Page />;
   }

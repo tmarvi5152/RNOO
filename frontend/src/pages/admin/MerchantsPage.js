@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { AdminLayout } from "../../layouts/Layout";
-import { useAuth, apiService, api } from "../../context/AppContext";
+import { useAuth, apiService } from "../../context/AppContext";
 import { Card, CardContent } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
@@ -119,28 +119,34 @@ const MerchantsPage = () => {
     );
   }, []);
 
-  const normalizeMerchantStats = useCallback((rawStats = {}, recentOrders = []) => {
-    const totalOrders = Number(
-      rawStats?.total_orders ?? rawStats?.totalOrders ?? rawStats?.orders_total ?? 0,
-    );
-    const totalRevenue = Number(
-      rawStats?.total_revenue ??
-        rawStats?.totalRevenue ??
-        rawStats?.revenue_total ??
-        0,
-    );
+  const normalizeMerchantStats = useCallback(
+    (rawStats = {}, recentOrders = []) => {
+      const totalOrders = Number(
+        rawStats?.total_orders ??
+          rawStats?.totalOrders ??
+          rawStats?.orders_total ??
+          0,
+      );
+      const totalRevenue = Number(
+        rawStats?.total_revenue ??
+          rawStats?.totalRevenue ??
+          rawStats?.revenue_total ??
+          0,
+      );
 
-    return {
-      ...rawStats,
-      total_orders: Number.isFinite(totalOrders) ? totalOrders : 0,
-      total_revenue: Number.isFinite(totalRevenue) ? totalRevenue : 0,
-      recent_orders: Array.isArray(recentOrders)
-        ? recentOrders
-        : Array.isArray(rawStats?.recent_orders)
-          ? rawStats.recent_orders
-          : [],
-    };
-  }, []);
+      return {
+        ...rawStats,
+        total_orders: Number.isFinite(totalOrders) ? totalOrders : 0,
+        total_revenue: Number.isFinite(totalRevenue) ? totalRevenue : 0,
+        recent_orders: Array.isArray(recentOrders)
+          ? recentOrders
+          : Array.isArray(rawStats?.recent_orders)
+            ? rawStats.recent_orders
+            : [],
+      };
+    },
+    [],
+  );
 
   const [newMerchant, setNewMerchant] = useState({
     name: "",
@@ -179,28 +185,31 @@ const MerchantsPage = () => {
     loadData();
   }, [loadData]);
 
-  const loadMerchantStats = useCallback(async (merchantId) => {
-    try {
-      setLoadingMerchantStats(true);
-      const [statsRes, ordersRes] = await Promise.all([
-        apiService.getStats(merchantId),
-        apiService.getOrders({ merchant_id: merchantId, limit: 5, skip: 0 }),
-      ]);
+  const loadMerchantStats = useCallback(
+    async (merchantId) => {
+      try {
+        setLoadingMerchantStats(true);
+        const [statsRes, ordersRes] = await Promise.all([
+          apiService.getStats(merchantId),
+          apiService.getOrders({ merchant_id: merchantId, limit: 5, skip: 0 }),
+        ]);
 
-      const statsPayload = statsRes?.data || {};
-      const recentOrders = Array.isArray(ordersRes?.data?.orders)
-        ? ordersRes.data.orders
-        : [];
+        const statsPayload = statsRes?.data || {};
+        const recentOrders = Array.isArray(ordersRes?.data?.orders)
+          ? ordersRes.data.orders
+          : [];
 
-      setMerchantStats(normalizeMerchantStats(statsPayload, recentOrders));
-    } catch (err) {
-      console.error("Failed to load merchant stats:", err);
-      // Set empty stats on error so panel still shows
-      setMerchantStats(normalizeMerchantStats({}, []));
-    } finally {
-      setLoadingMerchantStats(false);
-    }
-  }, [normalizeMerchantStats]);
+        setMerchantStats(normalizeMerchantStats(statsPayload, recentOrders));
+      } catch (err) {
+        console.error("Failed to load merchant stats:", err);
+        // Set empty stats on error so panel still shows
+        setMerchantStats(normalizeMerchantStats({}, []));
+      } finally {
+        setLoadingMerchantStats(false);
+      }
+    },
+    [normalizeMerchantStats],
+  );
 
   const handleOpenMerchantPanel = (merchant) => {
     setSelectedMerchant(merchant);

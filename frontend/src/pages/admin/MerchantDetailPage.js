@@ -754,8 +754,15 @@ const MerchantDetailPage = () => {
 
   // Frontend template state
   const [templateValue, setTemplateValue] = useState(DEFAULT_TEMPLATE);
+  const [themeModeValue, setThemeModeValue] = useState("system");
   const [legacyModeEnabled, setLegacyModeEnabled] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
+
+  const themeModeOptions = [
+    { value: "system", label: "System Default" },
+    { value: "light", label: "Force Light" },
+    { value: "dark", label: "Force Dark" },
+  ];
 
   const loadMerchantDetails = useCallback(async () => {
     try {
@@ -792,6 +799,7 @@ const MerchantDetailPage = () => {
     setTemplateValue(
       merchantData?.local_merchant?.frontend_template || DEFAULT_TEMPLATE,
     );
+    setThemeModeValue(merchantData?.local_merchant?.theme_mode || "system");
     setLegacyModeEnabled(
       Boolean(
         merchantData?.local_merchant?.shepherd_config?.rjb_legacy_mode ?? false,
@@ -853,6 +861,7 @@ const MerchantDetailPage = () => {
         merchantData?.local_merchant?.shepherd_config || {};
       await api.patch(`/merchants/${merchantId}`, {
         frontend_template: templateValue,
+        theme_mode: themeModeValue,
         shepherd_config: {
           ...existingConfig,
           rjb_legacy_mode: legacyModeEnabled,
@@ -1015,10 +1024,12 @@ const MerchantDetailPage = () => {
   const fieldValueMonoClass =
     "text-sm font-semibold font-mono text-gray-900 leading-tight";
   const savedTemplate = local_merchant?.frontend_template || DEFAULT_TEMPLATE;
+  const savedThemeMode = local_merchant?.theme_mode || "system";
   const savedLegacyMode = Boolean(
     local_merchant?.shepherd_config?.rjb_legacy_mode ?? false,
   );
   const isTemplateDirty = templateValue !== savedTemplate;
+  const isThemeModeDirty = themeModeValue !== savedThemeMode;
   const isLegacyDirty = legacyModeEnabled !== savedLegacyMode;
   const isRpowerLegacyTemplate = templateValue === "rpower_jim_baldridge";
 
@@ -1195,18 +1206,42 @@ const MerchantDetailPage = () => {
                   ))}
                 </select>
               </div>
-              {isTemplateDirty || isLegacyDirty ? (
+              {isTemplateDirty || isThemeModeDirty || isLegacyDirty ? (
                 <Badge variant="outline">Unsaved changes</Badge>
               ) : null}
               <Button
                 size="sm"
                 onClick={handleSaveTemplate}
                 disabled={
-                  savingTemplate || (!isTemplateDirty && !isLegacyDirty)
+                  savingTemplate ||
+                  (!isTemplateDirty && !isThemeModeDirty && !isLegacyDirty)
                 }
               >
                 {savingTemplate ? "Saving…" : "Save Template"}
               </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 block mb-1">
+                  Storefront Theme Mode
+                </label>
+                <select
+                  className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  value={themeModeValue}
+                  onChange={(e) => setThemeModeValue(e.target.value)}
+                >
+                  {themeModeOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-600">
+                  Controls whether the consumer storefront follows the device
+                  theme or is forced to light or dark mode.
+                </p>
+              </div>
             </div>
 
             <div className="border rounded-md p-3 bg-gray-50">

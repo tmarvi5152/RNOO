@@ -48,6 +48,105 @@
   @apply transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:scale-95;
 }
 
+/* Shared consumer theme utilities */
+.consumer-theme-shell {
+  background:
+    radial-gradient(
+      circle at top,
+      color-mix(in srgb, var(--theme-app-accent) 14%, transparent) 0%,
+      transparent 34%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(
+          in srgb,
+          var(--theme-app-bg) 92%,
+          var(--theme-app-bg-elevated) 8%
+        )
+        0%,
+      var(--theme-app-bg-elevated) 100%
+    );
+  color: var(--theme-app-text);
+}
+
+.consumer-theme-panel {
+  background: color-mix(in srgb, var(--theme-app-bg-elevated) 92%, transparent);
+  border: 1px solid var(--theme-app-border);
+  color: var(--theme-app-text);
+}
+
+.consumer-theme-panel-strong {
+  background: color-mix(in srgb, var(--theme-app-bg) 78%, transparent);
+  border: 1px solid var(--theme-app-border);
+  color: var(--theme-app-text);
+}
+
+.consumer-theme-muted {
+  color: var(--theme-app-text-muted);
+}
+
+.consumer-theme-accent {
+  color: var(--theme-app-accent);
+}
+
+.consumer-theme-accent-bg {
+  background: var(--theme-app-accent);
+  color: var(--theme-app-accent-contrast);
+}
+
+.consumer-theme-accent-soft {
+  background: color-mix(in srgb, var(--theme-app-accent) 16%, transparent);
+  color: var(--theme-app-accent);
+  border-color: color-mix(in srgb, var(--theme-app-accent) 30%, transparent);
+}
+
+.consumer-theme-input {
+  background: color-mix(in srgb, var(--theme-app-bg) 70%, transparent);
+  border: 1px solid var(--theme-app-border);
+  color: var(--theme-app-text);
+}
+
+.consumer-theme-input::placeholder {
+  color: var(--theme-app-text-muted);
+}
+
+.consumer-theme-input:focus,
+.consumer-theme-icon-button:focus-visible,
+.consumer-theme-button:focus-visible,
+.consumer-theme-button-secondary:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--theme-app-focus-ring);
+}
+
+.consumer-theme-button {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--theme-app-accent) 88%, white) 0%,
+    var(--theme-app-accent) 100%
+  );
+  color: var(--theme-app-accent-contrast);
+}
+
+.consumer-theme-button-secondary {
+  background: color-mix(in srgb, var(--theme-app-bg) 72%, transparent);
+  border: 1px solid var(--theme-app-border);
+  color: var(--theme-app-text);
+}
+
+.consumer-theme-icon-button {
+  color: var(--theme-app-text-muted);
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease;
+}
+
+.consumer-theme-icon-button:hover {
+  background: color-mix(in srgb, var(--theme-app-accent) 12%, transparent);
+  color: var(--theme-app-text);
+}
+
 /* ===========================================
    FUTURISTIC STOREFRONT STYLES
    =========================================== */

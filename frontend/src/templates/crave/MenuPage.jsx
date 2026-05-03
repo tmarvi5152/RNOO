@@ -12,30 +12,7 @@ import { Textarea } from "../../components/ui/textarea";
 import { Skeleton } from "../../components/ui/skeleton";
 import { Minus, Plus, Search, ShoppingBag, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
-
-const CRAVE_STYLES = `
-  :root {
-    --crv-accent: #ef4444;
-    --crv-soft: #fff5f5;
-    --crv-bg: #f8fafc;
-    --crv-card: #ffffff;
-    --crv-border: #e5e7eb;
-    --crv-text: #0f172a;
-  }
-  .crv-accent-bg { background-color: var(--crv-accent) !important; color: #fff !important; }
-`;
-
-function useCraveTheme() {
-  useEffect(() => {
-    const id = "crave-theme";
-    if (!document.getElementById(id)) {
-      const el = document.createElement("style");
-      el.id = id;
-      el.textContent = CRAVE_STYLES;
-      document.head.appendChild(el);
-    }
-  }, []);
-}
+import { useCraveTheme } from "./CraveTheme";
 
 const CraveModifierModal = ({
   item,

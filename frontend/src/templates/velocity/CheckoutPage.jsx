@@ -1,38 +1,13 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useCartStore } from "../../stores/cartStore";
 import { apiService } from "../../context/AppContext";
-import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Textarea } from "../../components/ui/textarea";
 import { ArrowLeft, CreditCard, Loader2, Store } from "lucide-react";
 import { toast } from "sonner";
-
-/* Inject velocity theme variables (idempotent) */
-const VELOCITY_STYLES = `
-  :root {
-    --vel-accent: #ff4405;
-    --vel-accent-light: #fff1ed;
-    --vel-bg: #f4f4f4;
-    --vel-card: #ffffff;
-    --vel-border: #e8e8e8;
-    --vel-text: #111111;
-  }
-  .vel-accent-bg { background-color: var(--vel-accent) !important; color: #fff !important; }
-`;
-
-function useVelocityTheme() {
-  useEffect(() => {
-    const id = "velocity-theme";
-    if (!document.getElementById(id)) {
-      const el = document.createElement("style");
-      el.id = id;
-      el.textContent = VELOCITY_STYLES;
-      document.head.appendChild(el);
-    }
-  }, []);
-}
+import { useVelocityTheme } from "./VelocityTheme";
 
 /* Floating-label input component */
 const FloatInput = ({

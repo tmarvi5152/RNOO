@@ -1,33 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCartStore } from "../../stores/cartStore";
 import { Minus, Plus, ShoppingBag, Trash2, ArrowLeft } from "lucide-react";
-
-/* Inject velocity theme variables (idempotent) */
-const VELOCITY_STYLES = `
-  :root {
-    --vel-accent: #ff4405;
-    --vel-accent-light: #fff1ed;
-    --vel-bg: #f4f4f4;
-    --vel-card: #ffffff;
-    --vel-border: #e8e8e8;
-    --vel-text: #111111;
-  }
-  .vel-accent-bg { background-color: var(--vel-accent) !important; color: #fff !important; }
-`;
-
-function useVelocityTheme() {
-  useEffect(() => {
-    const id = "velocity-theme";
-    if (!document.getElementById(id)) {
-      const el = document.createElement("style");
-      el.id = id;
-      el.textContent = VELOCITY_STYLES;
-      document.head.appendChild(el);
-    }
-  }, []);
-}
+import { useVelocityTheme } from "./VelocityTheme";
 
 const VelocityCartPage = () => {
   useVelocityTheme();

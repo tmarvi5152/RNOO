@@ -277,7 +277,7 @@ const ProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
           onClick={(e) => e.stopPropagation()}
           className="
             relative w-full max-w-[820px] max-h-[82vh]
-            bg-zinc-900 border border-white/10
+            consumer-theme-panel-strong
             rounded-2xl overflow-hidden
             shadow-2xl shadow-black/50
           "
@@ -288,13 +288,12 @@ const ProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
             className="
               absolute top-3 right-3 z-20
               w-8 h-8 rounded-full
-              bg-black/50 backdrop-blur-sm
-              border border-white/10
+              backdrop-blur-sm consumer-theme-panel
               flex items-center justify-center
-              hover:bg-white/10 transition-colors
+              consumer-theme-icon-button
             "
           >
-            <X className="w-4 h-4 text-white" />
+            <X className="w-4 h-4" />
           </button>
 
           {/* Scrollable Content */}
@@ -311,7 +310,13 @@ const ProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                   transition={{ duration: 0.6 }}
                   onError={() => setImageFailed(true)}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-zinc-900/50 to-transparent" />
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    background:
+                      "linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--theme-app-bg) 36%, transparent) 38%, var(--theme-app-bg) 100%)",
+                  }}
+                />
 
                 {/* Item Name Overlay */}
                 <div className="absolute bottom-0 left-0 right-0 p-4">
@@ -319,7 +324,7 @@ const ProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: 0.1 }}
-                    className="text-2xl font-bold text-white mb-1"
+                    className="text-2xl font-bold mb-1"
                   >
                     {item.name}
                   </motion.h2>
@@ -327,7 +332,7 @@ const ProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: 0.2 }}
-                    className="text-zinc-400"
+                    className="consumer-theme-muted"
                   >
                     {item.description ||
                       "A delicious selection prepared with care."}
@@ -335,12 +340,12 @@ const ProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                 </div>
               </div>
             ) : (
-              <div className="p-6 pb-4 border-b border-white/10 bg-gradient-to-r from-zinc-900 to-zinc-900/80">
+              <div className="p-6 pb-4 border-b consumer-theme-panel bg-transparent">
                 <motion.h2
                   initial={{ y: 12, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.05 }}
-                  className="text-2xl font-bold text-white mb-1 pr-10"
+                  className="text-2xl font-bold mb-1 pr-10"
                 >
                   {item.name}
                 </motion.h2>
@@ -348,7 +353,7 @@ const ProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                   initial={{ y: 12, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.1 }}
-                  className="text-zinc-400"
+                  className="consumer-theme-muted"
                 >
                   {item.description ||
                     "A delicious selection prepared with care."}
@@ -365,7 +370,7 @@ const ProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.1 + groupIndex * 0.05 }}
-                  className="border border-white/10 rounded-xl overflow-hidden"
+                  className="consumer-theme-panel rounded-xl overflow-hidden"
                 >
                   {/* Group Header */}
                   <button
@@ -375,14 +380,12 @@ const ProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                         [group.id]: !prev[group.id],
                       }))
                     }
-                    className="w-full flex items-center justify-between p-3 bg-white/5 hover:bg-white/10 transition-colors"
+                    className="w-full flex items-center justify-between p-3 consumer-theme-panel transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-white font-semibold">
-                        {group.name}
-                      </span>
+                      <span className="font-semibold">{group.name}</span>
                       {group.is_required && (
-                        <span className="px-2 py-0.5 bg-orange-500/20 text-orange-400 text-xs rounded-full">
+                        <span className="px-2 py-0.5 text-xs rounded-full consumer-theme-accent-soft">
                           Required
                         </span>
                       )}
@@ -391,7 +394,7 @@ const ProductModal = ({ item, onClose, merchantId, merchantSlug }) => {
                       animate={{ rotate: expandedGroups[group.id] ? 180 : 0 }}
                       transition={{ duration: 0.2 }}
                     >
-                      <ChevronDown className="w-4 h-4 text-zinc-400" />
+                      <ChevronDown className="w-4 h-4 consumer-theme-muted" />
                     </motion.div>
                   </button>
 

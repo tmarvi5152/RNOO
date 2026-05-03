@@ -3,14 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader } from "../../components/ui/card";
-import {
-  Check,
-  Sparkles,
-  Home,
-  Copy,
-  CheckCircle,
-  ArrowRight,
-} from "lucide-react";
+import { Check, Sparkles, Copy, CheckCircle, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 
 const OrderConfirmationPage = () => {
@@ -58,14 +51,14 @@ const OrderConfirmationPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 flex items-center justify-center p-4">
+    <div className="min-h-screen consumer-theme-shell flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5 }}
         className="w-full max-w-md"
       >
-        <Card className="bg-zinc-900 border-zinc-800 text-white">
+        <Card className="consumer-theme-panel-strong">
           <CardHeader className="text-center pb-4">
             {/* Success Icon */}
             <motion.div
@@ -74,7 +67,7 @@ const OrderConfirmationPage = () => {
               transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
               className="flex justify-center mb-4"
             >
-              <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center">
+              <div className="w-20 h-20 rounded-full flex items-center justify-center consumer-theme-accent-soft">
                 <Check className="w-10 h-10 text-green-400" />
               </div>
             </motion.div>
@@ -84,7 +77,7 @@ const OrderConfirmationPage = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="text-3xl font-bold text-white mb-2"
+              className="text-3xl font-bold mb-2"
             >
               Thank You!
             </motion.h1>
@@ -93,7 +86,7 @@ const OrderConfirmationPage = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="text-zinc-400"
+              className="consumer-theme-muted"
             >
               Your order has been placed successfully
             </motion.p>
@@ -105,18 +98,18 @@ const OrderConfirmationPage = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
-              className="p-4 bg-zinc-800/50 rounded-xl border border-zinc-700"
+              className="p-4 consumer-theme-panel rounded-xl"
             >
-              <p className="text-sm text-zinc-400 mb-2">Order Reference</p>
+              <p className="text-sm consumer-theme-muted mb-2">Order Reference</p>
               <div className="flex items-center justify-between gap-3">
-                <p className="text-xl font-mono font-semibold text-orange-400 break-all">
+                <p className="text-xl font-mono font-semibold consumer-theme-accent break-all">
                   {orderId}
                 </p>
                 <Button
                   onClick={handleCopyOrderId}
                   variant="ghost"
                   size="sm"
-                  className="flex-shrink-0 hover:bg-zinc-700"
+                  className="flex-shrink-0 consumer-theme-icon-button"
                 >
                   {copied ? (
                     <CheckCircle className="w-4 h-4 text-green-400" />
@@ -132,10 +125,10 @@ const OrderConfirmationPage = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6 }}
-              className="flex items-start gap-3 p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl"
+              className="flex items-start gap-3 p-4 consumer-theme-accent-soft border rounded-xl"
             >
-              <Sparkles className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-blue-300">
+              <Sparkles className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <div className="text-sm">
                 Please save your Order ID for reference. The restaurant has
                 received your order and will begin preparation shortly.
               </div>
@@ -146,10 +139,10 @@ const OrderConfirmationPage = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.65 }}
-                className="p-3 bg-zinc-800/50 rounded-xl border border-zinc-700 text-sm"
+                className="p-3 consumer-theme-panel rounded-xl text-sm"
               >
-                <span className="text-zinc-400">Payment: </span>
-                <span className="text-white font-medium">
+                <span className="consumer-theme-muted">Payment: </span>
+                <span className="font-medium">
                   {paymentMethodLabel}
                 </span>
               </motion.div>
@@ -164,7 +157,7 @@ const OrderConfirmationPage = () => {
             >
               <Button
                 onClick={handleTrackOrder}
-                className="w-full bg-orange-500 hover:bg-orange-600 text-white h-12 text-base"
+                className="w-full consumer-theme-button h-12 text-base"
               >
                 Track Order
                 <ArrowRight className="w-5 h-5 ml-2" />
@@ -172,7 +165,7 @@ const OrderConfirmationPage = () => {
               {merchantSlug && (
                 <button
                   onClick={handleBackToMenu}
-                  className="w-full text-sm text-zinc-400 hover:text-zinc-200 py-2 transition-colors"
+                  className="w-full text-sm consumer-theme-icon-button py-2 transition-colors"
                 >
                   Back to Menu
                 </button>
@@ -186,7 +179,7 @@ const OrderConfirmationPage = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.8 }}
-          className="text-center mt-6 text-zinc-500 text-sm"
+          className="text-center mt-6 consumer-theme-muted text-sm"
         >
           Order placed at {placedAtRef.current}
         </motion.div>

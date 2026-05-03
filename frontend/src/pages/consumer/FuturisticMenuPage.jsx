@@ -187,18 +187,16 @@ const SearchBar = ({ value, onChange, onClear }) => (
       placeholder="Search menu..."
       className="
         w-full pl-12 pr-12 py-3
-        bg-white/5 border border-white/10
-        rounded-2xl text-white placeholder-zinc-500
-        focus:outline-none focus:border-orange-500/50
+        consumer-theme-input rounded-2xl
         transition-all duration-300
       "
     />
     {value && (
       <button
         onClick={onClear}
-        className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-white/10 rounded-full transition-colors"
+        className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-full consumer-theme-icon-button"
       >
-        <X className="w-4 h-4 text-zinc-400" />
+        <X className="w-4 h-4" />
       </button>
     )}
   </motion.div>
@@ -206,9 +204,9 @@ const SearchBar = ({ value, onChange, onClear }) => (
 
 // Loading Skeleton
 const LoadingSkeleton = () => (
-  <div className="min-h-screen bg-zinc-950">
+  <div className="min-h-screen consumer-theme-shell">
     {/* Hero Skeleton */}
-    <div className="h-[70vh] bg-gradient-to-b from-zinc-800 to-zinc-950 animate-pulse" />
+    <div className="h-[70vh] consumer-theme-panel animate-pulse" />
 
     {/* Categories Skeleton */}
     <div className="p-6">
@@ -216,7 +214,7 @@ const LoadingSkeleton = () => (
         {[...Array(5)].map((_, i) => (
           <div
             key={i}
-            className="h-12 w-32 bg-zinc-800 rounded-2xl animate-pulse"
+            className="h-12 w-32 consumer-theme-panel rounded-2xl animate-pulse"
           />
         ))}
       </div>
@@ -225,7 +223,10 @@ const LoadingSkeleton = () => (
     {/* Items Skeleton */}
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6 max-w-7xl mx-auto">
       {[...Array(6)].map((_, i) => (
-        <div key={i} className="h-80 bg-zinc-800 rounded-3xl animate-pulse" />
+        <div
+          key={i}
+          className="h-80 consumer-theme-panel rounded-3xl animate-pulse"
+        />
       ))}
     </div>
   </div>
@@ -238,11 +239,11 @@ const EmptyState = ({ message }) => (
     animate={{ opacity: 1, scale: 1 }}
     className="flex flex-col items-center justify-center py-20 text-center"
   >
-    <div className="w-24 h-24 mb-6 rounded-full bg-zinc-800 flex items-center justify-center">
-      <Utensils className="w-10 h-10 text-zinc-600" />
+    <div className="w-24 h-24 mb-6 rounded-full consumer-theme-panel flex items-center justify-center">
+      <Utensils className="w-10 h-10 consumer-theme-muted" />
     </div>
-    <h3 className="text-xl font-semibold text-white mb-2">No items found</h3>
-    <p className="text-zinc-400">
+    <h3 className="text-xl font-semibold mb-2">No items found</h3>
+    <p className="consumer-theme-muted">
       {message || "Try selecting a different category or search term."}
     </p>
   </motion.div>
@@ -330,7 +331,7 @@ const FuturisticMenuPage = () => {
   }
 
   return (
-    <div ref={containerRef} className="min-h-screen bg-zinc-950 text-white">
+    <div ref={containerRef} className="min-h-screen consumer-theme-shell">
       {/* Grain Overlay */}
       <GrainOverlay />
 

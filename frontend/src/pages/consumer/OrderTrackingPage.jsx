@@ -90,28 +90,55 @@ const HorizontalTracker = ({ status }) => {
               <div
                 className={`w-4 h-4 rounded-full border-2 transition-colors ${
                   completed
-                    ? "bg-orange-500 border-orange-500"
+                    ? ""
                     : current
-                      ? "bg-zinc-900 border-orange-500 ring-4 ring-orange-500/20"
-                      : "bg-zinc-700 border-zinc-600"
+                      ? "ring-4"
+                      : ""
                 }`}
+                style={
+                  completed
+                    ? {
+                        backgroundColor: "var(--theme-app-accent)",
+                        borderColor: "var(--theme-app-accent)",
+                      }
+                    : current
+                      ? {
+                          backgroundColor: "var(--theme-app-bg)",
+                          borderColor: "var(--theme-app-accent)",
+                          boxShadow: "0 0 0 4px var(--theme-app-focus-ring)",
+                        }
+                      : {
+                          backgroundColor:
+                            "color-mix(in srgb, var(--theme-app-bg) 72%, transparent)",
+                          borderColor: "var(--theme-app-border)",
+                        }
+                }
               />
               <span
                 className={`text-[10px] font-bold uppercase tracking-wide whitespace-nowrap ${
                   current
-                    ? "text-orange-400"
+                    ? "consumer-theme-accent"
                     : completed
-                      ? "text-zinc-300"
-                      : "text-zinc-500"
+                      ? ""
+                      : "consumer-theme-muted"
                 }`}
+                style={
+                  completed && !current
+                    ? { color: "var(--theme-app-text)" }
+                    : undefined
+                }
               >
                 {step.label}
               </span>
             </div>
             {!isLast && (
-              <div className="flex-1 h-0.5 mx-1 mb-5 rounded-full overflow-hidden bg-zinc-700">
+              <div
+                className="flex-1 h-0.5 mx-1 mb-5 rounded-full overflow-hidden"
+                style={{ backgroundColor: "var(--theme-app-border)" }}
+              >
                 <motion.div
-                  className="h-full rounded-full bg-orange-500"
+                  className="h-full rounded-full"
+                  style={{ backgroundColor: "var(--theme-app-accent)" }}
                   initial={{ width: 0 }}
                   animate={{ width: completed ? "100%" : "0%" }}
                   transition={{ duration: 0.5, ease: "easeOut" }}
@@ -222,7 +249,7 @@ const OrderTrackingPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-zinc-900 via-zinc-800 to-zinc-900">
+      <div className="min-h-screen consumer-theme-shell">
         <div className="max-w-4xl mx-auto px-4 py-8">
           <Skeleton className="h-8 w-64 mb-8" />
           <Skeleton className="h-96 w-full" />
@@ -233,19 +260,17 @@ const OrderTrackingPage = () => {
 
   if (error || !order) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-zinc-900 via-zinc-800 to-zinc-900 flex items-center justify-center p-4">
-        <Card className="max-w-md w-full bg-zinc-800/50 border-white/10">
+      <div className="min-h-screen consumer-theme-shell flex items-center justify-center p-4">
+        <Card className="max-w-md w-full consumer-theme-panel">
           <CardContent className="p-8 text-center">
-            <AlertCircle className="w-16 h-16 text-orange-400 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-white mb-2">
-              Order Not Found
-            </h2>
-            <p className="text-zinc-400 mb-6">
+            <AlertCircle className="w-16 h-16 consumer-theme-accent mx-auto mb-4" />
+            <h2 className="text-2xl font-bold mb-2">Order Not Found</h2>
+            <p className="consumer-theme-muted mb-6">
               {error || "We couldn't find this order."}
             </p>
             <Button
               onClick={() => navigate("/")}
-              className="bg-orange-500 hover:bg-orange-600"
+              className="consumer-theme-button"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Home
@@ -261,24 +286,24 @@ const OrderTrackingPage = () => {
   const isCancelled = order.status === "cancelled";
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-zinc-900 via-zinc-800 to-zinc-900">
+    <div className="min-h-screen consumer-theme-shell">
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
           <Button
             variant="ghost"
             onClick={() => navigate("/")}
-            className="text-white hover:text-orange-400 mb-4"
+            className="mb-4 consumer-theme-icon-button"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Home
           </Button>
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-white mb-2">
+              <h1 className="text-3xl font-bold mb-2">
                 Order #{order.order_number}
               </h1>
-              <div className="flex items-center gap-2 text-zinc-400">
+              <div className="flex items-center gap-2 consumer-theme-muted">
                 <Calendar className="w-4 h-4" />
                 <span>{new Date(order.created_at).toLocaleString()}</span>
                 {isConnected && (
@@ -296,7 +321,7 @@ const OrderTrackingPage = () => {
               variant="outline"
               size="sm"
               onClick={() => loadOrder({ silent: true })}
-              className="text-white border-white/20"
+              className="consumer-theme-button-secondary"
             >
               <RefreshCw
                 className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`}
@@ -310,16 +335,16 @@ const OrderTrackingPage = () => {
           {/* Left Column - Progress */}
           <div className="lg:col-span-2 space-y-6">
             {/* Status Card */}
-            <Card className="bg-zinc-800/50 border-white/10">
+            <Card className="consumer-theme-panel">
               <CardHeader>
-                <CardTitle className="text-white flex items-center justify-between">
+                <CardTitle className="flex items-center justify-between">
                   <span>Order Status</span>
                   {isCancelled ? (
                     <Badge className="bg-red-500/20 text-red-400 border-red-500">
                       Cancelled
                     </Badge>
                   ) : (
-                    <Badge className="bg-orange-500/20 text-orange-400 border-orange-500">
+                    <Badge className="consumer-theme-accent-soft border">
                       {getStatusLabel(order.status)}
                     </Badge>
                   )}
@@ -329,8 +354,8 @@ const OrderTrackingPage = () => {
                 {!isCancelled && <HorizontalTracker status={order.status} />}
 
                 {!isCancelled && estimatedTime && (
-                  <div className="mb-6 p-4 bg-orange-500/10 border border-orange-500/30 rounded-xl">
-                    <div className="flex items-center gap-2 text-orange-400">
+                  <div className="mb-6 p-4 consumer-theme-accent-soft border rounded-xl">
+                    <div className="flex items-center gap-2 consumer-theme-accent">
                       <Clock className="w-5 h-5" />
                       <span className="font-semibold">
                         Estimated: {estimatedTime}
@@ -359,8 +384,8 @@ const OrderTrackingPage = () => {
                             <motion.div
                               className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
                                 isCompleted
-                                  ? "bg-orange-500 text-white"
-                                  : "bg-zinc-700 text-zinc-400"
+                                  ? "consumer-theme-accent-bg"
+                                  : "consumer-theme-button-secondary consumer-theme-muted"
                               }`}
                               animate={isCurrent ? { scale: [1, 1.1, 1] } : {}}
                               transition={{ repeat: Infinity, duration: 2 }}
@@ -370,25 +395,32 @@ const OrderTrackingPage = () => {
                             {index < statusSteps.length - 1 && (
                               <div
                                 className={`absolute left-1/2 top-12 w-0.5 h-8 -ml-px transition-all ${
-                                  isCompleted ? "bg-orange-500" : "bg-zinc-700"
+                                  isCompleted ? "" : ""
                                 }`}
+                                style={{
+                                  backgroundColor: isCompleted
+                                    ? "var(--theme-app-accent)"
+                                    : "var(--theme-app-border)",
+                                }}
                               />
                             )}
                           </div>
                           <div className="flex-1 pt-2">
                             <h3
-                              className={`font-semibold ${isCompleted ? "text-white" : "text-zinc-400"}`}
+                              className={`font-semibold ${
+                                isCompleted ? "" : "consumer-theme-muted"
+                              }`}
                             >
                               {step.label}
                             </h3>
-                            <p className="text-sm text-zinc-500">
+                            <p className="text-sm consumer-theme-muted">
                               {step.description}
                             </p>
                             {isCurrent && (
                               <motion.div
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
-                                className="mt-1 text-xs text-orange-400 font-medium"
+                                className="mt-1 text-xs consumer-theme-accent font-medium"
                               >
                                 In progress...
                               </motion.div>
@@ -403,36 +435,36 @@ const OrderTrackingPage = () => {
             </Card>
 
             {/* Order Items */}
-            <Card className="bg-zinc-800/50 border-white/10">
+            <Card className="consumer-theme-panel">
               <CardHeader>
-                <CardTitle className="text-white">Order Items</CardTitle>
+                <CardTitle>Order Items</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   {order.items.map((item, index) => (
                     <div
                       key={index}
-                      className="flex items-start justify-between p-3 bg-zinc-700/30 rounded-lg"
+                      className="flex items-start justify-between p-3 consumer-theme-panel-strong rounded-lg"
                     >
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-white font-medium">
+                          <span className="font-medium">
                             {item.quantity}x
                           </span>
-                          <span className="text-white">{item.name}</span>
+                          <span>{item.name}</span>
                         </div>
                         {item.modifiers?.length > 0 && (
-                          <div className="mt-1 text-sm text-zinc-400">
+                          <div className="mt-1 text-sm consumer-theme-muted">
                             {item.modifiers.map((m) => m.name).join(", ")}
                           </div>
                         )}
                         {item.special_instructions && (
-                          <div className="mt-1 text-xs text-zinc-500 italic">
+                          <div className="mt-1 text-xs consumer-theme-muted italic">
                             Note: {item.special_instructions}
                           </div>
                         )}
                       </div>
-                      <span className="text-white font-semibold">
+                      <span className="font-semibold">
                         $
                         {(
                           item.total ?? (item.unit_price ?? 0) * item.quantity
@@ -443,24 +475,30 @@ const OrderTrackingPage = () => {
                 </div>
 
                 {/* Order Totals */}
-                <div className="mt-4 pt-4 border-t border-white/10 space-y-2">
-                  <div className="flex justify-between text-zinc-400">
+                <div
+                  className="mt-4 pt-4 border-t space-y-2"
+                  style={{ borderColor: "var(--theme-app-border)" }}
+                >
+                  <div className="flex justify-between consumer-theme-muted">
                     <span>Subtotal</span>
                     <span>${(order.subtotal || 0).toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-zinc-400">
+                  <div className="flex justify-between consumer-theme-muted">
                     <span>Tax</span>
                     <span>${(order.tax || 0).toFixed(2)}</span>
                   </div>
                   {order.tip > 0 && (
-                    <div className="flex justify-between text-zinc-400">
+                    <div className="flex justify-between consumer-theme-muted">
                       <span>Tip</span>
                       <span>${(order.tip || 0).toFixed(2)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between text-lg font-bold text-white pt-2 border-t border-white/10">
+                  <div
+                    className="flex justify-between text-lg font-bold pt-2 border-t"
+                    style={{ borderColor: "var(--theme-app-border)" }}
+                  >
                     <span>Total</span>
-                    <span className="text-orange-400">
+                    <span className="consumer-theme-accent">
                       ${(order.total || 0).toFixed(2)}
                     </span>
                   </div>
@@ -472,9 +510,9 @@ const OrderTrackingPage = () => {
           {/* Right Column - Details */}
           <div className="space-y-6">
             {/* Delivery Info */}
-            <Card className="bg-zinc-800/50 border-white/10">
+            <Card className="consumer-theme-panel">
               <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2">
                   {order.delivery_type === "delivery" ? (
                     <>
                       <Truck className="w-5 h-5" />
@@ -492,8 +530,8 @@ const OrderTrackingPage = () => {
                 {order.delivery_type === "delivery" &&
                   order.customer?.address && (
                     <div className="flex items-start gap-2">
-                      <MapPin className="w-4 h-4 text-zinc-400 mt-1" />
-                      <div className="text-sm text-zinc-300">
+                      <MapPin className="w-4 h-4 consumer-theme-muted mt-1" />
+                      <div className="text-sm">
                         <p>{order.customer.address.street}</p>
                         {order.customer.address.apt && (
                           <p>Apt {order.customer.address.apt}</p>
@@ -509,8 +547,8 @@ const OrderTrackingPage = () => {
 
                 {order.order_timing !== "ASAP" && order.scheduled_time && (
                   <div className="flex items-start gap-2">
-                    <Clock className="w-4 h-4 text-zinc-400 mt-1" />
-                    <div className="text-sm text-zinc-300">
+                    <Clock className="w-4 h-4 consumer-theme-muted mt-1" />
+                    <div className="text-sm">
                       <p>Scheduled for</p>
                       <p className="font-medium">
                         {order.scheduled_date} at {order.scheduled_time}
@@ -522,22 +560,20 @@ const OrderTrackingPage = () => {
             </Card>
 
             {/* Customer Info */}
-            <Card className="bg-zinc-800/50 border-white/10">
+            <Card className="consumer-theme-panel">
               <CardHeader>
-                <CardTitle className="text-white">Customer</CardTitle>
+                <CardTitle>Customer</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="text-white">
-                  {order.customer?.name || "Guest"}
-                </div>
+                <div>{order.customer?.name || "Guest"}</div>
                 {order.customer?.phone && (
-                  <div className="flex items-center gap-2 text-sm text-zinc-400">
+                  <div className="flex items-center gap-2 text-sm consumer-theme-muted">
                     <Phone className="w-4 h-4" />
                     {order.customer.phone}
                   </div>
                 )}
                 {order.customer?.email && (
-                  <div className="flex items-center gap-2 text-sm text-zinc-400">
+                  <div className="flex items-center gap-2 text-sm consumer-theme-muted">
                     <Mail className="w-4 h-4" />
                     {order.customer.email}
                   </div>
@@ -546,22 +582,22 @@ const OrderTrackingPage = () => {
             </Card>
 
             {/* Payment Info */}
-            <Card className="bg-zinc-800/50 border-white/10">
+            <Card className="consumer-theme-panel">
               <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2">
                   <DollarSign className="w-5 h-5" />
                   Payment
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-zinc-400">Method</span>
-                  <span className="text-white capitalize">
+                  <span className="consumer-theme-muted">Method</span>
+                  <span className="capitalize">
                     {order.payment?.method || "Card"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-zinc-400">Status</span>
+                  <span className="consumer-theme-muted">Status</span>
                   <Badge className="bg-green-500/20 text-green-400">Paid</Badge>
                 </div>
               </CardContent>
@@ -569,14 +605,14 @@ const OrderTrackingPage = () => {
 
             {/* Notes */}
             {order.notes && (
-              <Card className="bg-zinc-800/50 border-white/10">
+              <Card className="consumer-theme-panel">
                 <CardHeader>
-                  <CardTitle className="text-white">
+                  <CardTitle>
                     Special Instructions
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-zinc-300 text-sm">{order.notes}</p>
+                  <p className="text-sm">{order.notes}</p>
                 </CardContent>
               </Card>
             )}

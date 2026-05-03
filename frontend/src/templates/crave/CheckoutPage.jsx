@@ -1,30 +1,11 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useCartStore } from "../../stores/cartStore";
 import { apiService } from "../../context/AppContext";
 import { ArrowLeft, CreditCard, Loader2, Store } from "lucide-react";
 import { toast } from "sonner";
-
-const CRAVE_STYLES = `
-  :root {
-    --crv-accent: #ef4444;
-    --crv-bg: #f8fafc;
-    --crv-border: #e5e7eb;
-  }
-`;
-
-function useCraveTheme() {
-  useEffect(() => {
-    const id = "crave-theme";
-    if (!document.getElementById(id)) {
-      const el = document.createElement("style");
-      el.id = id;
-      el.textContent = CRAVE_STYLES;
-      document.head.appendChild(el);
-    }
-  }, []);
-}
+import { useCraveTheme } from "./CraveTheme";
 
 const StepAccordion = ({ title, number, open, onToggle, children }) => (
   <div className="rounded-2xl lg:rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">

@@ -1,28 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCartStore } from "../../stores/cartStore";
 import { ArrowLeft, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
-
-const CRAVE_STYLES = `
-  :root {
-    --crv-accent: #ef4444;
-    --crv-bg: #f8fafc;
-    --crv-border: #e5e7eb;
-  }
-`;
-
-function useCraveTheme() {
-  useEffect(() => {
-    const id = "crave-theme";
-    if (!document.getElementById(id)) {
-      const el = document.createElement("style");
-      el.id = id;
-      el.textContent = CRAVE_STYLES;
-      document.head.appendChild(el);
-    }
-  }, []);
-}
+import { useCraveTheme } from "./CraveTheme";
 
 const CraveCartPage = () => {
   useCraveTheme();

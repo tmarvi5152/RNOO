@@ -21,33 +21,7 @@ import { Minus, Plus, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import FloatingCart from "../../components/consumer/FloatingCart";
 import RpowerBannerBadge from "../../components/consumer/RpowerBannerBadge";
-
-/* ─── Theme injection ──────────────────────────────────────── */
-const VELOCITY_STYLES = `
-  :root {
-    --vel-accent: #ff4405;
-    --vel-accent-light: #fff1ed;
-    --vel-bg: #f4f4f4;
-    --vel-card: #ffffff;
-    --vel-border: #e8e8e8;
-    --vel-text: #111111;
-  }
-  .vel-accent-bg   { background-color: var(--vel-accent) !important; color: #fff !important; }
-  .vel-required-bg { background-color: #fff1ee; border: 1.5px solid #ffc4b8; }
-`;
-
-function useVelocityTheme() {
-  useEffect(() => {
-    const id = "velocity-theme";
-    if (!document.getElementById(id)) {
-      const el = document.createElement("style");
-      el.id = id;
-      el.textContent = VELOCITY_STYLES;
-      document.head.appendChild(el);
-    }
-    return () => {};
-  }, []);
-}
+import { useVelocityTheme } from "./VelocityTheme";
 
 /* ─── Bottom-sheet modifier modal ─────────────────────────── */
 const VelocityModifierModal = ({ item, merchantId, merchantSlug, onClose }) => {

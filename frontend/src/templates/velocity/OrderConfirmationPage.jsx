@@ -1,28 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { CheckCircle2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
-
-/* Inject velocity theme variables (idempotent) */
-const VELOCITY_STYLES = `
-  :root {
-    --vel-accent: #ff4405;
-  }
-  .vel-accent-bg { background-color: var(--vel-accent) !important; color: #fff !important; }
-`;
-
-function useVelocityTheme() {
-  useEffect(() => {
-    const id = "velocity-theme";
-    if (!document.getElementById(id)) {
-      const el = document.createElement("style");
-      el.id = id;
-      el.textContent = VELOCITY_STYLES;
-      document.head.appendChild(el);
-    }
-  }, []);
-}
+import { useVelocityTheme } from "./VelocityTheme";
 
 /* Simple QR placeholder rendered as SVG grid */
 const QrPlaceholder = ({ value }) => {

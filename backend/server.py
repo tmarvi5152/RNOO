@@ -1,3 +1,4 @@
+from typing import List, Optional, Dict, Any, Literal
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, APIRouter, WebSocket, Depends, Query, Path, Body, Request, status as http_status, HTTPException, BackgroundTasks
 from starlette.websockets import WebSocketDisconnect
@@ -792,6 +793,7 @@ class MerchantBase(BaseModel):
     price_bump_percentage: float = 0.0
     price_bump_fixed: float = 0.0
     frontend_template: str = "classic"
+    theme_mode: Literal["system", "light", "dark"] = "system"
 
 class MerchantCreate(MerchantBase):
     reseller_id: str

@@ -368,21 +368,24 @@ const CheckoutPage = () => {
   const dateOptions = generateDateOptions();
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
+    <div className="min-h-screen consumer-theme-shell">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-zinc-950/90 backdrop-blur-xl border-b border-white/10">
+      <div
+        className="sticky top-0 z-40 consumer-theme-panel-strong backdrop-blur-xl border-b"
+        style={{ borderColor: "var(--theme-app-border)" }}
+      >
         <div className="max-w-3xl mx-auto px-3 py-2.5">
           <div className="flex items-center justify-between">
             <button
               onClick={() => navigate(`/order/${slug}`)}
-              className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors"
+              className="flex items-center gap-2 consumer-theme-icon-button transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>Back to Menu</span>
             </button>
 
             <div className="flex items-center gap-2">
-              <ShoppingBag className="w-4 h-4 text-orange-400" />
+              <ShoppingBag className="w-4 h-4 consumer-theme-accent" />
               <span className="text-sm font-semibold">${total.toFixed(2)}</span>
             </div>
           </div>
@@ -457,7 +460,9 @@ const CheckoutPage = () => {
 
                   {/* Order Type */}
                   <div className="space-y-3">
-                    <label className="text-sm text-zinc-400">Order Type</label>
+                    <label className="text-sm consumer-theme-muted">
+                      Order Type
+                    </label>
                     <div className="grid grid-cols-2 gap-2">
                       {[
                         { id: "pickup", label: "Pickup", icon: MapPin },
@@ -470,8 +475,8 @@ const CheckoutPage = () => {
                             p-2.5 rounded-xl border transition-all
                             ${
                               orderType === type.id
-                                ? "bg-orange-500/20 border-orange-500 text-white"
-                                : "bg-white/5 border-white/10 text-zinc-400 hover:border-white/30"
+                                ? "consumer-theme-accent-soft text-current"
+                                : "consumer-theme-button-secondary consumer-theme-muted"
                             }
                           `}
                         >
@@ -488,7 +493,7 @@ const CheckoutPage = () => {
 
                   {/* Order Timing */}
                   <div className="space-y-3">
-                    <label className="text-sm text-zinc-400">
+                    <label className="text-sm consumer-theme-muted">
                       When do you want it?
                     </label>
                     <div className="grid grid-cols-3 gap-2">
@@ -529,8 +534,8 @@ const CheckoutPage = () => {
                             p-2.5 rounded-xl border transition-all text-left
                             ${
                               orderTiming === timing.id
-                                ? "bg-orange-500/20 border-orange-500 text-white"
-                                : "bg-white/5 border-white/10 text-zinc-400 hover:border-white/30"
+                                ? "consumer-theme-accent-soft text-current"
+                                : "consumer-theme-button-secondary consumer-theme-muted"
                             }
                           `}
                         >
@@ -540,7 +545,7 @@ const CheckoutPage = () => {
                               {timing.label}
                             </span>
                           </div>
-                          <span className="text-[10px] text-zinc-500">
+                          <span className="text-[10px] consumer-theme-muted">
                             {timing.desc}
                           </span>
                         </button>
@@ -555,7 +560,7 @@ const CheckoutPage = () => {
                       animate={{ opacity: 1, height: "auto" }}
                       className="space-y-3"
                     >
-                      <label className="text-sm text-zinc-400">
+                      <label className="text-sm consumer-theme-muted">
                         Select Date
                       </label>
                       <div className="grid grid-cols-4 gap-1.5">
@@ -567,8 +572,8 @@ const CheckoutPage = () => {
                               p-2 rounded-lg border text-xs transition-all
                               ${
                                 scheduledDate === date.value
-                                  ? "bg-orange-500/20 border-orange-500 text-white"
-                                  : "bg-white/5 border-white/10 text-zinc-400 hover:border-white/30"
+                                  ? "consumer-theme-accent-soft text-current"
+                                  : "consumer-theme-button-secondary consumer-theme-muted"
                               }
                             `}
                           >
@@ -586,13 +591,13 @@ const CheckoutPage = () => {
                       animate={{ opacity: 1, height: "auto" }}
                       className="space-y-3"
                     >
-                      <label className="text-sm text-zinc-400">
+                      <label className="text-sm consumer-theme-muted">
                         Select Time
                       </label>
                       <select
                         value={scheduledTime}
                         onChange={(e) => setScheduledTime(e.target.value)}
-                        className="w-full p-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-orange-500/50"
+                        className="w-full p-2.5 consumer-theme-input rounded-lg text-sm"
                       >
                         <option value="">Select a time...</option>
                         {timeSlots.map((slot) => (
@@ -613,17 +618,17 @@ const CheckoutPage = () => {
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
-                      className="space-y-3 p-3 bg-white/5 rounded-xl border border-white/10"
+                      className="space-y-3 p-3 consumer-theme-panel rounded-xl"
                     >
                       <h3 className="font-semibold flex items-center gap-2">
-                        <Home className="w-4 h-4 text-orange-400" />
+                        <Home className="w-4 h-4 consumer-theme-accent" />
                         Delivery Address
                       </h3>
 
                       {/* Saved Addresses Dropdown */}
                       {savedAddresses.length > 0 && (
                         <div className="space-y-2">
-                          <label className="text-sm text-zinc-400">
+                          <label className="text-sm consumer-theme-muted">
                             Use a saved address
                           </label>
                           <select
@@ -646,7 +651,7 @@ const CheckoutPage = () => {
                                 }
                               }
                             }}
-                            className="w-full p-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-orange-500/50"
+                            className="w-full p-2.5 consumer-theme-input rounded-lg text-sm"
                           >
                             <option value="" className="bg-zinc-900">
                               Enter new address
@@ -676,7 +681,7 @@ const CheckoutPage = () => {
                             })
                           }
                           placeholder="Street Address *"
-                          className="w-full h-12 px-3 py-3 bg-white/5 border border-white/10 rounded-lg text-sm md:text-base text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50"
+                          className="w-full h-12 px-3 py-3 consumer-theme-input rounded-lg text-sm md:text-base"
                         />
                         <input
                           type="text"
@@ -688,7 +693,7 @@ const CheckoutPage = () => {
                             })
                           }
                           placeholder="Apt, Suite, Unit (optional)"
-                          className="w-full h-12 px-3 py-3 bg-white/5 border border-white/10 rounded-lg text-sm md:text-base text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50"
+                          className="w-full h-12 px-3 py-3 consumer-theme-input rounded-lg text-sm md:text-base"
                         />
                         <div className="grid grid-cols-3 gap-2">
                           <input
@@ -701,7 +706,7 @@ const CheckoutPage = () => {
                               })
                             }
                             placeholder="City *"
-                            className="w-full h-12 px-3 py-3 bg-white/5 border border-white/10 rounded-lg text-sm md:text-base text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50"
+                            className="w-full h-12 px-3 py-3 consumer-theme-input rounded-lg text-sm md:text-base"
                           />
                           <input
                             type="text"
@@ -713,7 +718,7 @@ const CheckoutPage = () => {
                               })
                             }
                             placeholder="State"
-                            className="w-full h-12 px-3 py-3 bg-white/5 border border-white/10 rounded-lg text-sm md:text-base text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50"
+                            className="w-full h-12 px-3 py-3 consumer-theme-input rounded-lg text-sm md:text-base"
                           />
                           <input
                             type="text"
@@ -725,7 +730,7 @@ const CheckoutPage = () => {
                               })
                             }
                             placeholder="ZIP *"
-                            className="w-full h-12 px-3 py-3 bg-white/5 border border-white/10 rounded-lg text-sm md:text-base text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50"
+                            className="w-full h-12 px-3 py-3 consumer-theme-input rounded-lg text-sm md:text-base"
                           />
                         </div>
                         <textarea
@@ -737,7 +742,7 @@ const CheckoutPage = () => {
                             })
                           }
                           placeholder="Delivery instructions (gate code, landmarks, etc.)"
-                          className="w-full px-3 py-3 bg-white/5 border border-white/10 rounded-lg text-sm md:text-base text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50 resize-none h-20"
+                          className="w-full px-3 py-3 consumer-theme-input rounded-lg text-sm md:text-base resize-none h-20"
                         />
                       </div>
 
@@ -752,7 +757,7 @@ const CheckoutPage = () => {
                             }
                             className="w-4 h-4 rounded border-white/20 bg-white/5 text-orange-500 focus:ring-orange-500"
                           />
-                          <span className="text-sm text-zinc-300">
+                          <span className="text-sm consumer-theme-muted">
                             Save this address for future orders
                           </span>
                         </label>
@@ -764,11 +769,11 @@ const CheckoutPage = () => {
                   <div className="space-y-4">
                     <h3 className="font-semibold">Contact Information</h3>
                     <div>
-                      <label className="text-sm text-zinc-400 mb-2 block">
+                      <label className="text-sm consumer-theme-muted mb-2 block">
                         Full Name *
                       </label>
                       <div className="relative">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 consumer-theme-muted" />
                         <input
                           type="text"
                           value={customerInfo.name}
@@ -779,17 +784,17 @@ const CheckoutPage = () => {
                             })
                           }
                           placeholder="John Doe"
-                          className="w-full h-12 pl-10 pr-3 py-3 bg-white/5 border border-white/10 rounded-lg text-sm md:text-base text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50"
+                          className="w-full h-12 pl-10 pr-3 py-3 consumer-theme-input rounded-lg text-sm md:text-base"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="text-sm text-zinc-400 mb-2 block">
+                      <label className="text-sm consumer-theme-muted mb-2 block">
                         Email
                       </label>
                       <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 consumer-theme-muted" />
                         <input
                           type="email"
                           value={customerInfo.email}
@@ -800,17 +805,17 @@ const CheckoutPage = () => {
                             })
                           }
                           placeholder="john@example.com"
-                          className="w-full h-12 pl-10 pr-3 py-3 bg-white/5 border border-white/10 rounded-lg text-sm md:text-base text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50"
+                          className="w-full h-12 pl-10 pr-3 py-3 consumer-theme-input rounded-lg text-sm md:text-base"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="text-sm text-zinc-400 mb-2 block">
+                      <label className="text-sm consumer-theme-muted mb-2 block">
                         Phone Number *
                       </label>
                       <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 consumer-theme-muted" />
                         <input
                           type="tel"
                           value={customerInfo.phone}
@@ -821,7 +826,7 @@ const CheckoutPage = () => {
                             })
                           }
                           placeholder="(555) 123-4567"
-                          className="w-full h-12 pl-10 pr-3 py-3 bg-white/5 border border-white/10 rounded-lg text-sm md:text-base text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50"
+                          className="w-full h-12 pl-10 pr-3 py-3 consumer-theme-input rounded-lg text-sm md:text-base"
                         />
                       </div>
                     </div>
@@ -837,7 +842,7 @@ const CheckoutPage = () => {
                           !deliveryAddress.city ||
                           !deliveryAddress.zip))
                     }
-                    className="w-full py-2.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 disabled:from-zinc-700 disabled:to-zinc-700 disabled:cursor-not-allowed text-sm text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-all"
+                    className="w-full py-2.5 consumer-theme-button disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold rounded-xl flex items-center justify-center gap-2 transition-all"
                   >
                     Continue to Payment
                     <ChevronRight className="w-4 h-4" />
@@ -1154,14 +1159,14 @@ const CheckoutPage = () => {
                   <div className="flex gap-3">
                     <button
                       onClick={() => setStep(1)}
-                      className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-sm text-white font-semibold rounded-xl transition-all"
+                      className="flex-1 py-2.5 consumer-theme-button-secondary text-sm font-semibold rounded-xl transition-all"
                     >
                       Back
                     </button>
                     <button
                       onClick={() => setStep(3)}
                       disabled={!paymentMethod}
-                      className="flex-1 py-2.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-sm text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-all"
+                      className="flex-1 py-2.5 consumer-theme-button text-sm font-semibold rounded-xl flex items-center justify-center gap-2 transition-all"
                     >
                       Review Order
                       <ChevronRight className="w-4 h-4" />
@@ -1184,8 +1189,8 @@ const CheckoutPage = () => {
                   {/* Order Summary Cards */}
                   <div className="grid gap-4">
                     {/* Customer Info Summary */}
-                    <div className="p-4 bg-white/5 rounded-2xl border border-white/10 space-y-2">
-                      <h4 className="font-semibold text-sm text-zinc-400 mb-3">
+                    <div className="p-4 consumer-theme-panel rounded-2xl space-y-2">
+                      <h4 className="font-semibold text-sm consumer-theme-muted mb-3">
                         Contact
                       </h4>
                       <div className="flex items-center gap-2 text-white">
@@ -1205,8 +1210,8 @@ const CheckoutPage = () => {
                     </div>
 
                     {/* Order Type & Timing */}
-                    <div className="p-4 bg-white/5 rounded-2xl border border-white/10 space-y-2">
-                      <h4 className="font-semibold text-sm text-zinc-400 mb-3">
+                    <div className="p-4 consumer-theme-panel rounded-2xl space-y-2">
+                      <h4 className="font-semibold text-sm consumer-theme-muted mb-3">
                         Order Details
                       </h4>
                       <div className="flex items-center gap-2 text-white">
@@ -1229,8 +1234,8 @@ const CheckoutPage = () => {
 
                     {/* Delivery Address */}
                     {orderType === "delivery" && deliveryAddress.street && (
-                      <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
-                        <h4 className="font-semibold text-sm text-zinc-400 mb-3">
+                      <div className="p-4 consumer-theme-panel rounded-2xl">
+                        <h4 className="font-semibold text-sm consumer-theme-muted mb-3">
                           Delivery Address
                         </h4>
                         <p className="text-white">
@@ -1241,7 +1246,7 @@ const CheckoutPage = () => {
                           {deliveryAddress.zip}
                         </p>
                         {deliveryAddress.instructions && (
-                          <p className="text-sm text-zinc-400 mt-2">
+                          <p className="text-sm consumer-theme-muted mt-2">
                             Note: {deliveryAddress.instructions}
                           </p>
                         )}
@@ -1251,15 +1256,15 @@ const CheckoutPage = () => {
 
                   {/* Items */}
                   <div className="space-y-3">
-                    <h4 className="font-semibold text-sm text-zinc-400">
+                    <h4 className="font-semibold text-sm consumer-theme-muted">
                       Items
                     </h4>
                     {items.map((item) => (
                       <div
                         key={item.id}
-                        className="flex gap-2.5 p-2.5 bg-white/5 rounded-lg"
+                        className="flex gap-2.5 p-2.5 consumer-theme-panel rounded-lg"
                       >
-                        <div className="w-12 h-12 rounded-lg bg-zinc-800 flex items-center justify-center overflow-hidden">
+                        <div className="w-12 h-12 rounded-lg consumer-theme-panel-strong flex items-center justify-center overflow-hidden">
                           {hasValidImage(item) ? (
                             <img
                               src={item.image}
@@ -1279,17 +1284,17 @@ const CheckoutPage = () => {
                         <div className="flex-1">
                           <h4 className="text-sm font-medium">{item.name}</h4>
                           {item.modifiers?.length > 0 && (
-                            <p className="text-xs text-zinc-400">
+                            <p className="text-xs consumer-theme-muted">
                               {item.modifiers
                                 .map((m) => m.option_name)
                                 .join(", ")}
                             </p>
                           )}
                           <div className="flex items-center justify-between mt-1">
-                            <span className="text-xs text-zinc-400">
+                            <span className="text-xs consumer-theme-muted">
                               Qty: {item.quantity}
                             </span>
-                            <span className="font-medium text-orange-400">
+                            <span className="font-medium consumer-theme-accent">
                               ${item.totalPrice.toFixed(2)}
                             </span>
                           </div>
@@ -1301,14 +1306,14 @@ const CheckoutPage = () => {
                   <div className="flex gap-3">
                     <button
                       onClick={() => setStep(2)}
-                      className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-sm text-white font-semibold rounded-xl transition-all"
+                      className="flex-1 py-2.5 consumer-theme-button-secondary text-sm font-semibold rounded-xl transition-all"
                     >
                       Back
                     </button>
                     <button
                       onClick={handleSubmit}
                       disabled={loading || !paymentMethod}
-                      className="flex-1 py-2.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 disabled:from-zinc-700 disabled:to-zinc-700 text-sm text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-all"
+                      className="flex-1 py-2.5 consumer-theme-button disabled:opacity-50 text-sm font-semibold rounded-xl flex items-center justify-center gap-2 transition-all"
                     >
                       {loading ? (
                         <>
@@ -1330,7 +1335,7 @@ const CheckoutPage = () => {
 
           {/* Order Summary Sidebar */}
           <div className="lg:col-span-1">
-            <div className="sticky top-20 p-4 bg-white/5 rounded-2xl border border-white/10">
+            <div className="sticky top-20 p-4 consumer-theme-panel rounded-2xl">
               <h3 className="text-base font-semibold mb-3">Order Summary</h3>
 
               <div className="space-y-2 mb-3 max-h-48 overflow-y-auto">

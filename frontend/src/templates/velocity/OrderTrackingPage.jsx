@@ -5,35 +5,7 @@ import { apiService } from "../../context/AppContext";
 import { useOrderWebSocket } from "../../hooks/useOrderWebSocket";
 import { AlertCircle, ArrowLeft, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-
-/* Inject velocity theme variables (idempotent) */
-const VELOCITY_STYLES = `
-  :root {
-    --vel-accent: #ff4405;
-  }
-  .vel-accent-bg { background-color: var(--vel-accent) !important; color: #fff !important; }
-`;
-
-function useVelocityTheme() {
-  useEffect(() => {
-    const id = "velocity-theme";
-    if (!document.getElementById(id)) {
-      const el = document.createElement("style");
-      el.id = id;
-      el.textContent = VELOCITY_STYLES;
-      document.head.appendChild(el);
-    }
-  }, []);
-}
-
-/* Compact horizontal step tracker */
-const TRACK_STEPS = [
-  { key: "pending", label: "Received" },
-  { key: "confirmed", label: "Received" }, // alias — maps to same visual step
-  { key: "preparing", label: "Preparing" },
-  { key: "ready", label: "Ready" },
-  { key: "delivered", label: "Delivered" },
-];
+import { useVelocityTheme } from "./VelocityTheme";
 
 /* Deduplicated display steps */
 const DISPLAY_STEPS = [

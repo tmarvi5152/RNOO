@@ -34,6 +34,7 @@ code {
 
 @layer base {
   :root {
+    color-scheme: light;
     --background: 0 0% 100%;
     --foreground: 200 11% 15%;
     --card: 0 0% 100%;
@@ -59,9 +60,19 @@ code {
     --chart-3: 148 43% 61%;
     --chart-4: 38 81% 56%;
     --chart-5: 0 60% 65%;
+    --theme-app-bg: #ffffff;
+    --theme-app-bg-elevated: #f8fafc;
+    --theme-app-text: #1f2937;
+    --theme-app-text-muted: #6b7280;
+    --theme-app-border: #e5e7eb;
+    --theme-app-accent: #cc0000;
+    --theme-app-accent-contrast: #ffffff;
+    --theme-app-focus-ring: rgba(204, 0, 0, 0.22);
   }
 
+  :root[data-theme-resolved="dark"],
   .dark {
+    color-scheme: dark;
     --background: 0 0% 9%;
     --foreground: 0 0% 87%;
     --card: 0 0% 9%;
@@ -84,6 +95,38 @@ code {
     --chart-3: 148 43% 61%;
     --chart-4: 38 81% 56%;
     --chart-5: 0 60% 65%;
+    --theme-app-bg: #0f1115;
+    --theme-app-bg-elevated: #181c23;
+    --theme-app-text: #f5f7fb;
+    --theme-app-text-muted: #a8b0bc;
+    --theme-app-border: rgba(255, 255, 255, 0.12);
+    --theme-app-accent: #ff6b57;
+    --theme-app-accent-contrast: #111827;
+    --theme-app-focus-ring: rgba(255, 107, 87, 0.28);
+  }
+
+  :root[data-theme-brand="vantage"] {
+    --theme-app-accent: #8b5e3c;
+  }
+
+  :root[data-theme-brand="velocity"] {
+    --theme-app-accent: #e86a33;
+  }
+
+  :root[data-theme-brand="crave"] {
+    --theme-app-accent: #ef4444;
+  }
+
+  :root[data-theme-brand="rpower_jim_baldridge"] {
+    --theme-app-accent: #cf2030;
+  }
+
+  :root[data-theme-brand="rpower_original"] {
+    --theme-app-accent: #d3ad67;
+  }
+
+  :root[data-theme-brand="jukebox_vintage_diner"] {
+    --theme-app-accent: #b1262b;
   }
 }
 
@@ -93,6 +136,12 @@ code {
   }
   body {
     @apply bg-background text-foreground;
+    background-color: var(--theme-app-bg);
+    color: var(--theme-app-text);
+    transition:
+      background-color 180ms ease,
+      color 180ms ease,
+      border-color 180ms ease;
   }
 }
 
