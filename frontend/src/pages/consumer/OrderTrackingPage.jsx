@@ -89,11 +89,7 @@ const HorizontalTracker = ({ status }) => {
             <div className="flex flex-col items-center gap-1.5 shrink-0">
               <div
                 className={`w-4 h-4 rounded-full border-2 transition-colors ${
-                  completed
-                    ? ""
-                    : current
-                      ? "ring-4"
-                      : ""
+                  completed ? "" : current ? "ring-4" : ""
                 }`}
                 style={
                   completed
@@ -448,9 +444,7 @@ const OrderTrackingPage = () => {
                     >
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-medium">
-                            {item.quantity}x
-                          </span>
+                          <span className="font-medium">{item.quantity}x</span>
                           <span>{item.name}</span>
                         </div>
                         {item.modifiers?.length > 0 && (
@@ -607,9 +601,7 @@ const OrderTrackingPage = () => {
             {order.notes && (
               <Card className="consumer-theme-panel">
                 <CardHeader>
-                  <CardTitle>
-                    Special Instructions
-                  </CardTitle>
+                  <CardTitle>Special Instructions</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm">{order.notes}</p>

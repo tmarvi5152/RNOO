@@ -19,7 +19,7 @@ _shepherd_http_history: contextvars.ContextVar[Optional[List[dict]]] = contextva
     default=None,
 )
 
-SHEPHERD_BASE_URL = "https://remote.securerpower.com/posapi"
+SHEPHERD_BASE_URL = "https://staging.securerpower.com/posapi"
 SHEPHERD_MEDIA_URL = "https://remote.securerpower.com/shepherd/media"
 RPOWER_CORE_API_URL = "https://rpowerpos.com/api/v1/coreapi"
 
@@ -63,7 +63,7 @@ class RPowerCoreAPIClient:
     Uses the same bearer token as Shepherd API.
     """
     
-    def __init__(self, token: str = None):
+    def __init__(self, token: str | None = None):
         # Use same token as Shepherd API
         self.token = token or os.environ.get("SHEPHERD_BEARER_TOKEN")
         self.headers = {
@@ -118,7 +118,7 @@ class RPowerCoreAPIClient:
             logger.warning(f"RPOWER Core API request failed: {e}")
             return {"error": str(e)}
     
-    async def get_store_by_serial_number(self, serial_number: str, cg: str = None) -> dict:
+    async def get_store_by_serial_number(self, serial_number: str, cg: Optional[str] = None) -> dict:
         """
         Get store information from RPOWER Core API by serial number.
         serial_number: First 5 digits of Shepherd merchantId (or custom value)
@@ -160,9 +160,9 @@ class RPowerCoreAPIClient:
 
     async def get_store_tax_by_store(
         self,
-        store_id: str = None,
-        site_code: str = None,
-        cg: str = None,
+        store_id: Optional[str] = None,
+        site_code: Optional[str] = None,
+        cg: Optional[str] = None,
     ) -> dict:
         """
         Attempt to fetch store tax information from RPOWER Core API.
@@ -264,7 +264,7 @@ class ShepherdAPIClient:
             "Content-Type": "application/json"
         }
     
-    async def _request(self, method: str, endpoint: str, data: Optional[dict] = None, base_url: str = None) -> Any:
+    async def _request(self, method: str, endpoint: str, data: Optional[dict] = None, base_url: Optional[str] = None) -> Any:
         """Make an async HTTP request to the Shepherd API"""
         url = f"{base_url or SHEPHERD_BASE_URL}{endpoint}"
         started_at = datetime.now(timezone.utc).isoformat()
@@ -431,7 +431,7 @@ class ShepherdAPIClient:
         return f"{SHEPHERD_MEDIA_URL}/{merchant_id}/item/{item_id}"
 
 
-def transform_shepherd_menu_to_rnoo(shepherd_menu: dict, merchant_id: str, shepherd_merchant_id: str = None, rnoo_only: bool = True, schedules: list = None) -> dict:
+def transform_shepherd_menu_to_rnoo(shepherd_menu: dict, merchant_id: str, shepherd_merchant_id: Optional[str] = None, rnoo_only: bool = True, schedules: Optional[list] = None) -> dict:
     """
     Transform Shepherd menu format to RNOO format
     
@@ -600,7 +600,7 @@ def match_menu_to_schedule(menu_name: str, menu_id: str, schedules: list) -> Opt
     return None
 
 
-def transform_shepherd_item(item_data: dict, merchant_id: str, category_id: str, shepherd_merchant_id: str = None, menu_tax_rate_id: str = None) -> Optional[dict]:
+def transform_shepherd_item(item_data: dict, merchant_id: str, category_id: str, shepherd_merchant_id: Optional[str] = None, menu_tax_rate_id: Optional[str] = None) -> Optional[dict]:
     """
     Transform a single Shepherd menu item to RNOO format.
     

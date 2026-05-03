@@ -100,7 +100,9 @@ const OrderConfirmationPage = () => {
               transition={{ delay: 0.5 }}
               className="p-4 consumer-theme-panel rounded-xl"
             >
-              <p className="text-sm consumer-theme-muted mb-2">Order Reference</p>
+              <p className="text-sm consumer-theme-muted mb-2">
+                Order Reference
+              </p>
               <div className="flex items-center justify-between gap-3">
                 <p className="text-xl font-mono font-semibold consumer-theme-accent break-all">
                   {orderId}
@@ -142,9 +144,7 @@ const OrderConfirmationPage = () => {
                 className="p-3 consumer-theme-panel rounded-xl text-sm"
               >
                 <span className="consumer-theme-muted">Payment: </span>
-                <span className="font-medium">
-                  {paymentMethodLabel}
-                </span>
+                <span className="font-medium">{paymentMethodLabel}</span>
               </motion.div>
             )}
 
