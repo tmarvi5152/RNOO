@@ -76,6 +76,7 @@ import {
   ChevronDown,
   ChevronRight,
   Download,
+  DollarSign,
 } from "lucide-react";
 
 // Full Menu Viewer Component
@@ -763,6 +764,69 @@ const MerchantDetailPage = () => {
   const [legacyModeEnabled, setLegacyModeEnabled] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
 
+  // Delivery fee + discount configuration state
+  const [deliveryFeeAmount, setDeliveryFeeAmount] = useState("0.00");
+  const [discountOptions, setDiscountOptions] = useState([]);
+  const [savingPricing, setSavingPricing] = useState(false);
+  const [editingDiscountId, setEditingDiscountId] = useState(null);
+  const [showCreateDiscountForm, setShowCreateDiscountForm] = useState(false);
+  const [newDiscountOption, setNewDiscountOption] = useState({
+    code: "",
+    name: "",
+    discount_type: "amount",
+    value: 0,
+    is_active: true,
+    valid_from: "",
+    valid_until: "",
+    min_order_amount: 0,
+    max_uses_total: "",
+    max_uses_per_customer: "",
+    one_time_per_customer: false,
+    stackable: false,
+    max_discount_amount: "",
+  });
+
+  const normalizeDiscountOption = useCallback((option, index = 0) => {
+    const parsedValue = Number(option?.value);
+    const parsedMinOrder = Number(option?.min_order_amount);
+    const parsedMaxDiscount = Number(option?.max_discount_amount);
+    const parsedMaxUsesTotal = Number(option?.max_uses_total);
+    const parsedMaxUsesPerCustomer = Number(option?.max_uses_per_customer);
+    return {
+      id:
+        option?.id ||
+        `discount-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
+      code: String(option?.code || "")
+        .trim()
+        .toUpperCase(),
+      name: String(option?.name || "").trim(),
+      discount_type: option?.discount_type === "percent" ? "percent" : "amount",
+      value: Number.isFinite(parsedValue) && parsedValue >= 0 ? parsedValue : 0,
+      is_active: option?.is_active !== false,
+      valid_from: String(option?.valid_from || ""),
+      valid_until: String(option?.valid_until || ""),
+      min_order_amount:
+        Number.isFinite(parsedMinOrder) && parsedMinOrder >= 0
+          ? parsedMinOrder
+          : 0,
+      max_uses_total:
+        Number.isFinite(parsedMaxUsesTotal) && parsedMaxUsesTotal > 0
+          ? Math.floor(parsedMaxUsesTotal)
+          : null,
+      max_uses_per_customer:
+        Number.isFinite(parsedMaxUsesPerCustomer) &&
+        parsedMaxUsesPerCustomer > 0
+          ? Math.floor(parsedMaxUsesPerCustomer)
+          : null,
+      one_time_per_customer: Boolean(option?.one_time_per_customer),
+      stackable: Boolean(option?.stackable),
+      max_discount_amount:
+        Number.isFinite(parsedMaxDiscount) && parsedMaxDiscount > 0
+          ? parsedMaxDiscount
+          : null,
+    };
+  }, []);
+
   const loadMerchantDetails = useCallback(async () => {
     try {
       setLoading(true);
@@ -803,7 +867,27 @@ const MerchantDetailPage = () => {
         merchantData?.local_merchant?.shepherd_config?.rjb_legacy_mode ?? false,
       ),
     );
-  }, [merchantData]);
+
+    const merchantDeliveryFee = Number(
+      merchantData?.local_merchant?.delivery_fee_amount,
+    );
+    setDeliveryFeeAmount(
+      Number.isFinite(merchantDeliveryFee)
+        ? merchantDeliveryFee.toFixed(2)
+        : "0.00",
+    );
+
+    const rawDiscountOptions = Array.isArray(
+      merchantData?.local_merchant?.discount_options,
+    )
+      ? merchantData.local_merchant.discount_options
+      : [];
+    setDiscountOptions(
+      rawDiscountOptions.map((option, idx) =>
+        normalizeDiscountOption(option, idx),
+      ),
+    );
+  }, [merchantData, normalizeDiscountOption]);
 
   const handleSyncMenu = async () => {
     try {
@@ -877,6 +961,209 @@ const MerchantDetailPage = () => {
       toast.error(err.response?.data?.detail || "Failed to save template");
     } finally {
       setSavingTemplate(false);
+    }
+  };
+
+  const handleAddDiscountOption = () => {
+    const code = String(newDiscountOption.code || "")
+      .trim()
+      .toUpperCase();
+    const name = String(newDiscountOption.name || "").trim();
+    if (!code || !name) {
+      toast.error("Promo code and label are required");
+      return;
+    }
+
+    const optionToAdd = normalizeDiscountOption({
+      ...newDiscountOption,
+      code,
+      name,
+      max_uses_total:
+        newDiscountOption.max_uses_total === ""
+          ? null
+          : newDiscountOption.max_uses_total,
+      max_uses_per_customer:
+        newDiscountOption.max_uses_per_customer === ""
+          ? null
+          : newDiscountOption.max_uses_per_customer,
+      max_discount_amount:
+        newDiscountOption.max_discount_amount === ""
+          ? null
+          : newDiscountOption.max_discount_amount,
+    });
+
+    setDiscountOptions((prev) => [...prev, optionToAdd]);
+
+    setNewDiscountOption({
+      code: "",
+      name: "",
+      discount_type: "amount",
+      value: 0,
+      is_active: true,
+      valid_from: "",
+      valid_until: "",
+      min_order_amount: 0,
+      max_uses_total: "",
+      max_uses_per_customer: "",
+      one_time_per_customer: false,
+      stackable: false,
+      max_discount_amount: "",
+    });
+    setShowCreateDiscountForm(false);
+
+    toast.success(`Added discount ${code}`);
+  };
+
+  const handleNewDiscountFieldChange = (field, value) => {
+    setNewDiscountOption((prev) => {
+      if (field === "code") {
+        return { ...prev, code: String(value || "").toUpperCase() };
+      }
+      if (field === "value") {
+        const parsed = Number(value);
+        return {
+          ...prev,
+          value: Number.isFinite(parsed) && parsed >= 0 ? parsed : 0,
+        };
+      }
+      if (field === "min_order_amount") {
+        const parsed = Number(value);
+        return {
+          ...prev,
+          min_order_amount: Number.isFinite(parsed) && parsed >= 0 ? parsed : 0,
+        };
+      }
+      if (field === "max_discount_amount") {
+        if (value === "" || value === null || value === undefined) {
+          return { ...prev, [field]: "" };
+        }
+        const parsed = Number(value);
+        return {
+          ...prev,
+          [field]: Number.isFinite(parsed) && parsed > 0 ? parsed : "",
+        };
+      }
+
+      if (field === "max_uses_total" || field === "max_uses_per_customer") {
+        if (value === "" || value === null || value === undefined) {
+          return { ...prev, [field]: "" };
+        }
+        const parsed = Number(value);
+        return {
+          ...prev,
+          [field]:
+            Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : "",
+        };
+      }
+
+      return { ...prev, [field]: value };
+    });
+  };
+
+  const handleDiscountFieldChange = (id, field, value) => {
+    setDiscountOptions((prev) =>
+      prev.map((option) => {
+        if (option.id !== id) return option;
+
+        if (field === "code") {
+          return { ...option, code: String(value || "").toUpperCase() };
+        }
+
+        if (field === "value") {
+          const parsed = Number(value);
+          return {
+            ...option,
+            value: Number.isFinite(parsed) && parsed >= 0 ? parsed : 0,
+          };
+        }
+
+        if (field === "min_order_amount") {
+          const parsed = Number(value);
+          return {
+            ...option,
+            [field]: Number.isFinite(parsed) && parsed >= 0 ? parsed : 0,
+          };
+        }
+
+        if (field === "max_discount_amount") {
+          if (value === "" || value === null || value === undefined) {
+            return { ...option, [field]: null };
+          }
+          const parsed = Number(value);
+          return {
+            ...option,
+            [field]: Number.isFinite(parsed) && parsed > 0 ? parsed : null,
+          };
+        }
+
+        if (field === "max_uses_total" || field === "max_uses_per_customer") {
+          if (value === "" || value === null || value === undefined) {
+            return { ...option, [field]: null };
+          }
+          const parsed = Number(value);
+          return {
+            ...option,
+            [field]:
+              Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : null,
+          };
+        }
+
+        return { ...option, [field]: value };
+      }),
+    );
+  };
+
+  const handleRemoveDiscountOption = (id) => {
+    setDiscountOptions((prev) => prev.filter((option) => option.id !== id));
+  };
+
+  const handleSavePricing = async () => {
+    try {
+      setSavingPricing(true);
+
+      const numericDeliveryFee = Number(deliveryFeeAmount);
+      const sanitizedDeliveryFee =
+        Number.isFinite(numericDeliveryFee) && numericDeliveryFee >= 0
+          ? Number(numericDeliveryFee.toFixed(2))
+          : 0;
+
+      const sanitizedDiscounts = discountOptions
+        .map((option, idx) => normalizeDiscountOption(option, idx))
+        .filter((option) => option.code && option.name)
+        .map((option) => ({
+          ...option,
+          value: Number(option.value.toFixed(2)),
+          min_order_amount: Number((option.min_order_amount || 0).toFixed(2)),
+          max_discount_amount:
+            option.max_discount_amount === null
+              ? null
+              : Number(option.max_discount_amount.toFixed(2)),
+          valid_from: option.valid_from || null,
+          valid_until: option.valid_until || null,
+          max_uses_total:
+            option.max_uses_total === null
+              ? null
+              : Number(option.max_uses_total),
+          max_uses_per_customer:
+            option.max_uses_per_customer === null
+              ? null
+              : Number(option.max_uses_per_customer),
+        }));
+
+      await api.patch(`/merchants/${merchantId}`, {
+        delivery_fee_amount: sanitizedDeliveryFee,
+        discount_options: sanitizedDiscounts,
+      });
+
+      toast.success("Delivery fee and discount options saved");
+      loadMerchantDetails();
+    } catch (err) {
+      console.error("Failed to save delivery fee/discount settings:", err);
+      toast.error(
+        err.response?.data?.detail || "Failed to save pricing settings",
+      );
+    } finally {
+      setSavingPricing(false);
     }
   };
 
@@ -1284,7 +1571,585 @@ const MerchantDetailPage = () => {
               <TabsTrigger value="tax" className="text-xs px-3 shrink-0">
                 Tax Rates
               </TabsTrigger>
+              <TabsTrigger
+                value="delivery-fee"
+                className="text-xs px-3 shrink-0"
+              >
+                Delivery Fee
+              </TabsTrigger>
+              <TabsTrigger value="discounts" className="text-xs px-3 shrink-0">
+                Discounts
+              </TabsTrigger>
             </TabsList>
+
+            <TabsContent value="delivery-fee">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <DollarSign className="w-4 h-4" />
+                    Delivery Fee
+                  </CardTitle>
+                  <CardDescription>
+                    Configure the delivery fee line item sent as "Delivery
+                    Charges" with PLU DFEE.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0 space-y-4">
+                  <div className="max-w-md">
+                    <Label htmlFor="delivery-fee-amount">
+                      Delivery Fee Amount (USD)
+                    </Label>
+                    <Input
+                      id="delivery-fee-amount"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={deliveryFeeAmount}
+                      onChange={(e) => setDeliveryFeeAmount(e.target.value)}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Applied only when order type is Delivery.
+                    </p>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button
+                      onClick={handleSavePricing}
+                      disabled={savingPricing}
+                    >
+                      {savingPricing ? "Saving..." : "Save Delivery Fee"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="discounts">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Percent className="w-4 h-4" />
+                    Discount Options
+                  </CardTitle>
+                  <CardDescription>
+                    Configure reusable promo-style discounts for this merchant.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0 space-y-4">
+                  <div className="flex items-center justify-end">
+                    <Button
+                      onClick={() => setShowCreateDiscountForm((prev) => !prev)}
+                      variant="outline"
+                    >
+                      {showCreateDiscountForm
+                        ? "Close New Discount"
+                        : "Add Discount Option"}
+                    </Button>
+                  </div>
+
+                  {showCreateDiscountForm && (
+                    <div className="border rounded-md p-4 bg-gray-50 space-y-3">
+                      <p className="text-sm font-semibold text-gray-900">
+                        Create New Discount
+                      </p>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+                        <div>
+                          <Label className="text-xs">Promo Code</Label>
+                          <Input
+                            value={newDiscountOption.code}
+                            onChange={(e) =>
+                              handleNewDiscountFieldChange(
+                                "code",
+                                e.target.value,
+                              )
+                            }
+                            placeholder="SAVE10"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Label</Label>
+                          <Input
+                            value={newDiscountOption.name}
+                            onChange={(e) =>
+                              handleNewDiscountFieldChange(
+                                "name",
+                                e.target.value,
+                              )
+                            }
+                            placeholder="Spring Promo"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Type</Label>
+                          <select
+                            className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                            value={newDiscountOption.discount_type}
+                            onChange={(e) =>
+                              handleNewDiscountFieldChange(
+                                "discount_type",
+                                e.target.value,
+                              )
+                            }
+                          >
+                            <option value="amount">Dollar</option>
+                            <option value="percent">Percentage</option>
+                          </select>
+                        </div>
+                        <div>
+                          <Label className="text-xs">
+                            Value{" "}
+                            {newDiscountOption.discount_type === "percent"
+                              ? "(%)"
+                              : "($)"}
+                          </Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={newDiscountOption.value}
+                            onChange={(e) =>
+                              handleNewDiscountFieldChange(
+                                "value",
+                                e.target.value,
+                              )
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Valid From (UTC)</Label>
+                          <Input
+                            type="datetime-local"
+                            value={newDiscountOption.valid_from || ""}
+                            onChange={(e) =>
+                              handleNewDiscountFieldChange(
+                                "valid_from",
+                                e.target.value,
+                              )
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Valid Until (UTC)</Label>
+                          <Input
+                            type="datetime-local"
+                            value={newDiscountOption.valid_until || ""}
+                            onChange={(e) =>
+                              handleNewDiscountFieldChange(
+                                "valid_until",
+                                e.target.value,
+                              )
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Minimum Order ($)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={newDiscountOption.min_order_amount}
+                            onChange={(e) =>
+                              handleNewDiscountFieldChange(
+                                "min_order_amount",
+                                e.target.value,
+                              )
+                            }
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Max Discount ($)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={newDiscountOption.max_discount_amount}
+                            onChange={(e) =>
+                              handleNewDiscountFieldChange(
+                                "max_discount_amount",
+                                e.target.value,
+                              )
+                            }
+                            placeholder="Optional"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Max Uses (Total)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={newDiscountOption.max_uses_total}
+                            onChange={(e) =>
+                              handleNewDiscountFieldChange(
+                                "max_uses_total",
+                                e.target.value,
+                              )
+                            }
+                            placeholder="Optional"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">
+                            Max Uses Per Customer
+                          </Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={newDiscountOption.max_uses_per_customer}
+                            onChange={(e) =>
+                              handleNewDiscountFieldChange(
+                                "max_uses_per_customer",
+                                e.target.value,
+                              )
+                            }
+                            placeholder="Optional"
+                          />
+                        </div>
+                        <div className="flex items-end gap-2">
+                          <Switch
+                            checked={Boolean(
+                              newDiscountOption.one_time_per_customer,
+                            )}
+                            onCheckedChange={(checked) =>
+                              handleNewDiscountFieldChange(
+                                "one_time_per_customer",
+                                Boolean(checked),
+                              )
+                            }
+                          />
+                          <Label className="text-xs">
+                            One-time per customer
+                          </Label>
+                        </div>
+                        <div className="flex items-end gap-2">
+                          <Switch
+                            checked={Boolean(newDiscountOption.stackable)}
+                            onCheckedChange={(checked) =>
+                              handleNewDiscountFieldChange(
+                                "stackable",
+                                Boolean(checked),
+                              )
+                            }
+                          />
+                          <Label className="text-xs">Stackable</Label>
+                        </div>
+                        <div className="flex items-end gap-2">
+                          <Switch
+                            checked={Boolean(newDiscountOption.is_active)}
+                            onCheckedChange={(checked) =>
+                              handleNewDiscountFieldChange(
+                                "is_active",
+                                Boolean(checked),
+                              )
+                            }
+                          />
+                          <Label className="text-xs">Active</Label>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => setShowCreateDiscountForm(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button onClick={handleAddDiscountOption}>
+                          Add Discount Option
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    <p className="text-sm font-semibold text-gray-900">
+                      Created Discounts ({discountOptions.length})
+                    </p>
+                    {discountOptions.length === 0 ? (
+                      <div className="text-sm text-gray-500 border rounded-md p-3 bg-gray-50">
+                        No discount options configured.
+                      </div>
+                    ) : (
+                      discountOptions.map((option) => (
+                        <div
+                          key={option.id}
+                          className="border rounded-md p-3 space-y-3"
+                        >
+                          <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center">
+                            <div className="md:col-span-3">
+                              <p className="text-sm font-semibold text-gray-900">
+                                {option.code || "NO_CODE"}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {option.name || "Unnamed discount"}
+                              </p>
+                            </div>
+                            <div className="md:col-span-2 text-xs text-gray-600">
+                              {option.discount_type === "percent"
+                                ? `${Number(option.value || 0)}%`
+                                : `$${Number(option.value || 0).toFixed(2)}`}
+                            </div>
+                            <div className="md:col-span-2 text-xs text-gray-600">
+                              {option.is_active ? "Active" : "Inactive"}
+                            </div>
+                            <div className="md:col-span-5 flex items-center justify-end gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  setEditingDiscountId(
+                                    editingDiscountId === option.id
+                                      ? null
+                                      : option.id,
+                                  )
+                                }
+                              >
+                                {editingDiscountId === option.id
+                                  ? "Close"
+                                  : "Edit"}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  handleRemoveDiscountOption(option.id)
+                                }
+                              >
+                                Remove
+                              </Button>
+                            </div>
+                          </div>
+
+                          {editingDiscountId === option.id && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 border-t pt-3">
+                              <div>
+                                <Label className="text-xs">Promo Code</Label>
+                                <Input
+                                  value={option.code}
+                                  onChange={(e) =>
+                                    handleDiscountFieldChange(
+                                      option.id,
+                                      "code",
+                                      e.target.value,
+                                    )
+                                  }
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Label</Label>
+                                <Input
+                                  value={option.name}
+                                  onChange={(e) =>
+                                    handleDiscountFieldChange(
+                                      option.id,
+                                      "name",
+                                      e.target.value,
+                                    )
+                                  }
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Type</Label>
+                                <select
+                                  className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                  value={option.discount_type}
+                                  onChange={(e) =>
+                                    handleDiscountFieldChange(
+                                      option.id,
+                                      "discount_type",
+                                      e.target.value,
+                                    )
+                                  }
+                                >
+                                  <option value="amount">Dollar</option>
+                                  <option value="percent">Percentage</option>
+                                </select>
+                              </div>
+                              <div>
+                                <Label className="text-xs">Value</Label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={option.value}
+                                  onChange={(e) =>
+                                    handleDiscountFieldChange(
+                                      option.id,
+                                      "value",
+                                      e.target.value,
+                                    )
+                                  }
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">
+                                  Valid From (UTC)
+                                </Label>
+                                <Input
+                                  type="datetime-local"
+                                  value={option.valid_from || ""}
+                                  onChange={(e) =>
+                                    handleDiscountFieldChange(
+                                      option.id,
+                                      "valid_from",
+                                      e.target.value,
+                                    )
+                                  }
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">
+                                  Valid Until (UTC)
+                                </Label>
+                                <Input
+                                  type="datetime-local"
+                                  value={option.valid_until || ""}
+                                  onChange={(e) =>
+                                    handleDiscountFieldChange(
+                                      option.id,
+                                      "valid_until",
+                                      e.target.value,
+                                    )
+                                  }
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">
+                                  Minimum Order ($)
+                                </Label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={option.min_order_amount}
+                                  onChange={(e) =>
+                                    handleDiscountFieldChange(
+                                      option.id,
+                                      "min_order_amount",
+                                      e.target.value,
+                                    )
+                                  }
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">
+                                  Max Discount ($)
+                                </Label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={option.max_discount_amount ?? ""}
+                                  onChange={(e) =>
+                                    handleDiscountFieldChange(
+                                      option.id,
+                                      "max_discount_amount",
+                                      e.target.value,
+                                    )
+                                  }
+                                  placeholder="Optional"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">
+                                  Max Uses (Total)
+                                </Label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  value={option.max_uses_total ?? ""}
+                                  onChange={(e) =>
+                                    handleDiscountFieldChange(
+                                      option.id,
+                                      "max_uses_total",
+                                      e.target.value,
+                                    )
+                                  }
+                                  placeholder="Optional"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">
+                                  Max Uses Per Customer
+                                </Label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  value={option.max_uses_per_customer ?? ""}
+                                  onChange={(e) =>
+                                    handleDiscountFieldChange(
+                                      option.id,
+                                      "max_uses_per_customer",
+                                      e.target.value,
+                                    )
+                                  }
+                                  placeholder="Optional"
+                                />
+                              </div>
+                              <div className="flex items-end gap-2">
+                                <Switch
+                                  checked={Boolean(
+                                    option.one_time_per_customer,
+                                  )}
+                                  onCheckedChange={(checked) =>
+                                    handleDiscountFieldChange(
+                                      option.id,
+                                      "one_time_per_customer",
+                                      Boolean(checked),
+                                    )
+                                  }
+                                />
+                                <Label className="text-xs">
+                                  One-time per customer
+                                </Label>
+                              </div>
+                              <div className="flex items-end gap-2">
+                                <Switch
+                                  checked={Boolean(option.stackable)}
+                                  onCheckedChange={(checked) =>
+                                    handleDiscountFieldChange(
+                                      option.id,
+                                      "stackable",
+                                      Boolean(checked),
+                                    )
+                                  }
+                                />
+                                <Label className="text-xs">Stackable</Label>
+                              </div>
+                              <div className="flex items-end gap-2">
+                                <Switch
+                                  checked={Boolean(option.is_active)}
+                                  onCheckedChange={(checked) =>
+                                    handleDiscountFieldChange(
+                                      option.id,
+                                      "is_active",
+                                      Boolean(checked),
+                                    )
+                                  }
+                                />
+                                <Label className="text-xs">Active</Label>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button
+                      onClick={handleSavePricing}
+                      disabled={savingPricing}
+                    >
+                      {savingPricing ? "Saving..." : "Save Discounts"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
             {/* Site Info Tab - HQDing Data */}
             <TabsContent value="site">

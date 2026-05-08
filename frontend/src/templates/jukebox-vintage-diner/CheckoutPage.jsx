@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -11,6 +11,12 @@ import { toast } from "sonner";
 import { useCartStore } from "../../stores/cartStore";
 import { apiService } from "../../context/AppContext";
 import { useJukeboxTheme } from "./JukeboxTheme";
+import {
+  calculateDiscountAmount,
+  findDiscountByCode,
+  normalizeDiscountCode,
+  toMoney,
+} from "../../lib/discounts";
 
 const JukeboxCheckoutPage = () => {
   useJukeboxTheme();
@@ -38,12 +44,37 @@ const JukeboxCheckoutPage = () => {
   const [tip, setTip] = useState(0);
   const [tipSelection, setTipSelection] = useState(null);
   const [customTipInput, setCustomTipInput] = useState("");
+  const [merchant, setMerchant] = useState(null);
+  const [promoCodeInput, setPromoCodeInput] = useState("");
+  const [appliedPromoCode, setAppliedPromoCode] = useState("");
 
   const subtotal = getSubtotal();
   const tax = getTax();
   const isCardPayment = paymentMethod === "demo_card";
   const effectiveTip = isCardPayment ? tip : 0;
-  const total = subtotal + tax + effectiveTip;
+
+  const loadMerchant = useCallback(async () => {
+    try {
+      const res = await apiService.getMerchantBySlug(slug);
+      setMerchant(res.data || null);
+    } catch {
+      setMerchant(null);
+    }
+  }, [slug]);
+
+  useEffect(() => {
+    loadMerchant();
+  }, [loadMerchant]);
+
+  const selectedDiscountOption = findDiscountByCode(merchant, appliedPromoCode);
+  const deliveryFee =
+    orderType === "delivery" ? toMoney(merchant?.delivery_fee_amount || 0) : 0;
+  const discountBase = toMoney(subtotal + tax + deliveryFee);
+  const discountAmount = calculateDiscountAmount(
+    discountBase,
+    selectedDiscountOption,
+  );
+  const total = toMoney(discountBase - discountAmount + effectiveTip);
 
   useEffect(() => {
     if (!isCardPayment) {
@@ -89,9 +120,49 @@ const JukeboxCheckoutPage = () => {
     }
     if (!paymentMethod) return "Please select a payment method";
     if (!items.length) return "Your cart is empty";
-    if (!merchantId)
+    if (!(merchantId || merchant?.id))
       return "Merchant context is missing. Please reopen the menu and try again.";
     return null;
+  };
+
+  const handleApplyPromo = async () => {
+    const normalizedCode = normalizeDiscountCode(promoCodeInput);
+    if (!normalizedCode) {
+      toast.error("Enter a promo code to apply");
+      return;
+    }
+    try {
+      const response = await apiService.validateDiscount({
+        merchant_id: merchantId || merchant?.id,
+        discount_code: normalizedCode,
+        subtotal,
+        tax,
+        delivery_type: orderType === "delivery" ? "DELIVERY" : "TAKEOUT",
+        customer_email: customer.email,
+        customer_phone: customer.phone,
+        existing_discount_option_id: selectedDiscountOption?.id,
+      });
+      const validatedCode =
+        normalizeDiscountCode(response?.data?.discount_code) || normalizedCode;
+      const validatedAmount = Number(response?.data?.discount_amount || 0);
+      setAppliedPromoCode(validatedCode);
+      setPromoCodeInput(validatedCode);
+      toast.success(
+        validatedAmount > 0
+          ? `Promo ${validatedCode} applied (-$${validatedAmount.toFixed(2)})`
+          : `Promo ${validatedCode} applied`,
+      );
+    } catch (error) {
+      const detail = error?.response?.data?.detail;
+      toast.error(
+        typeof detail === "string" ? detail : "Unable to apply promo code",
+      );
+    }
+  };
+
+  const handleClearPromo = () => {
+    setPromoCodeInput("");
+    setAppliedPromoCode("");
   };
 
   const placeOrder = async () => {
@@ -111,7 +182,7 @@ const JukeboxCheckoutPage = () => {
       };
 
       const payload = {
-        merchant_id: merchantId,
+        merchant_id: merchantId || merchant?.id,
         customer: {
           name: customer.name,
           email: customer.email || "guest@rnoo.com",
@@ -149,6 +220,8 @@ const JukeboxCheckoutPage = () => {
           tip: effectiveTip,
           status: "pending",
         },
+        discount_option_id: selectedDiscountOption?.id || null,
+        discount_code: normalizeDiscountCode(appliedPromoCode) || null,
         order_timing: orderTiming === "asap" ? "ASAP" : "FUTURE",
         scheduled_date: orderTiming === "asap" ? null : scheduledDate,
         scheduled_time: orderTiming === "asap" ? null : scheduledTime,
@@ -157,6 +230,8 @@ const JukeboxCheckoutPage = () => {
 
       const res = await apiService.createOrder(payload);
       clearCart();
+      setPromoCodeInput("");
+      setAppliedPromoCode("");
       toast.success("Order placed");
       window.open(
         `/order-confirmation?orderId=${encodeURIComponent(res.data.id)}&merchantSlug=${encodeURIComponent(slug)}&paymentMethod=${encodeURIComponent(paymentMethod)}`,
@@ -458,6 +533,41 @@ const JukeboxCheckoutPage = () => {
                     )}
                   </div>
                 )}
+
+                <div className="mt-3">
+                  <p className="text-sm font-semibold mb-2">Promo Code</p>
+                  <div className="flex gap-2">
+                    <input
+                      className="juke-checkout-input h-11 px-3 w-full"
+                      placeholder="Enter promo code"
+                      value={promoCodeInput}
+                      onChange={(e) =>
+                        setPromoCodeInput(e.target.value.toUpperCase())
+                      }
+                    />
+                    <button
+                      type="button"
+                      onClick={handleApplyPromo}
+                      className="juke-checkout-btn h-11 px-4 text-xs"
+                    >
+                      Apply
+                    </button>
+                    {appliedPromoCode ? (
+                      <button
+                        type="button"
+                        onClick={handleClearPromo}
+                        className="juke-checkout-btn h-11 px-4 text-xs"
+                      >
+                        Clear
+                      </button>
+                    ) : null}
+                  </div>
+                  {appliedPromoCode ? (
+                    <p className="text-xs text-emerald-300 mt-1">
+                      Applied: {appliedPromoCode}
+                    </p>
+                  ) : null}
+                </div>
               </div>
 
               <textarea
@@ -482,6 +592,18 @@ const JukeboxCheckoutPage = () => {
                   <span>Tax</span>
                   <span>${tax.toFixed(2)}</span>
                 </div>
+                {deliveryFee > 0 && (
+                  <div className="flex justify-between">
+                    <span>Delivery Fee</span>
+                    <span>${deliveryFee.toFixed(2)}</span>
+                  </div>
+                )}
+                {discountAmount > 0 && (
+                  <div className="flex justify-between">
+                    <span>Discount ({selectedDiscountOption?.code})</span>
+                    <span>-${discountAmount.toFixed(2)}</span>
+                  </div>
+                )}
                 {effectiveTip > 0 && (
                   <div className="flex justify-between">
                     <span>Tip</span>

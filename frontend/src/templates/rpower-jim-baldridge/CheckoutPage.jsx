@@ -22,6 +22,12 @@ import {
   useRpowerJimBaldridgeTheme,
 } from "./Theme";
 import LegacyLockup from "./LegacyLockup";
+import {
+  calculateDiscountAmount,
+  findDiscountByCode,
+  normalizeDiscountCode,
+  toMoney,
+} from "../../lib/discounts";
 
 const RpowerJimBaldridgeCheckoutPage = () => {
   const { slug } = useParams();
@@ -51,12 +57,22 @@ const RpowerJimBaldridgeCheckoutPage = () => {
   const [customTipInput, setCustomTipInput] = useState("");
   const [notes, setNotes] = useState("");
   const [customer, setCustomer] = useState(initialCustomer);
+  const [promoCodeInput, setPromoCodeInput] = useState("");
+  const [appliedPromoCode, setAppliedPromoCode] = useState("");
 
   const subtotal = getSubtotal();
   const tax = getTax();
   const isCardPayment = paymentMethod === "demo_card";
   const effectiveTip = isCardPayment ? tip : 0;
-  const total = subtotal + tax + effectiveTip;
+  const selectedDiscountOption = findDiscountByCode(merchant, appliedPromoCode);
+  const deliveryFee =
+    orderType === "delivery" ? toMoney(merchant?.delivery_fee_amount || 0) : 0;
+  const discountBase = toMoney(subtotal + tax + deliveryFee);
+  const discountAmount = calculateDiscountAmount(
+    discountBase,
+    selectedDiscountOption,
+  );
+  const total = toMoney(discountBase - discountAmount + effectiveTip);
   const legacyMode = Boolean(merchant?.shepherd_config?.rjb_legacy_mode);
 
   useRpowerJimBaldridgeTheme(legacyMode);
@@ -117,9 +133,49 @@ const RpowerJimBaldridgeCheckoutPage = () => {
     }
     if (!paymentMethod) return "Please select a payment method";
     if (!items.length) return "Your cart is empty";
-    if (!merchantId)
+    if (!(merchantId || merchant?.id))
       return "Merchant context is missing. Please reopen the menu and try again.";
     return null;
+  };
+
+  const handleApplyPromo = async () => {
+    const normalizedCode = normalizeDiscountCode(promoCodeInput);
+    if (!normalizedCode) {
+      toast.error("Enter a promo code to apply");
+      return;
+    }
+    try {
+      const response = await apiService.validateDiscount({
+        merchant_id: merchantId || merchant?.id,
+        discount_code: normalizedCode,
+        subtotal,
+        tax,
+        delivery_type: orderType === "delivery" ? "DELIVERY" : "TAKEOUT",
+        customer_email: customer.email,
+        customer_phone: customer.phone,
+        existing_discount_option_id: selectedDiscountOption?.id,
+      });
+      const validatedCode =
+        normalizeDiscountCode(response?.data?.discount_code) || normalizedCode;
+      const validatedAmount = Number(response?.data?.discount_amount || 0);
+      setAppliedPromoCode(validatedCode);
+      setPromoCodeInput(validatedCode);
+      toast.success(
+        validatedAmount > 0
+          ? `Promo ${validatedCode} applied (-$${validatedAmount.toFixed(2)})`
+          : `Promo ${validatedCode} applied`,
+      );
+    } catch (error) {
+      const detail = error?.response?.data?.detail;
+      toast.error(
+        typeof detail === "string" ? detail : "Unable to apply promo code",
+      );
+    }
+  };
+
+  const handleClearPromo = () => {
+    setPromoCodeInput("");
+    setAppliedPromoCode("");
   };
 
   const handleSubmit = async () => {
@@ -138,7 +194,7 @@ const RpowerJimBaldridgeCheckoutPage = () => {
       };
 
       const orderData = {
-        merchant_id: merchantId,
+        merchant_id: merchantId || merchant?.id,
         customer: {
           name: customer.name,
           email: customer.email || "guest@rnoo.com",
@@ -176,6 +232,8 @@ const RpowerJimBaldridgeCheckoutPage = () => {
           tip: effectiveTip,
           status: "pending",
         },
+        discount_option_id: selectedDiscountOption?.id || null,
+        discount_code: normalizeDiscountCode(appliedPromoCode) || null,
         order_timing: orderTiming === "asap" ? "ASAP" : "FUTURE",
         scheduled_date: orderTiming === "asap" ? null : scheduledDate,
         scheduled_time: orderTiming === "asap" ? null : scheduledTime,
@@ -193,7 +251,10 @@ const RpowerJimBaldridgeCheckoutPage = () => {
       setTip(0);
       setTipSelection(null);
       setCustomTipInput("");
+      setPromoCodeInput("");
+      setAppliedPromoCode("");
       toast.success("Order placed!");
+
       window.open(
         `/order-confirmation?orderId=${encodeURIComponent(res.data.id)}&merchantSlug=${encodeURIComponent(slug)}&paymentMethod=${encodeURIComponent(paymentMethod)}`,
         "_blank",
@@ -502,6 +563,40 @@ const RpowerJimBaldridgeCheckoutPage = () => {
                   Demo mode only. No real card details are captured.
                 </p>
               )}
+              <div className="mt-3">
+                <Label>Promo Code</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={promoCodeInput}
+                    onChange={(e) =>
+                      setPromoCodeInput(e.target.value.toUpperCase())
+                    }
+                    placeholder="Enter promo code"
+                    className="bg-[#101620] border-[#e8ba5350] rounded-sm"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleApplyPromo}
+                  >
+                    Apply
+                  </Button>
+                  {appliedPromoCode ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={handleClearPromo}
+                    >
+                      Clear
+                    </Button>
+                  ) : null}
+                </div>
+                {appliedPromoCode ? (
+                  <p className="text-[11px] text-emerald-300 mt-2">
+                    Applied: {appliedPromoCode}
+                  </p>
+                ) : null}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -593,6 +688,18 @@ const RpowerJimBaldridgeCheckoutPage = () => {
                 <span>Tax</span>
                 <span>${tax.toFixed(2)}</span>
               </div>
+              {deliveryFee > 0 && (
+                <div className="flex justify-between text-white/70">
+                  <span>Delivery Fee</span>
+                  <span>${deliveryFee.toFixed(2)}</span>
+                </div>
+              )}
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-white/70">
+                  <span>Discount ({selectedDiscountOption?.code})</span>
+                  <span>-${discountAmount.toFixed(2)}</span>
+                </div>
+              )}
               {effectiveTip > 0 && (
                 <div className="flex justify-between text-white/70">
                   <span>Tip</span>

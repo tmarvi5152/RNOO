@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useCartStore } from "../../stores/cartStore";
@@ -6,6 +6,12 @@ import { apiService } from "../../context/AppContext";
 import { ArrowLeft, CreditCard, Loader2, Store } from "lucide-react";
 import { toast } from "sonner";
 import { useCraveTheme } from "./CraveTheme";
+import {
+  calculateDiscountAmount,
+  findDiscountByCode,
+  normalizeDiscountCode,
+  toMoney,
+} from "../../lib/discounts";
 
 const StepAccordion = ({ title, number, open, onToggle, children }) => (
   <div className="rounded-2xl lg:rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
@@ -52,12 +58,37 @@ const CraveCheckoutPage = () => {
   const [customTipInput, setCustomTipInput] = useState("");
   const [notes, setNotes] = useState("");
   const [customer, setCustomer] = useState(initialCustomer);
+  const [merchant, setMerchant] = useState(null);
+  const [promoCodeInput, setPromoCodeInput] = useState("");
+  const [appliedPromoCode, setAppliedPromoCode] = useState("");
 
   const subtotal = getSubtotal();
   const tax = getTax();
   const isCardPayment = paymentMethod === "demo_card";
   const effectiveTip = isCardPayment ? tip : 0;
-  const total = subtotal + tax + effectiveTip;
+
+  const loadMerchant = useCallback(async () => {
+    try {
+      const res = await apiService.getMerchantBySlug(slug);
+      setMerchant(res.data || null);
+    } catch {
+      setMerchant(null);
+    }
+  }, [slug]);
+
+  useEffect(() => {
+    loadMerchant();
+  }, [loadMerchant]);
+
+  const selectedDiscountOption = findDiscountByCode(merchant, appliedPromoCode);
+  const deliveryFee =
+    orderType === "delivery" ? toMoney(merchant?.delivery_fee_amount || 0) : 0;
+  const discountBase = toMoney(subtotal + tax + deliveryFee);
+  const discountAmount = calculateDiscountAmount(
+    discountBase,
+    selectedDiscountOption,
+  );
+  const total = toMoney(discountBase - discountAmount + effectiveTip);
 
   const dateOptions = useMemo(() => {
     return Array.from({ length: 7 }).map((_, idx) => {
@@ -96,7 +127,7 @@ const CraveCheckoutPage = () => {
     }
     if (!paymentMethod) return "Please select a payment method";
     if (!items.length) return "Your cart is empty";
-    if (!merchantId)
+    if (!(merchantId || merchant?.id))
       return "Merchant context is missing. Please reopen the menu and try again.";
     return null;
   };
@@ -117,6 +148,46 @@ const CraveCheckoutPage = () => {
     setTip(tipMap[type] || 0);
   };
 
+  const handleApplyPromo = async () => {
+    const normalizedCode = normalizeDiscountCode(promoCodeInput);
+    if (!normalizedCode) {
+      toast.error("Enter a promo code to apply");
+      return;
+    }
+    try {
+      const response = await apiService.validateDiscount({
+        merchant_id: merchantId || merchant?.id,
+        discount_code: normalizedCode,
+        subtotal,
+        tax,
+        delivery_type: orderType === "delivery" ? "DELIVERY" : "TAKEOUT",
+        customer_email: customer.email,
+        customer_phone: customer.phone,
+        existing_discount_option_id: selectedDiscountOption?.id,
+      });
+      const validatedCode =
+        normalizeDiscountCode(response?.data?.discount_code) || normalizedCode;
+      const validatedAmount = Number(response?.data?.discount_amount || 0);
+      setAppliedPromoCode(validatedCode);
+      setPromoCodeInput(validatedCode);
+      toast.success(
+        validatedAmount > 0
+          ? `Promo ${validatedCode} applied (-$${validatedAmount.toFixed(2)})`
+          : `Promo ${validatedCode} applied`,
+      );
+    } catch (error) {
+      const detail = error?.response?.data?.detail;
+      toast.error(
+        typeof detail === "string" ? detail : "Unable to apply promo code",
+      );
+    }
+  };
+
+  const handleClearPromo = () => {
+    setPromoCodeInput("");
+    setAppliedPromoCode("");
+  };
+
   const handleSubmit = async () => {
     const validationError = validate();
     if (validationError) {
@@ -133,7 +204,7 @@ const CraveCheckoutPage = () => {
       };
 
       const orderData = {
-        merchant_id: merchantId,
+        merchant_id: merchantId || merchant?.id,
         customer: {
           name: customer.name,
           email: customer.email || "guest@rnoo.com",
@@ -171,6 +242,8 @@ const CraveCheckoutPage = () => {
           tip: effectiveTip,
           status: "pending",
         },
+        discount_option_id: selectedDiscountOption?.id || null,
+        discount_code: normalizeDiscountCode(appliedPromoCode) || null,
         order_timing: orderTiming === "asap" ? "ASAP" : "FUTURE",
         scheduled_date: orderTiming === "asap" ? null : scheduledDate,
         scheduled_time: orderTiming === "asap" ? null : scheduledTime,
@@ -188,6 +261,8 @@ const CraveCheckoutPage = () => {
       setTip(0);
       setTipSelection(null);
       setCustomTipInput("");
+      setPromoCodeInput("");
+      setAppliedPromoCode("");
       toast.success("Order placed!");
       window.open(
         `/order-confirmation?orderId=${encodeURIComponent(res.data.id)}&merchantSlug=${encodeURIComponent(slug)}&paymentMethod=${encodeURIComponent(paymentMethod)}`,
@@ -482,6 +557,43 @@ const CraveCheckoutPage = () => {
                   </div>
                 </div>
               )}
+
+              <div>
+                <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">
+                  Promo Code
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    value={promoCodeInput}
+                    onChange={(e) =>
+                      setPromoCodeInput(e.target.value.toUpperCase())
+                    }
+                    placeholder="Enter promo code"
+                    className="w-full h-10 rounded-xl border border-slate-200 px-3 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyPromo}
+                    className="h-10 px-3 rounded-full text-xs font-semibold bg-slate-900 text-white"
+                  >
+                    Apply
+                  </button>
+                  {appliedPromoCode ? (
+                    <button
+                      type="button"
+                      onClick={handleClearPromo}
+                      className="h-10 px-3 rounded-full text-xs font-semibold bg-slate-100 text-slate-700"
+                    >
+                      Clear
+                    </button>
+                  ) : null}
+                </div>
+                {appliedPromoCode ? (
+                  <p className="text-xs text-emerald-700 mt-1">
+                    Applied: {appliedPromoCode}
+                  </p>
+                ) : null}
+              </div>
             </div>
           </StepAccordion>
 
@@ -517,6 +629,18 @@ const CraveCheckoutPage = () => {
                 <span>Tax</span>
                 <span>${tax.toFixed(2)}</span>
               </div>
+              {deliveryFee > 0 && (
+                <div className="flex justify-between text-slate-500">
+                  <span>Delivery Fee</span>
+                  <span>${deliveryFee.toFixed(2)}</span>
+                </div>
+              )}
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-slate-500">
+                  <span>Discount ({selectedDiscountOption?.code})</span>
+                  <span>-${discountAmount.toFixed(2)}</span>
+                </div>
+              )}
               {effectiveTip > 0 && (
                 <div className="flex justify-between text-slate-500">
                   <span>Tip</span>

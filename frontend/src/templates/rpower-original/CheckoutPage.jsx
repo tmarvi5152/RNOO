@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useCartStore } from "../../stores/cartStore";
@@ -7,6 +7,12 @@ import { ArrowLeft, Check, CreditCard, Loader2, Store } from "lucide-react";
 import { toast } from "sonner";
 import { useRpowerOriginalTheme } from "./RpowerOriginalTheme";
 import RpowerOriginalHeroBanner from "./HeroBanner";
+import {
+  calculateDiscountAmount,
+  findDiscountByCode,
+  normalizeDiscountCode,
+  toMoney,
+} from "../../lib/discounts";
 
 // ─── Field wrapper ────────────────────────────────────────────────────────────
 
@@ -70,12 +76,37 @@ const RpowerOriginalCheckoutPage = () => {
   const [customTipInput, setCustomTipInput] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [merchant, setMerchant] = useState(null);
+  const [promoCodeInput, setPromoCodeInput] = useState("");
+  const [appliedPromoCode, setAppliedPromoCode] = useState("");
 
   const subtotal = getSubtotal();
   const tax = getTax();
   const isCard = paymentMethod === "demo_card";
   const effectiveTip = isCard ? tip : 0;
-  const total = subtotal + tax + effectiveTip;
+
+  const loadMerchant = useCallback(async () => {
+    try {
+      const res = await apiService.getMerchantBySlug(slug);
+      setMerchant(res.data || null);
+    } catch {
+      setMerchant(null);
+    }
+  }, [slug]);
+
+  useEffect(() => {
+    loadMerchant();
+  }, [loadMerchant]);
+
+  const selectedDiscountOption = findDiscountByCode(merchant, appliedPromoCode);
+  const deliveryFee =
+    orderType === "delivery" ? toMoney(merchant?.delivery_fee_amount || 0) : 0;
+  const discountBase = toMoney(subtotal + tax + deliveryFee);
+  const discountAmount = calculateDiscountAmount(
+    discountBase,
+    selectedDiscountOption,
+  );
+  const total = toMoney(discountBase - discountAmount + effectiveTip);
 
   const dateOptions = useMemo(
     () =>
@@ -113,6 +144,46 @@ const RpowerOriginalCheckoutPage = () => {
     setTip(isNaN(n) || n < 0 ? 0 : Number(n.toFixed(2)));
   };
 
+  const handleApplyPromo = async () => {
+    const normalizedCode = normalizeDiscountCode(promoCodeInput);
+    if (!normalizedCode) {
+      toast.error("Enter a promo code to apply");
+      return;
+    }
+    try {
+      const response = await apiService.validateDiscount({
+        merchant_id: merchantId || merchant?.id,
+        discount_code: normalizedCode,
+        subtotal,
+        tax,
+        delivery_type: orderType === "delivery" ? "DELIVERY" : "TAKEOUT",
+        customer_email: customer.email,
+        customer_phone: customer.phone,
+        existing_discount_option_id: selectedDiscountOption?.id,
+      });
+      const validatedCode =
+        normalizeDiscountCode(response?.data?.discount_code) || normalizedCode;
+      const validatedAmount = Number(response?.data?.discount_amount || 0);
+      setAppliedPromoCode(validatedCode);
+      setPromoCodeInput(validatedCode);
+      toast.success(
+        validatedAmount > 0
+          ? `Promo ${validatedCode} applied (-$${validatedAmount.toFixed(2)})`
+          : `Promo ${validatedCode} applied`,
+      );
+    } catch (error) {
+      const detail = error?.response?.data?.detail;
+      toast.error(
+        typeof detail === "string" ? detail : "Unable to apply promo code",
+      );
+    }
+  };
+
+  const handleClearPromo = () => {
+    setPromoCodeInput("");
+    setAppliedPromoCode("");
+  };
+
   const setField = (key, value) => setCustomer((p) => ({ ...p, [key]: value }));
 
   const validate = () => {
@@ -129,7 +200,7 @@ const RpowerOriginalCheckoutPage = () => {
       return "Please select a date and time for your order";
     if (!paymentMethod) return "Please select a payment method";
     if (!items.length) return "Your cart is empty";
-    if (!merchantId)
+    if (!(merchantId || merchant?.id))
       return "Merchant context missing — please reopen the menu and try again";
     return null;
   };
@@ -148,7 +219,7 @@ const RpowerOriginalCheckoutPage = () => {
         pay_at_store: "pay_at_store",
       };
       const payload = {
-        merchant_id: merchantId,
+        merchant_id: merchantId || merchant?.id,
         customer: {
           name: customer.name,
           email: customer.email || "guest@rnoo.com",
@@ -186,6 +257,8 @@ const RpowerOriginalCheckoutPage = () => {
           tip: effectiveTip,
           status: "pending",
         },
+        discount_option_id: selectedDiscountOption?.id || null,
+        discount_code: normalizeDiscountCode(appliedPromoCode) || null,
         order_timing: orderTiming === "asap" ? "ASAP" : "FUTURE",
         scheduled_date: orderTiming === "asap" ? null : scheduledDate,
         scheduled_time: orderTiming === "asap" ? null : scheduledTime,
@@ -193,6 +266,8 @@ const RpowerOriginalCheckoutPage = () => {
       };
       const res = await apiService.createOrder(payload);
       clearCart();
+      setPromoCodeInput("");
+      setAppliedPromoCode("");
       toast.success("Order placed!");
       window.open(
         `/order-confirmation?orderId=${encodeURIComponent(res.data.id)}&merchantSlug=${encodeURIComponent(slug)}&paymentMethod=${encodeURIComponent(paymentMethod)}`,
@@ -239,6 +314,18 @@ const RpowerOriginalCheckoutPage = () => {
           <span>Tax</span>
           <span>${tax.toFixed(2)}</span>
         </div>
+        {deliveryFee > 0 && (
+          <div className="flex justify-between" style={{ color: "#cbd5e1" }}>
+            <span>Delivery Fee</span>
+            <span>${deliveryFee.toFixed(2)}</span>
+          </div>
+        )}
+        {discountAmount > 0 && (
+          <div className="flex justify-between" style={{ color: "#cbd5e1" }}>
+            <span>Discount ({selectedDiscountOption?.code})</span>
+            <span>-${discountAmount.toFixed(2)}</span>
+          </div>
+        )}
         {effectiveTip > 0 && (
           <div className="flex justify-between" style={{ color: "#cbd5e1" }}>
             <span>Tip</span>
@@ -547,6 +634,43 @@ const RpowerOriginalCheckoutPage = () => {
                     )}
                   </button>
                 ))}
+              </div>
+
+              <div className="mt-4">
+                <Field label="Promo Code">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={promoCodeInput}
+                      onChange={(e) =>
+                        setPromoCodeInput(e.target.value.toUpperCase())
+                      }
+                      placeholder="Enter promo code"
+                      className="ro-input"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleApplyPromo}
+                      className="ro-btn-ghost px-3"
+                    >
+                      Apply
+                    </button>
+                    {appliedPromoCode ? (
+                      <button
+                        type="button"
+                        onClick={handleClearPromo}
+                        className="ro-btn-ghost px-3"
+                      >
+                        Clear
+                      </button>
+                    ) : null}
+                  </div>
+                  {appliedPromoCode ? (
+                    <p className="text-xs mt-2" style={{ color: "#22c55e" }}>
+                      Applied: {appliedPromoCode}
+                    </p>
+                  ) : null}
+                </Field>
               </div>
 
               {/* Tip */}

@@ -247,6 +247,7 @@ export const apiService = {
 
   // Orders
   createOrder: (data) => api.post("/orders", data),
+  validateDiscount: (data) => api.post("/discounts/validate", data),
   getOrders: (params) => api.get("/orders", { params }),
   getOrder: (id) => api.get(`/orders/${id}`),
   getOrderPublic: (id, params = {}) =>

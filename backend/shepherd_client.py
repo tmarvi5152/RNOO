@@ -19,7 +19,7 @@ _shepherd_http_history: contextvars.ContextVar[Optional[List[dict]]] = contextva
     default=None,
 )
 
-SHEPHERD_BASE_URL = "https://staging.securerpower.com/posapi"
+SHEPHERD_BASE_URL = "https://remote.securerpower.com/posapi"
 SHEPHERD_MEDIA_URL = "https://remote.securerpower.com/shepherd/media"
 RPOWER_CORE_API_URL = "https://rpowerpos.com/api/v1/coreapi"
 
@@ -709,7 +709,7 @@ def build_shepherd_order(order: dict, merchant_shepherd_config: dict) -> dict:
     - customer.n: Required customer name (lastName, firstName format)
     - customer.ctct.ph: Required phone number
     - tickets[].items[].p: Price format "$US10.50"
-    - Special items: COMMENT, TAX, TIP with specific format
+    - Special items: COMMENT, TAX, TIP, DFEE with specific format
     """
     customer = order.get("customer", {})
     
@@ -794,7 +794,7 @@ def build_shepherd_order(order: dict, merchant_shepherd_config: dict) -> dict:
         items.append(order_item)
     
     # Add TAX item
-    tax_amount = order.get("tax", 0)
+    tax_amount = float(order.get("tax") or 0)
     if tax_amount > 0:
         items.append({
             "pn": "TAX",
@@ -804,9 +804,26 @@ def build_shepherd_order(order: dict, merchant_shepherd_config: dict) -> dict:
             "p": format_price(tax_amount),
             "mods": []
         })
+
+    # Add Delivery Fee item when present.
+    # Some order records may carry delivery_type as enum-like strings
+    # (e.g., "DeliveryType.DELIVERY"), so normalize defensively.
+    delivery_fee_amount = float(order.get("delivery_fee") or 0)
+    raw_delivery_type = str(order.get("delivery_type", "")).strip().upper()
+    normalized_delivery_type = raw_delivery_type.split(".")[-1] if raw_delivery_type else ""
+    is_delivery_order = normalized_delivery_type == "DELIVERY"
+    if delivery_fee_amount > 0 and (is_delivery_order or not normalized_delivery_type):
+        items.append({
+            "pn": "DFEE",
+            "n": "Delivery Charges",
+            "plu": "DFEE",
+            "qty": 1,
+            "p": format_price(delivery_fee_amount),
+            "mods": []
+        })
     
     # Add TIP item if present
-    tip_amount = order.get("tip", 0)
+    tip_amount = float(order.get("tip") or 0)
     if tip_amount > 0:
         items.append({
             "pn": "TIP",
@@ -825,12 +842,24 @@ def build_shepherd_order(order: dict, merchant_shepherd_config: dict) -> dict:
         "payinstore",
     }
 
-    # Build payment info only for non pay-at-store orders
-    payments = [{
-        "pmid": "ONLINE",
-        "pm": "Online Payment",
-        "amt": format_price(order.get("total", 0))
-    }] if include_payments else []
+    discount_amount = float(order.get("discount_amount") or 0)
+
+    payments = []
+    if include_payments:
+        payments.append({
+            "pmid": "ONLINE",
+            "pm": "Online Payment",
+            "amt": format_price(order.get("total", 0))
+        })
+
+    # Discount is represented as an additional payment line.
+    if discount_amount > 0:
+        discount_label = str(order.get("discount_label") or "Order Discount").strip() or "Order Discount"
+        payments.append({
+            "pmid": "RODISC",
+            "pm": discount_label,
+            "amt": format_price(discount_amount),
+        })
     
     # Map delivery type (RNOO uses DELIVERY, TAKEOUT, DINEIN)
     delivery_type = order.get("delivery_type", "TAKEOUT")
@@ -843,7 +872,7 @@ def build_shepherd_order(order: dict, merchant_shepherd_config: dict) -> dict:
         "items": items,
     }
 
-    if include_payments:
+    if payments:
         ticket["payments"] = payments
     
     # Add need_dt (scheduled time) if not ASAP order

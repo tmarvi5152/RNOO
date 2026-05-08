@@ -525,6 +525,41 @@ def resolve_default_tax_rate(normalized_tax_rates: List[dict]) -> Tuple[Optional
     return first.get("tax_rate_id"), float(first.get("rate") or 0.0)
 
 
+def parse_discount_datetime(raw_value: Any) -> Optional[datetime]:
+    if raw_value is None:
+        return None
+    text = str(raw_value).strip()
+    if not text:
+        return None
+    try:
+        normalized = text.replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(normalized)
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    except ValueError:
+        return None
+
+
+def build_discount_customer_query(email: Optional[str], phone: Optional[str]) -> Optional[dict]:
+    email_key = str(email or "").strip().lower()
+    phone_key = re.sub(r"\D", "", str(phone or ""))
+
+    or_filters = []
+    if email_key:
+        or_filters.append({"customer.email": email_key})
+        or_filters.append({"discount_customer_email_key": email_key})
+    if phone_key:
+        or_filters.append({"customer.phone": phone_key})
+        or_filters.append({"discount_customer_phone_key": phone_key})
+
+    if not or_filters:
+        return None
+    if len(or_filters) == 1:
+        return or_filters[0]
+    return {"$or": or_filters}
+
+
 @app.middleware("http")
 async def capture_provider_webhook_payloads(request: Request, call_next):
     if not is_provider_webhook_path(request.url.path):
@@ -672,6 +707,11 @@ class DeliveryType(str, Enum):
     TAKEOUT = "TAKEOUT"
     DINEIN = "DINEIN"
 
+
+class DiscountType(str, Enum):
+    AMOUNT = "amount"
+    PERCENT = "percent"
+
 class OrderTimingType(str, Enum):
     ASAP = "ASAP"                    # Immediate order
     ADVANCE = "ADVANCE"              # Same day, different time
@@ -778,6 +818,23 @@ class LicenseInfo(BaseModel):
     contact_email: Optional[str] = None
     logo_url: Optional[str] = None
 
+
+class MerchantDiscountOption(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    code: str
+    name: str
+    discount_type: DiscountType
+    value: float
+    is_active: bool = True
+    valid_from: Optional[str] = None
+    valid_until: Optional[str] = None
+    min_order_amount: float = 0.0
+    max_uses_total: Optional[int] = None
+    max_uses_per_customer: Optional[int] = None
+    one_time_per_customer: bool = False
+    stackable: bool = False
+    max_discount_amount: Optional[float] = None
+
 class MerchantBase(BaseModel):
     model_config = ConfigDict(extra="ignore")
     name: str
@@ -793,6 +850,8 @@ class MerchantBase(BaseModel):
     price_bump_percentage: float = 0.0
     price_bump_fixed: float = 0.0
     frontend_template: str = "classic"
+    delivery_fee_amount: float = 0.0
+    discount_options: List[MerchantDiscountOption] = []
 
 class MerchantCreate(MerchantBase):
     reseller_id: str
@@ -955,7 +1014,21 @@ class OrderCreate(BaseModel):
     order_timing: OrderTimingType = OrderTimingType.ASAP
     scheduled_date: Optional[str] = None  # ISO date string (YYYY-MM-DD)
     scheduled_time: Optional[str] = None  # Time string (HH:MM)
+    discount_option_id: Optional[str] = None
+    discount_code: Optional[str] = None
     notes: Optional[str] = None
+
+
+class DiscountValidationRequest(BaseModel):
+    merchant_id: str
+    discount_option_id: Optional[str] = None
+    discount_code: Optional[str] = None
+    subtotal: float = 0.0
+    tax: float = 0.0
+    delivery_type: DeliveryType = DeliveryType.TAKEOUT
+    customer_email: Optional[str] = None
+    customer_phone: Optional[str] = None
+    existing_discount_option_id: Optional[str] = None
 
 class Order(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -967,6 +1040,13 @@ class Order(BaseModel):
     items: List[CartItem]
     subtotal: float
     tax: float
+    delivery_fee: float = 0.0
+    discount_amount: float = 0.0
+    discount_option_id: Optional[str] = None
+    discount_code: Optional[str] = None
+    discount_label: Optional[str] = None
+    discount_type: Optional[DiscountType] = None
+    discount_value: Optional[float] = None
     tip: float = 0.0
     total: float
     payment: PaymentInfo
@@ -1652,7 +1732,6 @@ async def migrate_user_required_fields(
         user_id = user.get("id")
         if not user_id:
             continue
-
         updates = {}
 
         existing_first_name = str(user.get("first_name") or "").strip()
@@ -1664,7 +1743,6 @@ async def migrate_user_required_fields(
                 updates["first_name"] = fallback_first
                 existing_first_name = fallback_first
             if not existing_last_name and fallback_last:
-                updates["last_name"] = fallback_last
                 existing_last_name = fallback_last
 
         full_name = build_full_name(existing_first_name, existing_last_name)
@@ -1728,7 +1806,6 @@ async def delete_user(
     user = await db.users.find_one({"id": user_id}, {"_id": 0})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
     await db.users.delete_one({"id": user_id})
     
     # Log user deletion
@@ -2532,14 +2609,28 @@ async def submit_order_to_shepherd_async(order_id: str, order_dict: dict, mercha
             if tickets and isinstance(tickets[0], dict):
                 ticket_items = tickets[0].get("items") or []
 
-        tax_tip_items = []
+        special_items = []
         for ticket_item in ticket_items:
             if not isinstance(ticket_item, dict):
                 continue
             pn_value = str(ticket_item.get("pn") or "").strip().upper()
             n_value = str(ticket_item.get("n") or "").strip().upper()
-            if pn_value in {"TAX", "TIP"} or n_value in {"TAX", "TIP"}:
-                tax_tip_items.append(ticket_item)
+            if pn_value in {"TAX", "TIP", "DFEE"} or n_value in {"TAX", "TIP", "DELIVERY CHARGES"}:
+                special_items.append(ticket_item)
+
+        payment_lines = []
+        if isinstance(shepherd_order, dict):
+            tickets = shepherd_order.get("tickets") or []
+            if tickets and isinstance(tickets[0], dict):
+                payment_lines = tickets[0].get("payments") or []
+
+        discount_payment_lines = []
+        for payment_line in payment_lines:
+            if not isinstance(payment_line, dict):
+                continue
+            pmid_value = str(payment_line.get("pmid") or "").strip().upper()
+            if pmid_value == "RODISC":
+                discount_payment_lines.append(payment_line)
 
         await log_audit(
             action="order_shepherd_tax_tip_payload",
@@ -2552,9 +2643,12 @@ async def submit_order_to_shepherd_async(order_id: str, order_dict: dict, mercha
                 "shepherd_order_ref": order_ref,
                 "subtotal": order_dict.get("subtotal"),
                 "tax": order_dict.get("tax"),
+                "delivery_fee": order_dict.get("delivery_fee"),
+                "discount_amount": order_dict.get("discount_amount"),
                 "tip": order_dict.get("tip"),
                 "total": order_dict.get("total"),
-                "tax_tip_items": tax_tip_items,
+                "special_items": special_items,
+                "discount_payment_lines": discount_payment_lines,
             },
             status_code=200,
         )
@@ -2679,6 +2773,106 @@ async def create_order(data: OrderCreate, background_tasks: BackgroundTasks):
     if merchant_default_tax_rate is None:
         merchant_default_tax_rate = 0.0
 
+    # Merchant-level fees and discount configuration
+    merchant_delivery_fee = Decimal(
+        str(max(0.0, float(merchant.get("delivery_fee_amount") or 0.0)))
+    ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    configured_discounts = [
+        row
+        for row in (merchant.get("discount_options") or [])
+        if isinstance(row, dict)
+    ]
+
+    requested_discount_option_id = str(data.discount_option_id or "").strip()
+    requested_discount_code = str(data.discount_code or "").strip().upper()
+
+    selected_discount = None
+    discount_customer_email = str(data.customer.email or "").strip().lower()
+    discount_customer_phone = re.sub(r"\D", "", str(data.customer.phone or ""))
+    if requested_discount_option_id or requested_discount_code:
+        for option in configured_discounts:
+            if not bool(option.get("is_active", True)):
+                continue
+            option_id = str(option.get("id") or "").strip()
+            option_code = str(option.get("code") or "").strip().upper()
+
+            matches_id = requested_discount_option_id and option_id == requested_discount_option_id
+            matches_code = requested_discount_code and option_code == requested_discount_code
+            if matches_id or matches_code:
+                selected_discount = option
+                break
+
+        if selected_discount is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid or inactive discount option selected",
+            )
+
+        # Rule checks that do not depend on cart totals.
+        now_utc = datetime.now(timezone.utc)
+        valid_from = parse_discount_datetime(selected_discount.get("valid_from"))
+        valid_until = parse_discount_datetime(selected_discount.get("valid_until"))
+
+        if valid_from and now_utc < valid_from:
+            raise HTTPException(status_code=400, detail="Discount is not active yet")
+        if valid_until and now_utc > valid_until:
+            raise HTTPException(status_code=400, detail="Discount has expired")
+
+        selected_discount_id = str(selected_discount.get("id") or "").strip()
+        if selected_discount_id:
+            max_uses_total = selected_discount.get("max_uses_total")
+            if max_uses_total is not None:
+                try:
+                    max_uses_total = int(max_uses_total)
+                except (TypeError, ValueError):
+                    max_uses_total = None
+            if max_uses_total is not None and max_uses_total <= 0:
+                max_uses_total = None
+            if max_uses_total is not None:
+                current_total_uses = await db.orders.count_documents(
+                    {
+                        "merchant_id": data.merchant_id,
+                        "discount_option_id": selected_discount_id,
+                        "discount_amount": {"$gt": 0},
+                    }
+                )
+                if current_total_uses >= max_uses_total:
+                    raise HTTPException(status_code=400, detail="Discount usage limit reached")
+
+            per_customer_limit = selected_discount.get("max_uses_per_customer")
+            if bool(selected_discount.get("one_time_per_customer", False)):
+                per_customer_limit = 1
+
+            if per_customer_limit is not None:
+                try:
+                    per_customer_limit = int(per_customer_limit)
+                except (TypeError, ValueError):
+                    per_customer_limit = None
+
+            if per_customer_limit is not None and per_customer_limit <= 0:
+                per_customer_limit = None
+
+            if per_customer_limit is not None:
+                customer_filter = build_discount_customer_query(
+                    discount_customer_email,
+                    discount_customer_phone,
+                )
+                if customer_filter is not None:
+                    current_customer_uses = await db.orders.count_documents(
+                        {
+                            "merchant_id": data.merchant_id,
+                            "discount_option_id": selected_discount_id,
+                            "discount_amount": {"$gt": 0},
+                            "$and": [customer_filter],
+                        }
+                    )
+                    if current_customer_uses >= per_customer_limit:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="Discount usage limit reached for this customer",
+                        )
+
     # Enrich cart payload from synced menu data so pn/plu can be sent to Shepherd
     menu_item_ids = list({item.menu_item_id for item in data.items if item.menu_item_id})
     menu_items_lookup = {}
@@ -2773,8 +2967,61 @@ async def create_order(data: OrderCreate, background_tasks: BackgroundTasks):
 
     subtotal_dec = money(float(subtotal_dec))
     tax_dec = money(float(tax_dec))
+    delivery_fee_dec = merchant_delivery_fee if data.delivery_type == DeliveryType.DELIVERY else Decimal("0.00")
+
+    discount_dec = Decimal("0.00")
+    discount_type = None
+    discount_value = None
+    discount_code = None
+    discount_label = None
+    discount_option_id = None
+
+    discount_base_dec = subtotal_dec + tax_dec + delivery_fee_dec
+    if selected_discount:
+        min_order_amount_dec = Decimal(
+            str(max(0.0, float(selected_discount.get("min_order_amount") or 0.0)))
+        ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        if discount_base_dec < min_order_amount_dec:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Order must be at least ${min_order_amount_dec:.2f} to use this discount",
+            )
+
+        discount_type_raw = str(selected_discount.get("discount_type") or "").strip().lower()
+        option_value_dec = Decimal(str(max(0.0, float(selected_discount.get("value") or 0.0))))
+
+        if discount_type_raw == DiscountType.PERCENT.value:
+            discount_dec = (discount_base_dec * option_value_dec / Decimal("100")).quantize(
+                Decimal("0.01"),
+                rounding=ROUND_HALF_UP,
+            )
+            discount_type = DiscountType.PERCENT
+        else:
+            discount_dec = option_value_dec.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            discount_type = DiscountType.AMOUNT
+
+        if discount_dec > discount_base_dec:
+            discount_dec = discount_base_dec
+
+        max_discount_amount = selected_discount.get("max_discount_amount")
+        if max_discount_amount is not None:
+            try:
+                max_discount_dec = Decimal(str(max(0.0, float(max_discount_amount))))
+                if max_discount_dec > Decimal("0.00") and discount_dec > max_discount_dec:
+                    discount_dec = max_discount_dec.quantize(
+                        Decimal("0.01"),
+                        rounding=ROUND_HALF_UP,
+                    )
+            except (TypeError, ValueError):
+                pass
+
+        discount_value = float(option_value_dec)
+        discount_code = str(selected_discount.get("code") or "").strip() or None
+        discount_label = str(selected_discount.get("name") or "").strip() or None
+        discount_option_id = str(selected_discount.get("id") or "").strip() or None
+
     tip_dec = money(data.payment.tip)
-    total_dec = subtotal_dec + tax_dec + tip_dec
+    total_dec = discount_base_dec - discount_dec + tip_dec
     
     order_number = await get_next_order_number(data.merchant_id)
     
@@ -2801,6 +3048,13 @@ async def create_order(data: OrderCreate, background_tasks: BackgroundTasks):
         items=data.items,
         subtotal=float(subtotal_dec),
         tax=float(tax_dec),
+        delivery_fee=float(delivery_fee_dec),
+        discount_amount=float(discount_dec),
+        discount_option_id=discount_option_id,
+        discount_code=discount_code,
+        discount_label=discount_label,
+        discount_type=discount_type,
+        discount_value=discount_value,
         tip=float(tip_dec),
         total=float(total_dec),
         payment=data.payment,
@@ -2821,6 +3075,10 @@ async def create_order(data: OrderCreate, background_tasks: BackgroundTasks):
     
     doc = order.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
+    if discount_customer_email:
+        doc["discount_customer_email_key"] = discount_customer_email
+    if discount_customer_phone:
+        doc["discount_customer_phone_key"] = discount_customer_phone
     
     # Add Shepherd tracking fields
     doc["shepherd_submitted"] = False
@@ -2842,6 +3100,10 @@ async def create_order(data: OrderCreate, background_tasks: BackgroundTasks):
             "order_id": order.id,
             "subtotal": order.subtotal,
             "tax": order.tax,
+            "delivery_fee": order.delivery_fee,
+            "discount_amount": order.discount_amount,
+            "discount_option_id": order.discount_option_id,
+            "discount_code": order.discount_code,
             "tip": order.tip,
             "total": order.total,
             "merchant_default_tax_rate_percent": merchant_default_tax_rate,
@@ -2860,6 +3122,197 @@ async def create_order(data: OrderCreate, background_tasks: BackgroundTasks):
         logger.info(f"Order {order.id}: Queued for Shepherd submission")
     
     return order
+
+
+@api_router.post("/discounts/validate")
+async def validate_discount(data: DiscountValidationRequest):
+    requested_merchant_id = str(data.merchant_id or "").strip()
+    merchant_id_candidates: List[Any] = [requested_merchant_id]
+    if requested_merchant_id.isdigit():
+        merchant_id_candidates.append(int(requested_merchant_id))
+
+    merchant = await db.merchants.find_one(
+        {
+            "$or": [
+                {"id": {"$in": merchant_id_candidates}},
+                {"shepherd_config.merchant_id": {"$in": merchant_id_candidates}},
+            ]
+        },
+        {"_id": 0},
+    )
+    if not merchant:
+        raise HTTPException(status_code=404, detail="Merchant not found")
+
+    normalized_merchant_id = str(merchant.get("id") or requested_merchant_id).strip()
+    order_merchant_id_candidates: List[Any] = [normalized_merchant_id]
+    if normalized_merchant_id.isdigit():
+        order_merchant_id_candidates.append(int(normalized_merchant_id))
+
+    configured_discounts = [
+        row
+        for row in (merchant.get("discount_options") or [])
+        if isinstance(row, dict)
+    ]
+
+    requested_discount_option_id = str(data.discount_option_id or "").strip()
+    requested_discount_code = str(data.discount_code or "").strip().upper()
+
+    if not requested_discount_option_id and not requested_discount_code:
+        raise HTTPException(status_code=400, detail="Promo code is required")
+
+    selected_discount = None
+    for option in configured_discounts:
+        if not bool(option.get("is_active", True)):
+            continue
+        option_id = str(option.get("id") or "").strip()
+        option_code = str(option.get("code") or "").strip().upper()
+
+        matches_id = requested_discount_option_id and option_id == requested_discount_option_id
+        matches_code = requested_discount_code and option_code == requested_discount_code
+        if matches_id or matches_code:
+            selected_discount = option
+            break
+
+    if selected_discount is None:
+        raise HTTPException(status_code=400, detail="Invalid or inactive promo code")
+
+    selected_discount_id = str(selected_discount.get("id") or "").strip()
+    if not bool(selected_discount.get("stackable", False)):
+        existing_discount_id = str(data.existing_discount_option_id or "").strip()
+        if existing_discount_id and existing_discount_id != selected_discount_id:
+            raise HTTPException(
+                status_code=400,
+                detail="This promo cannot be stacked with another discount",
+            )
+
+    now_utc = datetime.now(timezone.utc)
+    valid_from = parse_discount_datetime(selected_discount.get("valid_from"))
+    valid_until = parse_discount_datetime(selected_discount.get("valid_until"))
+
+    if valid_from and now_utc < valid_from:
+        raise HTTPException(status_code=400, detail="Promo is not active yet")
+    if valid_until and now_utc > valid_until:
+        raise HTTPException(status_code=400, detail="Promo has expired")
+
+    max_uses_total = selected_discount.get("max_uses_total")
+    if max_uses_total is not None:
+        try:
+            max_uses_total = int(max_uses_total)
+        except (TypeError, ValueError):
+            max_uses_total = None
+
+    if max_uses_total is not None and max_uses_total <= 0:
+        max_uses_total = None
+
+    if max_uses_total is not None and selected_discount_id:
+        current_total_uses = await db.orders.count_documents(
+            {
+                "merchant_id": {"$in": order_merchant_id_candidates},
+                "discount_option_id": selected_discount_id,
+                "discount_amount": {"$gt": 0},
+            }
+        )
+        if current_total_uses >= max_uses_total:
+            raise HTTPException(status_code=400, detail="Promo usage limit reached")
+
+    discount_customer_email = str(data.customer_email or "").strip().lower()
+    discount_customer_phone = re.sub(r"\D", "", str(data.customer_phone or ""))
+
+    per_customer_limit = selected_discount.get("max_uses_per_customer")
+    if bool(selected_discount.get("one_time_per_customer", False)):
+        per_customer_limit = 1
+
+    if per_customer_limit is not None:
+        try:
+            per_customer_limit = int(per_customer_limit)
+        except (TypeError, ValueError):
+            per_customer_limit = None
+
+    if per_customer_limit is not None and per_customer_limit <= 0:
+        per_customer_limit = None
+
+    if per_customer_limit is not None and selected_discount_id:
+        customer_filter = build_discount_customer_query(
+            discount_customer_email,
+            discount_customer_phone,
+        )
+        if customer_filter is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Enter phone or email before applying this promo",
+            )
+
+        current_customer_uses = await db.orders.count_documents(
+            {
+                "merchant_id": {"$in": order_merchant_id_candidates},
+                "discount_option_id": selected_discount_id,
+                "discount_amount": {"$gt": 0},
+                "$and": [customer_filter],
+            }
+        )
+        if current_customer_uses >= per_customer_limit:
+            raise HTTPException(
+                status_code=400,
+                detail="Promo usage limit reached for this customer",
+            )
+
+    def money(value: float) -> Decimal:
+        return Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    subtotal_dec = money(max(0.0, float(data.subtotal or 0.0)))
+    tax_dec = money(max(0.0, float(data.tax or 0.0)))
+    merchant_delivery_fee = money(max(0.0, float(merchant.get("delivery_fee_amount") or 0.0)))
+    delivery_fee_dec = merchant_delivery_fee if data.delivery_type == DeliveryType.DELIVERY else Decimal("0.00")
+
+    discount_base_dec = subtotal_dec + tax_dec + delivery_fee_dec
+    min_order_amount_dec = Decimal(
+        str(max(0.0, float(selected_discount.get("min_order_amount") or 0.0)))
+    ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    if discount_base_dec < min_order_amount_dec:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Order must be at least ${min_order_amount_dec:.2f} to use this promo",
+        )
+
+    discount_type_raw = str(selected_discount.get("discount_type") or "").strip().lower()
+    option_value_dec = Decimal(str(max(0.0, float(selected_discount.get("value") or 0.0))))
+
+    if discount_type_raw == DiscountType.PERCENT.value:
+        discount_dec = (discount_base_dec * option_value_dec / Decimal("100")).quantize(
+            Decimal("0.01"),
+            rounding=ROUND_HALF_UP,
+        )
+    else:
+        discount_dec = option_value_dec.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    if discount_dec > discount_base_dec:
+        discount_dec = discount_base_dec
+
+    max_discount_amount = selected_discount.get("max_discount_amount")
+    if max_discount_amount is not None:
+        try:
+            max_discount_dec = Decimal(str(max(0.0, float(max_discount_amount))))
+            if max_discount_dec > Decimal("0.00") and discount_dec > max_discount_dec:
+                discount_dec = max_discount_dec.quantize(
+                    Decimal("0.01"),
+                    rounding=ROUND_HALF_UP,
+                )
+        except (TypeError, ValueError):
+            pass
+
+    total_after_discount_dec = discount_base_dec - discount_dec
+
+    return {
+        "valid": True,
+        "discount_option_id": selected_discount_id or None,
+        "discount_code": str(selected_discount.get("code") or "").strip().upper() or None,
+        "discount_label": str(selected_discount.get("name") or "").strip() or None,
+        "discount_type": discount_type_raw or None,
+        "discount_value": float(option_value_dec),
+        "discount_base": float(discount_base_dec),
+        "discount_amount": float(discount_dec),
+        "total_after_discount": float(total_after_discount_dec),
+    }
 
 @api_router.get("/orders")
 async def list_orders(
@@ -3286,65 +3739,64 @@ async def get_merchant_shepherd_details(
         
         if rpower_cg:
             core_client = get_rpower_core_client()
-            if core_client and core_client.token:
-                logger.info(f"Fetching RPOWER Core API store info using GetStoreByCg for CG={rpower_cg}")
-                store_info = await core_client.get_store_by_cg(rpower_cg)
-                if store_info and "error" not in store_info:
-                    result["shepherd_data"]["rpower_store_info"] = store_info
-                    # Extract useful address/store info if available
-                    # GetStoreByCg returns a list of stores
-                    stores = store_info if isinstance(store_info, list) else store_info.get("stores", [])
-                    if stores and len(stores) > 0:
-                        # Use first store or try to match by serial number / site_code
-                        matched_store = None
-                        
-                        for store in stores:
-                            store_site_code = str(store.get("site_code") or "")
-                            if shepherd_merchant_id and store_site_code == shepherd_merchant_id:
-                                matched_store = store
-                                break
-                        
-                        # Fall back to first store if no match
-                        if not matched_store:
-                            matched_store = stores[0]
-                        
-                        if matched_store:
-                            if "site_summary" not in result:
-                                result["site_summary"] = {}
-                            
-                            # Extract address from guest_checks array (primary address source)
-                            guest_checks = matched_store.get("guest_checks", [])
-                            if guest_checks and len(guest_checks) > 0:
-                                gc = guest_checks[0]
-                                result["site_summary"]["store_address"] = {
-                                    "line1": gc.get("address") or gc.get("Address"),
-                                    "line2": gc.get("address2") or gc.get("Address2"),
-                                    "city": gc.get("city") or gc.get("City"),
-                                    "state": gc.get("state") or gc.get("State"),
-                                    "zip": gc.get("zip") or gc.get("Zip"),
-                                    "phone": gc.get("phone") or gc.get("Phone"),
-                                    "url": gc.get("url") or gc.get("Url")
-                                }
-                            
-                            # Store name/phone from Core API
-                            store_name = matched_store.get("name") or matched_store.get("Name")
-                            store_tag = matched_store.get("tag_name")
-                            store_id = matched_store.get("store_id")
-                            if store_name:
-                                result["site_summary"]["rpower_name"] = store_name
-                            if store_tag:
-                                result["site_summary"]["rpower_tag"] = store_tag
-                            if store_id:
-                                result["site_summary"]["rpower_store_id"] = store_id
-                            
-                            # Additional useful fields
-                            result["site_summary"]["rpower_serial"] = matched_store.get("serial_number")
-                            result["site_summary"]["rpower_site_code"] = matched_store.get("site_code")
-                            result["site_summary"]["rpower_timezone"] = matched_store.get("timezone")
-                            result["site_summary"]["rpower_open_days"] = matched_store.get("open_days")
-                            result["site_summary"]["rpower_version"] = matched_store.get("version")
-                            result["site_summary"]["rpower_stores_count"] = len(stores)
-                            result["site_summary"]["rpower_last_update"] = matched_store.get("lup_dttm")
+            logger.info(f"Fetching RPOWER Core API store info using GetStoreByCg for CG={rpower_cg}")
+            store_info = await core_client.get_store_by_cg(rpower_cg)
+            if store_info and "error" not in store_info:
+                result["shepherd_data"]["rpower_store_info"] = store_info
+                # Extract useful address/store info if available
+                # GetStoreByCg returns a list of stores
+                stores = store_info if isinstance(store_info, list) else store_info.get("stores", [])
+                if stores and len(stores) > 0:
+                    # Use first store or try to match by serial number / site_code
+                    matched_store = None
+
+                    for store in stores:
+                        store_site_code = str(store.get("site_code") or "")
+                        if shepherd_merchant_id and store_site_code == shepherd_merchant_id:
+                            matched_store = store
+                            break
+
+                    # Fall back to first store if no match
+                    if not matched_store:
+                        matched_store = stores[0]
+
+                    if matched_store:
+                        if "site_summary" not in result:
+                            result["site_summary"] = {}
+
+                        # Extract address from guest_checks array (primary address source)
+                        guest_checks = matched_store.get("guest_checks", [])
+                        if guest_checks and len(guest_checks) > 0:
+                            gc = guest_checks[0]
+                            result["site_summary"]["store_address"] = {
+                                "line1": gc.get("address") or gc.get("Address"),
+                                "line2": gc.get("address2") or gc.get("Address2"),
+                                "city": gc.get("city") or gc.get("City"),
+                                "state": gc.get("state") or gc.get("State"),
+                                "zip": gc.get("zip") or gc.get("Zip"),
+                                "phone": gc.get("phone") or gc.get("Phone"),
+                                "url": gc.get("url") or gc.get("Url")
+                            }
+
+                        # Store name/phone from Core API
+                        store_name = matched_store.get("name") or matched_store.get("Name")
+                        store_tag = matched_store.get("tag_name")
+                        store_id = matched_store.get("store_id")
+                        if store_name:
+                            result["site_summary"]["rpower_name"] = store_name
+                        if store_tag:
+                            result["site_summary"]["rpower_tag"] = store_tag
+                        if store_id:
+                            result["site_summary"]["rpower_store_id"] = store_id
+
+                        # Additional useful fields
+                        result["site_summary"]["rpower_serial"] = matched_store.get("serial_number")
+                        result["site_summary"]["rpower_site_code"] = matched_store.get("site_code")
+                        result["site_summary"]["rpower_timezone"] = matched_store.get("timezone")
+                        result["site_summary"]["rpower_open_days"] = matched_store.get("open_days")
+                        result["site_summary"]["rpower_version"] = matched_store.get("version")
+                        result["site_summary"]["rpower_stores_count"] = len(stores)
+                        result["site_summary"]["rpower_last_update"] = matched_store.get("lup_dttm")
                 else:
                     logger.info(f"RPOWER Core API (GetStoreByCg): {store_info.get('error', 'No data')}")
         else:
@@ -4094,6 +4546,157 @@ async def get_dashboard_stats(
         "total_revenue": round(total_revenue, 2),
         "today_revenue": round(today_revenue, 2),
         "pending_orders": pending_orders
+    }
+
+
+@api_router.get("/dashboard/discount-kpis")
+async def get_discount_kpis(
+    merchant_id: Optional[str] = None,
+    days: int = Query(default=30, ge=1, le=365),
+    limit: int = Query(default=25, ge=1, le=200),
+    current_user: dict = Depends(get_current_user),
+):
+    base_query = {
+        "discount_amount": {"$gt": 0},
+    }
+
+    if current_user["role"] == UserRole.MERCHANT.value:
+        merchant_ids = current_user.get("merchant_ids", [])
+        if not merchant_ids:
+            return {
+                "summary": {"redemptions": 0, "gross_discount_amount": 0.0},
+                "by_code": [],
+                "by_day": [],
+                "by_merchant": [],
+            }
+        if merchant_id and merchant_id not in merchant_ids:
+            raise HTTPException(status_code=403, detail="Access denied")
+        base_query["merchant_id"] = merchant_id if merchant_id else {"$in": merchant_ids}
+    elif current_user["role"] == UserRole.RESELLER.value:
+        reseller_merchants = await db.merchants.find(
+            {"reseller_id": current_user.get("reseller_id")},
+            {"_id": 0, "id": 1},
+        ).to_list(1000)
+        merchant_ids = [m.get("id") for m in reseller_merchants if m.get("id")]
+        if not merchant_ids:
+            return {
+                "summary": {"redemptions": 0, "gross_discount_amount": 0.0},
+                "by_code": [],
+                "by_day": [],
+                "by_merchant": [],
+            }
+        if merchant_id and merchant_id not in merchant_ids:
+            raise HTTPException(status_code=403, detail="Access denied")
+        base_query["merchant_id"] = merchant_id if merchant_id else {"$in": merchant_ids}
+    elif merchant_id:
+        base_query["merchant_id"] = merchant_id
+
+    start_dt = datetime.now(timezone.utc) - timedelta(days=days)
+
+    pipeline_prefix = [
+        {"$match": base_query},
+        {
+            "$addFields": {
+                "created_dt": {
+                    "$dateFromString": {
+                        "dateString": "$created_at",
+                        "onError": None,
+                        "onNull": None,
+                    }
+                }
+            }
+        },
+        {"$match": {"created_dt": {"$gte": start_dt}}},
+    ]
+
+    summary_pipeline = pipeline_prefix + [
+        {
+            "$group": {
+                "_id": None,
+                "redemptions": {"$sum": 1},
+                "gross_discount_amount": {"$sum": "$discount_amount"},
+            }
+        }
+    ]
+
+    by_code_pipeline = pipeline_prefix + [
+        {
+            "$group": {
+                "_id": {"$ifNull": ["$discount_code", "UNKNOWN"]},
+                "redemptions": {"$sum": 1},
+                "gross_discount_amount": {"$sum": "$discount_amount"},
+            }
+        },
+        {"$sort": {"gross_discount_amount": -1, "redemptions": -1}},
+        {"$limit": limit},
+    ]
+
+    by_day_pipeline = pipeline_prefix + [
+        {
+            "$group": {
+                "_id": {
+                    "$dateToString": {
+                        "date": "$created_dt",
+                        "format": "%Y-%m-%d",
+                        "timezone": "UTC",
+                    }
+                },
+                "redemptions": {"$sum": 1},
+                "gross_discount_amount": {"$sum": "$discount_amount"},
+            }
+        },
+        {"$sort": {"_id": 1}},
+    ]
+
+    by_merchant_pipeline = pipeline_prefix + [
+        {
+            "$group": {
+                "_id": "$merchant_id",
+                "redemptions": {"$sum": 1},
+                "gross_discount_amount": {"$sum": "$discount_amount"},
+            }
+        },
+        {"$sort": {"gross_discount_amount": -1, "redemptions": -1}},
+        {"$limit": limit},
+    ]
+
+    summary_rows = await db.orders.aggregate(summary_pipeline).to_list(1)
+    by_code_rows = await db.orders.aggregate(by_code_pipeline).to_list(limit)
+    by_day_rows = await db.orders.aggregate(by_day_pipeline).to_list(max(days, 1))
+    by_merchant_rows = await db.orders.aggregate(by_merchant_pipeline).to_list(limit)
+
+    return {
+        "summary": {
+            "redemptions": int(summary_rows[0]["redemptions"]) if summary_rows else 0,
+            "gross_discount_amount": round(float(summary_rows[0]["gross_discount_amount"]), 2)
+            if summary_rows
+            else 0.0,
+            "days": days,
+        },
+        "by_code": [
+            {
+                "discount_code": row.get("_id") or "UNKNOWN",
+                "redemptions": int(row.get("redemptions") or 0),
+                "gross_discount_amount": round(float(row.get("gross_discount_amount") or 0), 2),
+            }
+            for row in by_code_rows
+        ],
+        "by_day": [
+            {
+                "date": row.get("_id"),
+                "redemptions": int(row.get("redemptions") or 0),
+                "gross_discount_amount": round(float(row.get("gross_discount_amount") or 0), 2),
+            }
+            for row in by_day_rows
+        ],
+        "by_merchant": [
+            {
+                "merchant_id": row.get("_id"),
+                "redemptions": int(row.get("redemptions") or 0),
+                "gross_discount_amount": round(float(row.get("gross_discount_amount") or 0), 2),
+            }
+            for row in by_merchant_rows
+        ],
     }
 
 @api_router.get("/dashboard/admin-stats")

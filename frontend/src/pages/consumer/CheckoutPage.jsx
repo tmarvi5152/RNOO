@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCartStore } from "../../stores/cartStore";
@@ -38,8 +38,7 @@ import {
 const CheckoutPage = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { items, getSubtotal, getTax, getTotal, clearCart, merchantId } =
-    useCartStore();
+  const { items, getSubtotal, getTax, clearCart, merchantId } = useCartStore();
 
   const [step, setStep] = useState(1); // 1: Info, 2: Payment, 3: Review
   const [loading, setLoading] = useState(false);
@@ -83,12 +82,57 @@ const CheckoutPage = () => {
   const [customTipInput, setCustomTipInput] = useState("");
   const [customTipModalOpen, setCustomTipModalOpen] = useState(false);
   const [failedImages, setFailedImages] = useState({});
+  const [selectedDiscountOptionId, setSelectedDiscountOptionId] = useState("");
+  const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
+  const [appliedDiscountAmount, setAppliedDiscountAmount] = useState(0);
 
   const isCardPayment = paymentMethod === "demo_card";
   const effectiveTipAmount = isCardPayment ? tipAmount : 0;
+  const toMoney = (value) =>
+    Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
+  const normalizeOptionId = (value) => String(value ?? "").trim();
+
   const subtotal = getSubtotal();
   const tax = getTax();
-  const total = getTotal() + effectiveTipAmount;
+
+  const deliveryFeeAmount =
+    orderType === "delivery"
+      ? toMoney(Number(merchant?.delivery_fee_amount || 0))
+      : 0;
+
+  const activeDiscountOptions = useMemo(() => {
+    const options = Array.isArray(merchant?.discount_options)
+      ? merchant.discount_options
+      : [];
+    return options.filter((option) => option?.is_active !== false);
+  }, [merchant?.discount_options]);
+
+  const selectedDiscountOption = activeDiscountOptions.find(
+    (option) => normalizeOptionId(option?.id) === selectedDiscountOptionId,
+  );
+
+  const discountBase = toMoney(subtotal + tax + deliveryFeeAmount);
+  let computedDiscountAmount = 0;
+  if (selectedDiscountOption) {
+    const discountValue = Number(selectedDiscountOption.value || 0);
+    if (selectedDiscountOption.discount_type === "percent") {
+      computedDiscountAmount = toMoney((discountBase * discountValue) / 100);
+    } else {
+      computedDiscountAmount = toMoney(discountValue);
+    }
+    computedDiscountAmount = Math.min(computedDiscountAmount, discountBase);
+  }
+
+  const discountAmount = toMoney(
+    Math.min(
+      selectedDiscountOption
+        ? Math.max(Number(appliedDiscountAmount || 0), computedDiscountAmount)
+        : 0,
+      discountBase,
+    ),
+  );
+
+  const total = toMoney(discountBase - discountAmount + effectiveTipAmount);
 
   const hasValidImage = (item) => Boolean(item.image && !failedImages[item.id]);
 
@@ -142,6 +186,17 @@ const CheckoutPage = () => {
     }
   }, [paymentMethod]);
 
+  useEffect(() => {
+    if (
+      selectedDiscountOptionId &&
+      !activeDiscountOptions.some(
+        (option) => normalizeOptionId(option?.id) === selectedDiscountOptionId,
+      )
+    ) {
+      setSelectedDiscountOptionId("");
+    }
+  }, [activeDiscountOptions, selectedDiscountOptionId]);
+
   // Generate time slots
   const generateTimeSlots = () => {
     const slots = [];
@@ -182,6 +237,55 @@ const CheckoutPage = () => {
       dates.push({ value, label });
     }
     return dates;
+  };
+
+  const handleDiscountSelection = async (nextDiscountOptionId) => {
+    const normalizedNextOptionId = normalizeOptionId(nextDiscountOptionId);
+    if (!normalizedNextOptionId) {
+      setSelectedDiscountOptionId("");
+      setAppliedDiscountAmount(0);
+      return;
+    }
+
+    const nextOption = activeDiscountOptions.find(
+      (option) => normalizeOptionId(option?.id) === normalizedNextOptionId,
+    );
+    if (!nextOption) {
+      toast.error("Selected discount is not available");
+      return;
+    }
+
+    setIsValidatingDiscount(true);
+    try {
+      const response = await apiService.validateDiscount({
+        merchant_id: merchantId || merchant?.id,
+        discount_option_id: normalizedNextOptionId,
+        subtotal,
+        tax,
+        delivery_type: orderType === "delivery" ? "DELIVERY" : "TAKEOUT",
+        customer_email: customerInfo.email,
+        customer_phone: customerInfo.phone,
+        existing_discount_option_id: selectedDiscountOptionId || null,
+      });
+
+      setSelectedDiscountOptionId(normalizedNextOptionId);
+
+      const validatedAmount = Number(response?.data?.discount_amount || 0);
+      setAppliedDiscountAmount(validatedAmount);
+      const codeLabel = String(nextOption.code || "").trim();
+      toast.success(
+        validatedAmount > 0
+          ? `Discount ${codeLabel} applied (-$${validatedAmount.toFixed(2)})`
+          : `Discount ${codeLabel} applied`,
+      );
+    } catch (err) {
+      const detail = err?.response?.data?.detail;
+      toast.error(
+        typeof detail === "string" ? detail : "Unable to apply discount",
+      );
+    } finally {
+      setIsValidatingDiscount(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -262,7 +366,7 @@ const CheckoutPage = () => {
       };
 
       const orderData = {
-        merchant_id: merchantId,
+        merchant_id: merchantId || merchant?.id,
         customer: {
           name: customerInfo.name,
           email: customerInfo.email || "guest@rnoo.com", // Backend requires email
@@ -301,6 +405,8 @@ const CheckoutPage = () => {
           tip: effectiveTipAmount,
           status: "pending",
         },
+        discount_option_id: selectedDiscountOption?.id || null,
+        discount_code: selectedDiscountOption?.code || null,
         order_timing: orderTimingMap[orderTiming],
         scheduled_date:
           orderTiming !== "asap"
@@ -975,6 +1081,55 @@ const CheckoutPage = () => {
                     </div>
                   )}
 
+                  <div className="space-y-2">
+                    <label className="text-sm text-zinc-400">Discount</label>
+                    {activeDiscountOptions.length > 0 ? (
+                      <select
+                        value={selectedDiscountOptionId}
+                        onChange={(e) =>
+                          handleDiscountSelection(e.target.value)
+                        }
+                        disabled={isValidatingDiscount}
+                        className="w-full p-2.5 consumer-theme-input rounded-lg text-sm"
+                      >
+                        <option value="">No discount</option>
+                        {activeDiscountOptions.map((option) => {
+                          const optionValue = Number(option.value || 0);
+                          const valueLabel =
+                            option.discount_type === "percent"
+                              ? `${optionValue}%`
+                              : `$${optionValue.toFixed(2)}`;
+                          return (
+                            <option key={option.id} value={option.id}>
+                              {option.code} - {option.name} ({valueLabel})
+                            </option>
+                          );
+                        })}
+                      </select>
+                    ) : (
+                      <p className="text-xs text-zinc-500">
+                        No active discount options available.
+                      </p>
+                    )}
+                    {isValidatingDiscount && (
+                      <p className="text-xs text-zinc-500">
+                        Validating discount...
+                      </p>
+                    )}
+                    {!!selectedDiscountOption && !isValidatingDiscount && (
+                      <div className="mt-2 p-2.5 rounded-lg bg-green-500/10 border border-green-500/30">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-green-300">
+                            Applied: {selectedDiscountOption.code}
+                          </span>
+                          <span className="text-green-300 font-semibold">
+                            -${discountAmount.toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Tip Section */}
                   {isCardPayment && (
                     <div className="space-y-3">
@@ -1303,6 +1458,50 @@ const CheckoutPage = () => {
                     ))}
                   </div>
 
+                  <div className="p-4 consumer-theme-panel rounded-2xl space-y-2">
+                    <h4 className="font-semibold text-sm consumer-theme-muted mb-2">
+                      Totals
+                    </h4>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-zinc-400">Subtotal</span>
+                      <span>${subtotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-zinc-400">Tax</span>
+                      <span>${tax.toFixed(2)}</span>
+                    </div>
+                    {deliveryFeeAmount > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-zinc-400">Delivery Fee</span>
+                        <span>${deliveryFeeAmount.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {discountAmount > 0 && selectedDiscountOption && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-zinc-400">
+                          Discount ({selectedDiscountOption.code})
+                        </span>
+                        <span className="text-green-400">
+                          -${discountAmount.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                    {effectiveTipAmount > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-zinc-400">Tip</span>
+                        <span className="text-green-400">
+                          ${effectiveTipAmount.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-base font-bold pt-2 border-t border-white/10">
+                      <span>Total</span>
+                      <span className="text-orange-400">
+                        ${total.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+
                   <div className="flex gap-3">
                     <button
                       onClick={() => setStep(2)}
@@ -1358,6 +1557,22 @@ const CheckoutPage = () => {
                   <span className="text-zinc-400">Tax</span>
                   <span>${tax.toFixed(2)}</span>
                 </div>
+                {deliveryFeeAmount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-zinc-400">Delivery Fee</span>
+                    <span>${deliveryFeeAmount.toFixed(2)}</span>
+                  </div>
+                )}
+                {discountAmount > 0 && selectedDiscountOption && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-zinc-400">
+                      Discount ({selectedDiscountOption.code})
+                    </span>
+                    <span className="text-green-400">
+                      -${discountAmount.toFixed(2)}
+                    </span>
+                  </div>
+                )}
                 {effectiveTipAmount > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-zinc-400">Tip</span>
