@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLocation } from "react-router-dom";
 import { AdminLayout } from "../../layouts/Layout";
 import { useAuth, apiService, api } from "../../context/AppContext";
 import { Card, CardContent } from "../../components/ui/card";
@@ -88,12 +89,15 @@ const statusConfig = {
 
 const OrdersPage = () => {
   const { user } = useAuth();
+  const location = useLocation();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [posStatusFilter, setPosStatusFilter] = useState("all");
   const [errorStatusFilter, setErrorStatusFilter] = useState("all");
+  const [discountFilter, setDiscountFilter] = useState("all"); // all, has_discount, no_discount
+  const [deliveryFilter, setDeliveryFilter] = useState("all"); // all, delivery_only, pickup_only
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -104,6 +108,17 @@ const OrdersPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [newOrderIds, setNewOrderIds] = useState(new Set());
+
+  // Read query parameters on mount
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("discount")) {
+      setDiscountFilter(params.get("discount"));
+    }
+    if (params.get("delivery")) {
+      setDeliveryFilter(params.get("delivery"));
+    }
+  }, [location.search]);
 
   // Handle new order from WebSocket
   const handleNewOrder = useCallback((order) => {
@@ -376,6 +391,16 @@ const OrdersPage = () => {
         return false;
       if (errorStatusFilter === "without-errors" && order.shepherd_error)
         return false;
+      // Discount filter
+      if (discountFilter === "has_discount" && !order.discount_amount)
+        return false;
+      if (discountFilter === "no_discount" && order.discount_amount)
+        return false;
+      // Delivery filter
+      if (deliveryFilter === "delivery_only" && order.delivery_type !== "DELIVERY" && order.delivery_type !== "delivery")
+        return false;
+      if (deliveryFilter === "pickup_only" && (order.delivery_type === "DELIVERY" || order.delivery_type === "delivery"))
+        return false;
       // Date range filter
       if (dateFrom) {
         const fromDate = new Date(dateFrom);
@@ -393,6 +418,8 @@ const OrdersPage = () => {
     searchTerm,
     posStatusFilter,
     errorStatusFilter,
+    discountFilter,
+    deliveryFilter,
     dateFrom,
     dateTo,
   ]);
@@ -565,6 +592,31 @@ const OrdersPage = () => {
                       <SelectItem value="without-errors">
                         Without Errors
                       </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Discount & Delivery Filters */}
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <Select value={discountFilter} onValueChange={setDiscountFilter}>
+                    <SelectTrigger className="w-full sm:w-48">
+                      <SelectValue placeholder="Discount Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Orders</SelectItem>
+                      <SelectItem value="has_discount">With Discount</SelectItem>
+                      <SelectItem value="no_discount">No Discount</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={deliveryFilter} onValueChange={setDeliveryFilter}>
+                    <SelectTrigger className="w-full sm:w-48">
+                      <SelectValue placeholder="Delivery Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Delivery Types</SelectItem>
+                      <SelectItem value="delivery_only">Delivery Orders</SelectItem>
+                      <SelectItem value="pickup_only">Pickup Orders</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

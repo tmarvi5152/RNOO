@@ -111,6 +111,168 @@ const StatCard = ({
   </Card>
 );
 
+const DiscountKpiCard = ({ data, onDrillDown, loading }) => {
+  if (loading) {
+    return (
+      <Card className="border shadow-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="w-5 h-5 text-primary" />
+            Discount Analytics
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-24 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const summary = data?.summary || {};
+  return (
+    <motion.div
+      initial={{ scale: 0.95, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ duration: 0.5 }}
+    >
+      <Card
+        className="border shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+        role="button"
+        tabIndex={0}
+        onClick={() => onDrillDown("discount")}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onDrillDown("discount");
+          }
+        }}
+      >
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="w-5 h-5 text-primary" />
+            Discount Analytics
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-gray-500">Total Redemptions</p>
+              <p className="text-2xl font-bold">{summary.redemptions || 0}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Total Discounts</p>
+              <p className="text-2xl font-bold">
+                ${(summary.gross_discount_amount || 0).toFixed(2)}
+              </p>
+            </div>
+          </div>
+          {data?.by_code && data.by_code.length > 0 && (
+            <div className="border-t pt-3">
+              <p className="text-sm font-semibold text-gray-700 mb-2">
+                Top Promo Codes
+              </p>
+              <div className="space-y-2">
+                {data.by_code.slice(0, 3).map((code) => (
+                  <div
+                    key={code.discount_code}
+                    className="flex justify-between text-xs"
+                  >
+                    <span>{code.discount_code}</span>
+                    <span className="font-semibold">
+                      ${code.gross_discount_amount.toFixed(2)} (
+                      {code.redemptions}x)
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <p className="text-xs text-gray-400 mt-3">
+            Click to view detailed analytics
+          </p>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+};
+
+const DeliveryKpiCard = ({ data, onDrillDown, loading }) => {
+  if (loading) {
+    return (
+      <Card className="border shadow-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="w-5 h-5 text-warning" />
+            Delivery Analytics
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-24 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const summary = data?.summary || {};
+  return (
+    <motion.div
+      initial={{ scale: 0.95, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ duration: 0.5 }}
+    >
+      <Card
+        className="border shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+        role="button"
+        tabIndex={0}
+        onClick={() => onDrillDown("delivery")}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onDrillDown("delivery");
+          }
+        }}
+      >
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="w-5 h-5 text-warning" />
+            Delivery Analytics
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-gray-500">Total Deliveries</p>
+              <p className="text-2xl font-bold">{summary.deliveries || 0}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Total Fees</p>
+              <p className="text-2xl font-bold">
+                ${(summary.gross_delivery_fees || 0).toFixed(2)}
+              </p>
+            </div>
+          </div>
+          {summary.deliveries > 0 && (
+            <div className="border-t pt-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Avg Fee per Delivery</span>
+                <span className="font-semibold">
+                  $
+                  {(
+                    (summary.gross_delivery_fees || 0) / summary.deliveries
+                  ).toFixed(2)}
+                </span>
+              </div>
+            </div>
+          )}
+          <p className="text-xs text-gray-400 mt-3">
+            Click to view detailed analytics
+          </p>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+};
+
 const RecentOrderRow = ({ order }) => {
   const statusColors = {
     pending: "bg-yellow-100 text-yellow-800",
@@ -506,6 +668,13 @@ const AdminDashboard = () => {
   const menuPriceLookupRef = useRef({});
   const menuMetaLookupRef = useRef({});
 
+  // NEW: Discount and Delivery KPI states
+  const [discountKpis, setDiscountKpis] = useState(null);
+  const [deliveryKpis, setDeliveryKpis] = useState(null);
+  const [widgetPreferences, setWidgetPreferences] = useState(null);
+  const [widgetPreferencesDialogOpen, setWidgetPreferencesDialogOpen] =
+    useState(false);
+
   const computeAnalytics = useCallback(
     (orders, merchantRecords = []) => {
       const merchantLookup = merchantRecords.reduce((lookup, merchant) => {
@@ -885,12 +1054,24 @@ const AdminDashboard = () => {
 
         // Load stats based on role
         if (user?.role === "super_admin") {
-          const [statsRes, merchantsRes] = await Promise.all([
+          const [
+            statsRes,
+            merchantsRes,
+            discountKpisRes,
+            deliveryKpisRes,
+            widgetPrefsRes,
+          ] = await Promise.all([
             apiService.getAdminStats(),
             apiService.getMerchants(),
+            apiService.api.get("/dashboard/discount-kpis"),
+            apiService.api.get("/dashboard/delivery-kpis"),
+            apiService.api.get("/dashboard/widget-preferences"),
           ]);
           setStats(statsRes.data);
           setMerchants(merchantsRes.data || []);
+          setDiscountKpis(discountKpisRes.data);
+          setDeliveryKpis(deliveryKpisRes.data);
+          setWidgetPreferences(widgetPrefsRes.data);
 
           const orderParams = { limit: 200 };
           const ordersRes = await apiService.getOrders(orderParams);
@@ -940,6 +1121,17 @@ const AdminDashboard = () => {
         } else {
           const statsRes = await apiService.getStats(user?.merchant_id);
           setStats(statsRes.data);
+
+          // Load KPIs for merchant user
+          const [discountKpisRes, deliveryKpisRes, widgetPrefsRes] =
+            await Promise.all([
+              apiService.api.get("/dashboard/discount-kpis"),
+              apiService.api.get("/dashboard/delivery-kpis"),
+              apiService.api.get("/dashboard/widget-preferences"),
+            ]);
+          setDiscountKpis(discountKpisRes.data);
+          setDeliveryKpis(deliveryKpisRes.data);
+          setWidgetPreferences(widgetPrefsRes.data);
         }
 
         // Load orders for analytics (without date filtering for now)
@@ -1101,12 +1293,27 @@ const AdminDashboard = () => {
     setMerchantSelectorOpen(false);
   };
 
+  const handleDrillDown = (type) => {
+    // Navigate to orders page with filters applied
+    if (type === "discount") {
+      navigate("/admin/orders?discount=has_discount");
+    } else if (type === "delivery") {
+      navigate("/admin/orders?delivery=delivery_only");
+    }
+  };
+
   const displayStats = filteredStats || stats;
   const isSuperAdmin = user?.role === "super_admin";
   const merchantsById = merchants.reduce((lookup, merchant) => {
     lookup[merchant.id] = merchant;
     return lookup;
   }, {});
+
+  // Widget visibility helper
+  const isWidgetVisible = (widgetKey) => {
+    if (!widgetPreferences || !widgetPreferences.widgets) return true;
+    return widgetPreferences.widgets[widgetKey] !== false;
+  };
   const filteredOrdersForView =
     selectedMerchantIds.length === 0
       ? allOrders
@@ -1254,14 +1461,25 @@ const AdminDashboard = () => {
               </div>
             )}
 
-            <Button
-              className="bg-primary hover:bg-primary-hover"
-              onClick={() => navigate("/admin/orders")}
-              data-testid="view-all-orders-btn"
-            >
-              View All Orders
-              <ArrowUpRight className="w-4 h-4 ml-2" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setWidgetPreferencesDialogOpen(true)}
+                title="Customize dashboard widgets"
+              >
+                <Zap className="w-4 h-4 mr-2" />
+                Widget Settings
+              </Button>
+
+              <Button
+                className="bg-primary hover:bg-primary-hover"
+                onClick={() => navigate("/admin/orders")}
+                data-testid="view-all-orders-btn"
+              >
+                View All Orders
+                <ArrowUpRight className="w-4 h-4 ml-2" />
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -1361,52 +1579,53 @@ const AdminDashboard = () => {
         {/* NEW: Enhanced Metrics Section */}
         {isSuperAdmin && (
           <>
-            {/* Real-Time Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <motion.div
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.5 }}
-              >
-                <Card
-                  className="border-2 border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg cursor-pointer hover:shadow-xl transition-shadow"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setLiveOrdersDialogOpen(true)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setLiveOrdersDialogOpen(true);
-                    }
-                  }}
+            {/* Real-Time Metrics Row */}
+            {isWidgetVisible("live_orders") && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.5 }}
                 >
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-xs text-green-600 font-bold tracking-wider">
-                          🔴 LIVE ORDERS
-                        </p>
-                        <p className="text-4xl font-heading font-bold mt-2 text-green-700">
-                          {liveOrders.length}
-                        </p>
-                        <p className="text-sm text-green-600 mt-3 font-semibold">
-                          +{ordersPerMinute} orders/min
-                        </p>
-                        <p className="text-xs text-green-700/80 mt-1">
-                          Click for expo view
-                        </p>
+                  <Card
+                    className="border-2 border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg cursor-pointer hover:shadow-xl transition-shadow"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setLiveOrdersDialogOpen(true)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setLiveOrdersDialogOpen(true);
+                      }
+                    }}
+                  >
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-xs text-green-600 font-bold tracking-wider">
+                            🔴 LIVE ORDERS
+                          </p>
+                          <p className="text-4xl font-heading font-bold mt-2 text-green-700">
+                            {liveOrders.length}
+                          </p>
+                          <p className="text-sm text-green-600 mt-3 font-semibold">
+                            +{ordersPerMinute} orders/min
+                          </p>
+                          <p className="text-xs text-green-700/80 mt-1">
+                            Click for expo view
+                          </p>
+                        </div>
+                        <motion.div
+                          animate={{ scale: [1, 1.1, 1] }}
+                          transition={{ duration: 2, repeat: Infinity }}
+                          className="p-3 bg-white rounded-lg shadow"
+                        >
+                          <Zap className="w-8 h-8 text-green-500" />
+                        </motion.div>
                       </div>
-                      <motion.div
-                        animate={{ scale: [1, 1.1, 1] }}
-                        transition={{ duration: 2, repeat: Infinity }}
-                        className="p-3 bg-white rounded-lg shadow"
-                      >
-                        <Zap className="w-8 h-8 text-green-500" />
-                      </motion.div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
 
               <motion.div
                 initial={{ scale: 0.95, opacity: 0 }}
@@ -1486,8 +1705,33 @@ const AdminDashboard = () => {
               </motion.div>
             </div>
 
+            {/* Discount & Delivery KPIs */}
+            {isSuperAdmin && (
+              <>
+                {(isWidgetVisible("discount_kpis") || isWidgetVisible("delivery_kpis")) && (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {isWidgetVisible("discount_kpis") && (
+                      <DiscountKpiCard
+                        data={discountKpis}
+                        onDrillDown={handleDrillDown}
+                        loading={loading}
+                      />
+                    )}
+                    {isWidgetVisible("delivery_kpis") && (
+                      <DeliveryKpiCard
+                        data={deliveryKpis}
+                        onDrillDown={handleDrillDown}
+                        loading={loading}
+                      />
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+
             {/* Top Merchants & Items */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {isWidgetVisible("merchant_metrics") || isWidgetVisible("top_items") ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Top Performing Merchants */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -1628,8 +1872,10 @@ const AdminDashboard = () => {
                 </Card>
               </motion.div>
             </div>
+            ) : null}
 
-            {/* Customer Segments */}
+            {/* Customer Segments Widget */}
+            {isWidgetVisible("customer_segments") && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1689,7 +1935,9 @@ const AdminDashboard = () => {
                 </Card>
               </div>
             </motion.div>
+            )}
 
+            {isWidgetVisible("upsell_kpis") && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1850,6 +2098,7 @@ const AdminDashboard = () => {
                 </Card>
               </div>
             </motion.div>
+            )}
           </>
         )}
 
@@ -2433,6 +2682,95 @@ const AdminDashboard = () => {
                   No customer insights available.
                 </div>
               )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Widget Preferences Dialog */}
+        <Dialog open={widgetPreferencesDialogOpen} onOpenChange={setWidgetPreferencesDialogOpen}>
+          <DialogContent className="sm:max-w-[450px]">
+            <DialogHeader>
+              <DialogTitle>Dashboard Widget Settings</DialogTitle>
+              <DialogDescription>
+                Toggle dashboard widgets on or off to customize your view.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {widgetPreferences && widgetPreferences.widgets ? (
+                Object.entries(widgetPreferences.widgets).map(([widgetKey, isEnabled]) => (
+                  <div
+                    key={widgetKey}
+                    className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Checkbox
+                        checked={isEnabled}
+                        onCheckedChange={async (checked) => {
+                          const newWidgets = {
+                            ...widgetPreferences.widgets,
+                            [widgetKey]: checked,
+                          };
+                          setWidgetPreferences({
+                            ...widgetPreferences,
+                            widgets: newWidgets,
+                          });
+                          // Save to backend
+                          try {
+                            await apiService.api.post(
+                              "/dashboard/widget-preferences",
+                              newWidgets,
+                            );
+                            toast.success("Widget preferences updated");
+                          } catch (err) {
+                            console.error("Failed to update widget preferences:", err);
+                            toast.error("Failed to save widget preferences");
+                          }
+                        }}
+                      />
+                      <div>
+                        <p className="font-medium text-sm">
+                          {widgetKey
+                            .replace(/_/g, " ")
+                            .split(" ")
+                            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                            .join(" ")}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {widgetKey === "discount_kpis"
+                            ? "Show discount analytics"
+                            : widgetKey === "delivery_kpis"
+                              ? "Show delivery fee analytics"
+                              : widgetKey === "upsell_kpis"
+                                ? "Show upsell metrics"
+                                : widgetKey === "revenue_chart"
+                                  ? "Show revenue trend chart"
+                                  : widgetKey === "live_orders"
+                                    ? "Show live order expo"
+                                    : widgetKey === "customer_segments"
+                                      ? "Show customer segments"
+                                      : widgetKey === "top_items"
+                                        ? "Show top selling items"
+                                        : "Show merchant performance"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="py-4 text-center text-gray-500">
+                  Loading widget preferences...
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => setWidgetPreferencesDialogOpen(false)}
+              >
+                Close
+              </Button>
             </div>
           </DialogContent>
         </Dialog>

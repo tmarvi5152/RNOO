@@ -1093,6 +1093,27 @@ class UpsellEventCreate(BaseModel):
     session_id: Optional[str] = None
     metadata: Dict[str, Any] = {}
 
+
+class WidgetPreference(BaseModel):
+    """Store which dashboard widgets are visible/enabled for a user."""
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    merchant_id: Optional[str] = None  # If set, only applies to this merchant view
+    widgets: Dict[str, bool] = {
+        "discount_kpis": True,
+        "delivery_kpis": True,
+        "upsell_kpis": True,
+        "revenue_chart": True,
+        "live_orders": True,
+        "customer_segments": True,
+        "top_items": True,
+        "merchant_metrics": True,
+    }
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 # Audit Log
 class AuditLog(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -4697,6 +4718,219 @@ async def get_discount_kpis(
             }
             for row in by_merchant_rows
         ],
+    }
+
+
+@api_router.get("/dashboard/delivery-kpis")
+async def get_delivery_kpis(
+    merchant_id: Optional[str] = None,
+    days: int = Query(default=30, ge=1, le=365),
+    limit: int = Query(default=25, ge=1, le=200),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Get delivery fee KPIs for dashboard.
+    Returns summary, by-day, and by-merchant breakdowns.
+    """
+    base_query = {
+        "delivery_fee": {"$gt": 0},
+        "delivery_type": {"$in": ["DELIVERY", "delivery"]},
+    }
+
+    if current_user["role"] == UserRole.MERCHANT.value:
+        merchant_ids = current_user.get("merchant_ids", [])
+        if not merchant_ids:
+            return {
+                "summary": {"deliveries": 0, "gross_delivery_fees": 0.0},
+                "by_day": [],
+                "by_merchant": [],
+            }
+        if merchant_id and merchant_id not in merchant_ids:
+            raise HTTPException(status_code=403, detail="Access denied")
+        base_query["merchant_id"] = merchant_id if merchant_id else {"$in": merchant_ids}
+    elif current_user["role"] == UserRole.RESELLER.value:
+        reseller_merchants = await db.merchants.find(
+            {"reseller_id": current_user.get("reseller_id")},
+            {"_id": 0, "id": 1},
+        ).to_list(1000)
+        merchant_ids = [m.get("id") for m in reseller_merchants if m.get("id")]
+        if not merchant_ids:
+            return {
+                "summary": {"deliveries": 0, "gross_delivery_fees": 0.0},
+                "by_day": [],
+                "by_merchant": [],
+            }
+        if merchant_id and merchant_id not in merchant_ids:
+            raise HTTPException(status_code=403, detail="Access denied")
+        base_query["merchant_id"] = merchant_id if merchant_id else {"$in": merchant_ids}
+    elif merchant_id:
+        base_query["merchant_id"] = merchant_id
+
+    start_dt = datetime.now(timezone.utc) - timedelta(days=days)
+
+    pipeline_prefix = [
+        {"$match": base_query},
+        {
+            "$addFields": {
+                "created_dt": {
+                    "$dateFromString": {
+                        "dateString": "$created_at",
+                        "onError": None,
+                        "onNull": None,
+                    }
+                }
+            }
+        },
+        {"$match": {"created_dt": {"$gte": start_dt}}},
+    ]
+
+    summary_pipeline = pipeline_prefix + [
+        {
+            "$group": {
+                "_id": None,
+                "deliveries": {"$sum": 1},
+                "gross_delivery_fees": {"$sum": "$delivery_fee"},
+            }
+        }
+    ]
+
+    by_day_pipeline = pipeline_prefix + [
+        {
+            "$group": {
+                "_id": {
+                    "$dateToString": {
+                        "date": "$created_dt",
+                        "format": "%Y-%m-%d",
+                        "timezone": "UTC",
+                    }
+                },
+                "deliveries": {"$sum": 1},
+                "gross_delivery_fees": {"$sum": "$delivery_fee"},
+            }
+        },
+        {"$sort": {"_id": 1}},
+    ]
+
+    by_merchant_pipeline = pipeline_prefix + [
+        {
+            "$group": {
+                "_id": "$merchant_id",
+                "deliveries": {"$sum": 1},
+                "gross_delivery_fees": {"$sum": "$delivery_fee"},
+            }
+        },
+        {"$sort": {"gross_delivery_fees": -1, "deliveries": -1}},
+        {"$limit": limit},
+    ]
+
+    summary_rows = await db.orders.aggregate(summary_pipeline).to_list(1)
+    by_day_rows = await db.orders.aggregate(by_day_pipeline).to_list(max(days, 1))
+    by_merchant_rows = await db.orders.aggregate(by_merchant_pipeline).to_list(limit)
+
+    return {
+        "summary": {
+            "deliveries": int(summary_rows[0]["deliveries"]) if summary_rows else 0,
+            "gross_delivery_fees": round(float(summary_rows[0]["gross_delivery_fees"]), 2)
+            if summary_rows
+            else 0.0,
+            "days": days,
+        },
+        "by_day": [
+            {
+                "date": row.get("_id"),
+                "deliveries": int(row.get("deliveries") or 0),
+                "gross_delivery_fees": round(float(row.get("gross_delivery_fees") or 0), 2),
+            }
+            for row in by_day_rows
+        ],
+        "by_merchant": [
+            {
+                "merchant_id": row.get("_id"),
+                "deliveries": int(row.get("deliveries") or 0),
+                "gross_delivery_fees": round(float(row.get("gross_delivery_fees") or 0), 2),
+            }
+            for row in by_merchant_rows
+        ],
+    }
+
+
+@api_router.get("/dashboard/widget-preferences")
+async def get_widget_preferences(
+    merchant_id: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
+):
+    """Get widget visibility preferences for the current user."""
+    user_id = current_user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User not authenticated")
+
+    query = {"user_id": user_id}
+    if merchant_id:
+        query["merchant_id"] = merchant_id
+    else:
+        query["merchant_id"] = {"$exists": False}
+
+    prefs = await db.widget_preferences.find_one(query, {"_id": 0})
+    if prefs:
+        return prefs
+
+    # Return default preferences if none exist
+    return {
+        "user_id": user_id,
+        "merchant_id": merchant_id,
+        "widgets": {
+            "discount_kpis": True,
+            "delivery_kpis": True,
+            "upsell_kpis": True,
+            "revenue_chart": True,
+            "live_orders": True,
+            "customer_segments": True,
+            "top_items": True,
+            "merchant_metrics": True,
+        },
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@api_router.post("/dashboard/widget-preferences")
+async def update_widget_preferences(
+    widgets: Dict[str, bool],
+    merchant_id: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
+):
+    """Update widget visibility preferences for the current user."""
+    user_id = current_user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User not authenticated")
+
+    query = {"user_id": user_id}
+    if merchant_id:
+        query["merchant_id"] = merchant_id
+    else:
+        query["merchant_id"] = {"$exists": False}
+
+    now = datetime.now(timezone.utc)
+    updates = {
+        "user_id": user_id,
+        "widgets": widgets,
+        "updated_at": now.isoformat(),
+    }
+    if merchant_id:
+        updates["merchant_id"] = merchant_id
+
+    result = await db.widget_preferences.update_one(
+        query,
+        {"$set": updates},
+        upsert=True,
+    )
+
+    return {
+        "success": True,
+        "user_id": user_id,
+        "merchant_id": merchant_id,
+        "widgets": widgets,
+        "updated_at": now.isoformat(),
     }
 
 @api_router.get("/dashboard/admin-stats")
