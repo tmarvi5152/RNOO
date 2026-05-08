@@ -259,6 +259,11 @@ export const apiService = {
   getStats: (merchantId) =>
     api.get("/dashboard/stats", { params: { merchant_id: merchantId } }),
   getAdminStats: () => api.get("/dashboard/admin-stats"),
+  getDiscountKpis: (params) => api.get("/dashboard/discount-kpis", { params }),
+  getDeliveryKpis: (params) => api.get("/dashboard/delivery-kpis", { params }),
+  getWidgetPreferences: () => api.get("/dashboard/widget-preferences"),
+  updateWidgetPreferences: (data) =>
+    api.post("/dashboard/widget-preferences", data),
 
   // Resellers
   getResellers: () => api.get("/resellers"),

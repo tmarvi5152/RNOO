@@ -57,7 +57,6 @@ import {
   ArrowUpRight,
   AlertCircle,
   CheckCircle,
-  XCircle,
   Activity,
   Download,
   Trophy,
@@ -270,37 +269,6 @@ const DeliveryKpiCard = ({ data, onDrillDown, loading }) => {
         </CardContent>
       </Card>
     </motion.div>
-  );
-};
-
-const RecentOrderRow = ({ order }) => {
-  const statusColors = {
-    pending: "bg-yellow-100 text-yellow-800",
-    confirmed: "bg-blue-100 text-blue-800",
-    preparing: "bg-purple-100 text-purple-800",
-    ready: "bg-green-100 text-green-800",
-    delivered: "bg-gray-100 text-gray-800",
-    cancelled: "bg-red-100 text-red-800",
-  };
-
-  return (
-    <div className="flex items-center justify-between py-3 border-b last:border-0">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-          <ShoppingCart className="w-5 h-5 text-gray-500" />
-        </div>
-        <div>
-          <p className="font-medium">Order #{order.order_number}</p>
-          <p className="text-sm text-gray-500">{order.customer?.name}</p>
-        </div>
-      </div>
-      <div className="text-right">
-        <p className="font-semibold">${order.total?.toFixed(2)}</p>
-        <Badge className={statusColors[order.status] || statusColors.pending}>
-          {order.status}
-        </Badge>
-      </div>
-    </div>
   );
 };
 
@@ -1063,9 +1031,9 @@ const AdminDashboard = () => {
           ] = await Promise.all([
             apiService.getAdminStats(),
             apiService.getMerchants(),
-            apiService.api.get("/dashboard/discount-kpis"),
-            apiService.api.get("/dashboard/delivery-kpis"),
-            apiService.api.get("/dashboard/widget-preferences"),
+            apiService.getDiscountKpis(),
+            apiService.getDeliveryKpis(),
+            apiService.getWidgetPreferences(),
           ]);
           setStats(statsRes.data);
           setMerchants(merchantsRes.data || []);
@@ -1125,9 +1093,9 @@ const AdminDashboard = () => {
           // Load KPIs for merchant user
           const [discountKpisRes, deliveryKpisRes, widgetPrefsRes] =
             await Promise.all([
-              apiService.api.get("/dashboard/discount-kpis"),
-              apiService.api.get("/dashboard/delivery-kpis"),
-              apiService.api.get("/dashboard/widget-preferences"),
+              apiService.getDiscountKpis(),
+              apiService.getDeliveryKpis(),
+              apiService.getWidgetPreferences(),
             ]);
           setDiscountKpis(discountKpisRes.data);
           setDeliveryKpis(deliveryKpisRes.data);
@@ -1191,6 +1159,7 @@ const AdminDashboard = () => {
     };
 
     loadDashboardData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, computeAnalytics]);
 
   const exportChartData = async () => {
@@ -1266,10 +1235,35 @@ const AdminDashboard = () => {
         ).length,
         total_merchants: new Set(filtered.map((o) => o.merchant_id)).size,
       });
+
+      // Re-fetch KPIs filtered to the selected merchant (use first if multiple)
+      const merchantIdParam =
+        selectedMerchantIds.length === 1 ? selectedMerchantIds[0] : undefined;
+      const kpiParams = merchantIdParam
+        ? { merchant_id: merchantIdParam }
+        : undefined;
+      Promise.all([
+        apiService.getDiscountKpis(kpiParams),
+        apiService.getDeliveryKpis(kpiParams),
+      ])
+        .then(([discountRes, deliveryRes]) => {
+          setDiscountKpis(discountRes.data);
+          setDeliveryKpis(deliveryRes.data);
+        })
+        .catch((err) =>
+          console.error("Failed to refresh KPIs for merchant filter:", err),
+        );
     } else {
       setFilteredStats(null);
+      // Reset KPIs to unfiltered data
+      Promise.all([apiService.getDiscountKpis(), apiService.getDeliveryKpis()])
+        .then(([discountRes, deliveryRes]) => {
+          setDiscountKpis(discountRes.data);
+          setDeliveryKpis(deliveryRes.data);
+        })
+        .catch((err) => console.error("Failed to reset KPIs:", err));
     }
-  }, [selectedMerchantIds, allOrders, computeAnalytics]);
+  }, [selectedMerchantIds, allOrders, computeAnalytics, merchants]);
 
   // Close selector on outside click
   useEffect(() => {
@@ -1627,88 +1621,90 @@ const AdminDashboard = () => {
                   </Card>
                 </motion.div>
 
-              <motion.div
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-              >
-                <Card
-                  className="border border-blue-200 bg-gradient-to-br from-blue-50 to-cyan-50 cursor-pointer hover:shadow-lg transition-shadow"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setCustomerInsightsDialogOpen(true)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setCustomerInsightsDialogOpen(true);
-                    }
-                  }}
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.1 }}
                 >
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-xs text-blue-600 font-medium">
-                          Total Customers
-                        </p>
-                        <p className="text-4xl font-heading font-bold mt-2 text-blue-700">
-                          {customerInsights.length}
-                        </p>
-                        <p className="text-sm text-blue-600 mt-3">
-                          Avg Lifetime Value:{" "}
-                          <span className="font-bold">
-                            ${customerSegments.avgLTV}
-                          </span>
-                        </p>
-                        <p className="text-xs text-blue-700/80 mt-1">
-                          Click for customer insights
-                        </p>
+                  <Card
+                    className="border border-blue-200 bg-gradient-to-br from-blue-50 to-cyan-50 cursor-pointer hover:shadow-lg transition-shadow"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setCustomerInsightsDialogOpen(true)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setCustomerInsightsDialogOpen(true);
+                      }
+                    }}
+                  >
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-xs text-blue-600 font-medium">
+                            Total Customers
+                          </p>
+                          <p className="text-4xl font-heading font-bold mt-2 text-blue-700">
+                            {customerInsights.length}
+                          </p>
+                          <p className="text-sm text-blue-600 mt-3">
+                            Avg Lifetime Value:{" "}
+                            <span className="font-bold">
+                              ${customerSegments.avgLTV}
+                            </span>
+                          </p>
+                          <p className="text-xs text-blue-700/80 mt-1">
+                            Click for customer insights
+                          </p>
+                        </div>
+                        <Users className="w-10 h-10 text-blue-400 opacity-40" />
                       </div>
-                      <Users className="w-10 h-10 text-blue-400 opacity-40" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
 
-              <motion.div
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-              >
-                <Card className="border border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-xs text-purple-600 font-medium">
-                          Order Success Rate
-                        </p>
-                        <p className="text-4xl font-heading font-bold mt-2 text-purple-700">
-                          {stats?.total_orders > 0
-                            ? Math.round(
-                                (posHealth.submitted /
-                                  (posHealth.submitted +
-                                    posHealth.failed +
-                                    posHealth.pending)) *
-                                  100,
-                              )
-                            : 0}
-                          %
-                        </p>
-                        <p className="text-sm text-purple-600 mt-3">
-                          {posHealth.submitted + posHealth.pending} orders in
-                          transit
-                        </p>
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                >
+                  <Card className="border border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-xs text-purple-600 font-medium">
+                            Order Success Rate
+                          </p>
+                          <p className="text-4xl font-heading font-bold mt-2 text-purple-700">
+                            {stats?.total_orders > 0
+                              ? Math.round(
+                                  (posHealth.submitted /
+                                    (posHealth.submitted +
+                                      posHealth.failed +
+                                      posHealth.pending)) *
+                                    100,
+                                )
+                              : 0}
+                            %
+                          </p>
+                          <p className="text-sm text-purple-600 mt-3">
+                            {posHealth.submitted + posHealth.pending} orders in
+                            transit
+                          </p>
+                        </div>
+                        <CheckCircle className="w-10 h-10 text-purple-400 opacity-40" />
                       </div>
-                      <CheckCircle className="w-10 h-10 text-purple-400 opacity-40" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </div>
+            )}
 
             {/* Discount & Delivery KPIs */}
             {isSuperAdmin && (
               <>
-                {(isWidgetVisible("discount_kpis") || isWidgetVisible("delivery_kpis")) && (
+                {(isWidgetVisible("discount_kpis") ||
+                  isWidgetVisible("delivery_kpis")) && (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {isWidgetVisible("discount_kpis") && (
                       <DiscountKpiCard
@@ -1730,374 +1726,384 @@ const AdminDashboard = () => {
             )}
 
             {/* Top Merchants & Items */}
-            {isWidgetVisible("merchant_metrics") || isWidgetVisible("top_items") ? (
+            {isWidgetVisible("merchant_metrics") ||
+            isWidgetVisible("top_items") ? (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Top Performing Merchants */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.3 }}
-              >
-                <Card className="border shadow-sm h-full">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="font-heading flex items-center gap-2 text-lg">
-                      <Trophy className="w-5 h-5 text-yellow-500" />
-                      Top Performing Merchants
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-1.5 max-h-[320px] overflow-y-auto pr-1">
-                    {merchantMetrics.length > 0 ? (
-                      merchantMetrics.slice(0, 12).map((merchant, idx) => (
-                        <motion.div
-                          key={merchant.id}
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: 0.3 + idx * 0.1 }}
-                          className={`flex items-center justify-between rounded-xl border transition-colors ${
-                            idx === 0
-                              ? "p-3 bg-gradient-to-r from-amber-50 via-yellow-50 to-white border-yellow-300 shadow-sm"
-                              : "p-2.5 bg-gradient-to-r from-gray-50 to-gray-25 border-gray-100 hover:border-yellow-300"
-                          }`}
-                        >
-                          <div className="flex items-center gap-3 flex-1">
-                            <Badge className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-white font-bold px-2 py-0.5">
-                              #{idx + 1}
-                            </Badge>
-                            <div className="min-w-0 flex-1">
+                {/* Top Performing Merchants */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.3 }}
+                >
+                  <Card className="border shadow-sm h-full">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="font-heading flex items-center gap-2 text-lg">
+                        <Trophy className="w-5 h-5 text-yellow-500" />
+                        Top Performing Merchants
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-1.5 max-h-[320px] overflow-y-auto pr-1">
+                      {merchantMetrics.length > 0 ? (
+                        merchantMetrics.slice(0, 12).map((merchant, idx) => (
+                          <motion.div
+                            key={merchant.id}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.3 + idx * 0.1 }}
+                            className={`flex items-center justify-between rounded-xl border transition-colors ${
+                              idx === 0
+                                ? "p-3 bg-gradient-to-r from-amber-50 via-yellow-50 to-white border-yellow-300 shadow-sm"
+                                : "p-2.5 bg-gradient-to-r from-gray-50 to-gray-25 border-gray-100 hover:border-yellow-300"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 flex-1">
+                              <Badge className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-white font-bold px-2 py-0.5">
+                                #{idx + 1}
+                              </Badge>
+                              <div className="min-w-0 flex-1">
+                                <p
+                                  className={`truncate text-gray-900 ${
+                                    idx === 0
+                                      ? "text-sm font-bold"
+                                      : "text-sm font-semibold"
+                                  }`}
+                                >
+                                  {merchant.name}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  {merchant.orderCount} orders • Avg: $
+                                  {(
+                                    merchant.totalRevenue / merchant.orderCount
+                                  ).toFixed(2)}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
                               <p
-                                className={`truncate text-gray-900 ${
+                                className={`font-bold text-gray-900 ${
                                   idx === 0
-                                    ? "text-sm font-bold"
-                                    : "text-sm font-semibold"
+                                    ? "text-lg leading-none"
+                                    : "text-base"
                                 }`}
                               >
-                                {merchant.name}
+                                $
+                                {merchant.totalRevenue.toLocaleString("en-US", {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
                               </p>
-                              <p className="text-xs text-gray-500 mt-0.5">
-                                {merchant.orderCount} orders • Avg: $
-                                {(
-                                  merchant.totalRevenue / merchant.orderCount
-                                ).toFixed(2)}
+                              <p
+                                className={`text-xs font-semibold ${merchant.trend > 0 ? "text-green-600" : "text-red-600"}`}
+                              >
+                                {merchant.trend > 0 ? "↑" : "↓"}{" "}
+                                {Math.abs(merchant.trend).toFixed(1)}%
                               </p>
                             </div>
-                          </div>
-                          <div className="text-right">
-                            <p
-                              className={`font-bold text-gray-900 ${
-                                idx === 0 ? "text-lg leading-none" : "text-base"
-                              }`}
-                            >
-                              $
-                              {merchant.totalRevenue.toLocaleString("en-US", {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}
-                            </p>
-                            <p
-                              className={`text-xs font-semibold ${merchant.trend > 0 ? "text-green-600" : "text-red-600"}`}
-                            >
-                              {merchant.trend > 0 ? "↑" : "↓"}{" "}
-                              {Math.abs(merchant.trend).toFixed(1)}%
-                            </p>
-                          </div>
-                        </motion.div>
-                      ))
-                    ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        <AlertCircle className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                        <p>No merchant data available</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </motion.div>
+                          </motion.div>
+                        ))
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          <AlertCircle className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                          <p>No merchant data available</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
 
-              {/* Top Selling Items */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-              >
-                <Card className="border shadow-sm h-full">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="font-heading flex items-center gap-2 text-lg">
-                      <Flame className="w-5 h-5 text-orange-500" />
-                      Top Selling Items
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-1.5 max-h-[320px] overflow-y-auto pr-1">
-                    {topItems.length > 0 ? (
-                      topItems.slice(0, 12).map((item, idx) => (
-                        <motion.div
-                          key={item.name}
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: 0.4 + idx * 0.1 }}
-                          className="flex items-center justify-between p-2.5 bg-gradient-to-r from-orange-50 to-amber-25 rounded-lg border border-orange-100 hover:border-orange-300 transition-colors"
-                        >
-                          <div className="flex items-center gap-3 flex-1">
-                            <span className="text-base font-bold text-orange-500">
-                              #{idx + 1}
-                            </span>
-                            <div className="min-w-0 flex-1">
-                              <p className="font-semibold text-sm truncate">
-                                {item.name}
+                {/* Top Selling Items */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.4 }}
+                >
+                  <Card className="border shadow-sm h-full">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="font-heading flex items-center gap-2 text-lg">
+                        <Flame className="w-5 h-5 text-orange-500" />
+                        Top Selling Items
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-1.5 max-h-[320px] overflow-y-auto pr-1">
+                      {topItems.length > 0 ? (
+                        topItems.slice(0, 12).map((item, idx) => (
+                          <motion.div
+                            key={item.name}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.4 + idx * 0.1 }}
+                            className="flex items-center justify-between p-2.5 bg-gradient-to-r from-orange-50 to-amber-25 rounded-lg border border-orange-100 hover:border-orange-300 transition-colors"
+                          >
+                            <div className="flex items-center gap-3 flex-1">
+                              <span className="text-base font-bold text-orange-500">
+                                #{idx + 1}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <p className="font-semibold text-sm truncate">
+                                  {item.name}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {item.count} sold
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-bold text-base text-green-600">
+                                $
+                                {item.revenue.toLocaleString("en-US", {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
                               </p>
                               <p className="text-xs text-gray-500">
-                                {item.count} sold
+                                {item.count} sold • ${item.avgPrice.toFixed(2)}
+                                /ea
                               </p>
                             </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-bold text-base text-green-600">
-                              $
-                              {item.revenue.toLocaleString("en-US", {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {item.count} sold • ${item.avgPrice.toFixed(2)}/ea
-                            </p>
-                          </div>
-                        </motion.div>
-                      ))
-                    ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        <AlertCircle className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                        <p>No item data available</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </div>
+                          </motion.div>
+                        ))
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          <AlertCircle className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                          <p>No item data available</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </div>
             ) : null}
 
             {/* Customer Segments Widget */}
             {isWidgetVisible("customer_segments") && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.5 }}
-            >
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <Card className="border shadow-sm hover:shadow-md transition-shadow">
-                  <CardContent className="p-4">
-                    <p className="text-xs text-gray-500 font-medium">
-                      New Customers
-                    </p>
-                    <p className="text-3xl font-heading font-bold text-blue-600 mt-2">
-                      {customerSegments.newCustomers}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-2">
-                      First time buyers
-                    </p>
-                  </CardContent>
-                </Card>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.5 }}
+              >
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <Card className="border shadow-sm hover:shadow-md transition-shadow">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-gray-500 font-medium">
+                        New Customers
+                      </p>
+                      <p className="text-3xl font-heading font-bold text-blue-600 mt-2">
+                        {customerSegments.newCustomers}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-2">
+                        First time buyers
+                      </p>
+                    </CardContent>
+                  </Card>
 
-                <Card className="border shadow-sm hover:shadow-md transition-shadow">
-                  <CardContent className="p-4">
-                    <p className="text-xs text-gray-500 font-medium">
-                      Repeat Customers
-                    </p>
-                    <p className="text-3xl font-heading font-bold text-green-600 mt-2">
-                      {customerSegments.repeat}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-2">2-4 purchases</p>
-                  </CardContent>
-                </Card>
+                  <Card className="border shadow-sm hover:shadow-md transition-shadow">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-gray-500 font-medium">
+                        Repeat Customers
+                      </p>
+                      <p className="text-3xl font-heading font-bold text-green-600 mt-2">
+                        {customerSegments.repeat}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-2">
+                        2-4 purchases
+                      </p>
+                    </CardContent>
+                  </Card>
 
-                <Card className="border shadow-sm hover:shadow-md transition-shadow">
-                  <CardContent className="p-4">
-                    <p className="text-xs text-gray-500 font-medium">
-                      Loyal Customers
-                    </p>
-                    <p className="text-3xl font-heading font-bold text-purple-600 mt-2">
-                      {customerSegments.loyal}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-2">5+ purchases</p>
-                  </CardContent>
-                </Card>
+                  <Card className="border shadow-sm hover:shadow-md transition-shadow">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-gray-500 font-medium">
+                        Loyal Customers
+                      </p>
+                      <p className="text-3xl font-heading font-bold text-purple-600 mt-2">
+                        {customerSegments.loyal}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-2">5+ purchases</p>
+                    </CardContent>
+                  </Card>
 
-                <Card className="border-2 border-orange-400 bg-orange-50 shadow-sm hover:shadow-md transition-shadow">
-                  <CardContent className="p-4">
-                    <p className="text-xs text-orange-700 font-medium">
-                      ⚠️ At-Risk
-                    </p>
-                    <p className="text-3xl font-heading font-bold text-orange-600 mt-2">
-                      {customerSegments.atRisk}
-                    </p>
-                    <p className="text-xs text-orange-600 mt-2">
-                      No activity 60+ days
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-            </motion.div>
+                  <Card className="border-2 border-orange-400 bg-orange-50 shadow-sm hover:shadow-md transition-shadow">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-orange-700 font-medium">
+                        ⚠️ At-Risk
+                      </p>
+                      <p className="text-3xl font-heading font-bold text-orange-600 mt-2">
+                        {customerSegments.atRisk}
+                      </p>
+                      <p className="text-xs text-orange-600 mt-2">
+                        No activity 60+ days
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+              </motion.div>
             )}
 
             {isWidgetVisible("upsell_kpis") && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.55 }}
-              className="space-y-4"
-            >
-              <Card className="border shadow-sm">
-                <CardHeader>
-                  <CardTitle className="font-heading flex items-center gap-2 text-lg">
-                    <Zap className="w-5 h-5 text-indigo-500" />
-                    Suggestive Selling KPI (Order-Based)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-                    <div className="rounded-lg border bg-gray-50 p-3">
-                      <p className="text-xs text-gray-500">Orders Analyzed</p>
-                      <p className="text-2xl font-bold text-gray-900 mt-1">
-                        {loading ? "..." : upsellKpis.summary.impressions || 0}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border bg-gray-50 p-3">
-                      <p className="text-xs text-gray-500">
-                        Cross-Category Orders
-                      </p>
-                      <p className="text-2xl font-bold text-gray-900 mt-1">
-                        {loading ? "..." : upsellKpis.summary.clicks || 0}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border bg-gray-50 p-3">
-                      <p className="text-xs text-gray-500">
-                        Single-Category Orders
-                      </p>
-                      <p className="text-2xl font-bold text-gray-900 mt-1">
-                        {loading
-                          ? "..."
-                          : Math.max(
-                              (upsellKpis.summary.impressions || 0) -
-                                (upsellKpis.summary.clicks || 0),
-                              0,
-                            )}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border bg-gray-50 p-3">
-                      <p className="text-xs text-gray-500">
-                        Cross-Category Rate
-                      </p>
-                      <p className="text-2xl font-bold text-gray-900 mt-1">
-                        {loading
-                          ? "..."
-                          : `${Number(upsellKpis.summary.ctr || 0).toFixed(1)}%`}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border bg-gray-50 p-3">
-                      <p className="text-xs text-gray-500">Attach Rate</p>
-                      <p className="text-2xl font-bold text-gray-900 mt-1">
-                        {loading
-                          ? "..."
-                          : `${Number(upsellKpis.summary.add_rate || 0).toFixed(1)}%`}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border bg-gray-50 p-3">
-                      <p className="text-xs text-gray-500">Unique Customers</p>
-                      <p className="text-2xl font-bold text-gray-900 mt-1">
-                        {loading
-                          ? "..."
-                          : upsellKpis.summary.unique_customers || 0}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.55 }}
+                className="space-y-4"
+              >
                 <Card className="border shadow-sm">
                   <CardHeader>
-                    <CardTitle className="font-heading text-base">
-                      Suggestive Selling by Location
+                    <CardTitle className="font-heading flex items-center gap-2 text-lg">
+                      <Zap className="w-5 h-5 text-indigo-500" />
+                      Suggestive Selling KPI (Order-Based)
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
-                    {loading ? (
-                      <p className="text-sm text-gray-500">
-                        Loading location KPI...
-                      </p>
-                    ) : upsellKpis.by_location.length > 0 ? (
-                      upsellKpis.by_location.slice(0, 12).map((row) => (
-                        <div
-                          key={row.merchant_id}
-                          className="rounded-lg border p-3 bg-gray-50"
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <p className="text-sm font-semibold text-gray-900 truncate">
-                              {row.location_name}
-                            </p>
-                            <Badge className="bg-indigo-100 text-indigo-700">
-                              {Number(row.add_rate || 0).toFixed(1)}% attach
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {row.impressions} orders • {row.clicks}{" "}
-                            cross-category • {row.unique_customers} customers
-                          </p>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-gray-500">
-                        No suggestive-selling location data yet.
-                      </p>
-                    )}
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                      <div className="rounded-lg border bg-gray-50 p-3">
+                        <p className="text-xs text-gray-500">Orders Analyzed</p>
+                        <p className="text-2xl font-bold text-gray-900 mt-1">
+                          {loading
+                            ? "..."
+                            : upsellKpis.summary.impressions || 0}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border bg-gray-50 p-3">
+                        <p className="text-xs text-gray-500">
+                          Cross-Category Orders
+                        </p>
+                        <p className="text-2xl font-bold text-gray-900 mt-1">
+                          {loading ? "..." : upsellKpis.summary.clicks || 0}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border bg-gray-50 p-3">
+                        <p className="text-xs text-gray-500">
+                          Single-Category Orders
+                        </p>
+                        <p className="text-2xl font-bold text-gray-900 mt-1">
+                          {loading
+                            ? "..."
+                            : Math.max(
+                                (upsellKpis.summary.impressions || 0) -
+                                  (upsellKpis.summary.clicks || 0),
+                                0,
+                              )}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border bg-gray-50 p-3">
+                        <p className="text-xs text-gray-500">
+                          Cross-Category Rate
+                        </p>
+                        <p className="text-2xl font-bold text-gray-900 mt-1">
+                          {loading
+                            ? "..."
+                            : `${Number(upsellKpis.summary.ctr || 0).toFixed(1)}%`}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border bg-gray-50 p-3">
+                        <p className="text-xs text-gray-500">Attach Rate</p>
+                        <p className="text-2xl font-bold text-gray-900 mt-1">
+                          {loading
+                            ? "..."
+                            : `${Number(upsellKpis.summary.add_rate || 0).toFixed(1)}%`}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border bg-gray-50 p-3">
+                        <p className="text-xs text-gray-500">
+                          Unique Customers
+                        </p>
+                        <p className="text-2xl font-bold text-gray-900 mt-1">
+                          {loading
+                            ? "..."
+                            : upsellKpis.summary.unique_customers || 0}
+                        </p>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
 
-                <Card className="border shadow-sm">
-                  <CardHeader>
-                    <CardTitle className="font-heading text-base">
-                      Suggestive Selling by Customer
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
-                    {loading ? (
-                      <p className="text-sm text-gray-500">
-                        Loading customer KPI...
-                      </p>
-                    ) : upsellKpis.by_customer.length > 0 ? (
-                      upsellKpis.by_customer.slice(0, 12).map((row) => {
-                        const label =
-                          row.customer_name ||
-                          row.customer_email ||
-                          row.customer_phone ||
-                          "Guest";
-                        return (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <Card className="border shadow-sm">
+                    <CardHeader>
+                      <CardTitle className="font-heading text-base">
+                        Suggestive Selling by Location
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+                      {loading ? (
+                        <p className="text-sm text-gray-500">
+                          Loading location KPI...
+                        </p>
+                      ) : upsellKpis.by_location.length > 0 ? (
+                        upsellKpis.by_location.slice(0, 12).map((row) => (
                           <div
-                            key={row.customer_key}
+                            key={row.merchant_id}
                             className="rounded-lg border p-3 bg-gray-50"
                           >
                             <div className="flex items-center justify-between gap-3">
                               <p className="text-sm font-semibold text-gray-900 truncate">
-                                {label}
+                                {row.location_name}
                               </p>
-                              <Badge className="bg-green-100 text-green-700">
+                              <Badge className="bg-indigo-100 text-indigo-700">
                                 {Number(row.add_rate || 0).toFixed(1)}% attach
                               </Badge>
                             </div>
                             <p className="text-xs text-gray-500 mt-1">
                               {row.impressions} orders • {row.clicks}{" "}
-                              cross-category • {row.location_count} locations
+                              cross-category • {row.unique_customers} customers
                             </p>
                           </div>
-                        );
-                      })
-                    ) : (
-                      <p className="text-sm text-gray-500">
-                        No suggestive-selling customer data yet.
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            </motion.div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-gray-500">
+                          No suggestive-selling location data yet.
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border shadow-sm">
+                    <CardHeader>
+                      <CardTitle className="font-heading text-base">
+                        Suggestive Selling by Customer
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+                      {loading ? (
+                        <p className="text-sm text-gray-500">
+                          Loading customer KPI...
+                        </p>
+                      ) : upsellKpis.by_customer.length > 0 ? (
+                        upsellKpis.by_customer.slice(0, 12).map((row) => {
+                          const label =
+                            row.customer_name ||
+                            row.customer_email ||
+                            row.customer_phone ||
+                            "Guest";
+                          return (
+                            <div
+                              key={row.customer_key}
+                              className="rounded-lg border p-3 bg-gray-50"
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <p className="text-sm font-semibold text-gray-900 truncate">
+                                  {label}
+                                </p>
+                                <Badge className="bg-green-100 text-green-700">
+                                  {Number(row.add_rate || 0).toFixed(1)}% attach
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {row.impressions} orders • {row.clicks}{" "}
+                                cross-category • {row.location_count} locations
+                              </p>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <p className="text-sm text-gray-500">
+                          No suggestive-selling customer data yet.
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </motion.div>
             )}
           </>
         )}
@@ -2233,143 +2239,6 @@ const AdminDashboard = () => {
                   No order data available
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* POS Health Indicators */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Card className="border shadow-sm bg-green-50">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 font-medium">
-                    POS Submitted
-                  </p>
-                  <p className="text-3xl font-heading font-bold mt-2 text-green-700">
-                    {posHealth.submitted}
-                  </p>
-                </div>
-                <CheckCircle className="w-12 h-12 text-green-500 opacity-20" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border shadow-sm bg-yellow-50">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 font-medium">
-                    POS Pending
-                  </p>
-                  <p className="text-3xl font-heading font-bold mt-2 text-yellow-700">
-                    {posHealth.pending}
-                  </p>
-                </div>
-                <Clock className="w-12 h-12 text-yellow-500 opacity-20" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border shadow-sm bg-red-50">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 font-medium">
-                    POS Failed
-                  </p>
-                  <p className="text-3xl font-heading font-bold mt-2 text-red-700">
-                    {posHealth.failed}
-                  </p>
-                </div>
-                <XCircle className="w-12 h-12 text-red-500 opacity-20" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Recent Orders & Quick Actions */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Recent Orders */}
-          <Card className="lg:col-span-2 border shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="font-heading">Recent Orders</CardTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate("/admin/orders")}
-              >
-                View All
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="space-y-4">
-                  {[...Array(3)].map((_, i) => (
-                    <div key={i} className="flex items-center gap-3">
-                      <Skeleton className="w-10 h-10 rounded-lg" />
-                      <div className="flex-1">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-3 w-24 mt-1" />
-                      </div>
-                      <Skeleton className="h-6 w-16" />
-                    </div>
-                  ))}
-                </div>
-              ) : recentOrders.length > 0 ? (
-                <div className="space-y-1">
-                  {recentOrders.map((order) => (
-                    <RecentOrderRow key={order.id} order={order} />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <AlertCircle className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                  <p className="text-gray-500">No orders yet</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Quick Actions */}
-          <Card className="border shadow-sm">
-            <CardHeader>
-              <CardTitle className="font-heading">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {isSuperAdmin && (
-                <>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start"
-                    onClick={() => navigate("/admin/merchants")}
-                    data-testid="quick-manage-merchants-btn"
-                  >
-                    <Store className="w-4 h-4 mr-2" />
-                    Manage Merchants
-                  </Button>
-                </>
-              )}
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                onClick={() => navigate("/admin/orders")}
-                data-testid="quick-view-orders-btn"
-              >
-                <ShoppingCart className="w-4 h-4 mr-2" />
-                View Orders
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                onClick={() =>
-                  window.open("/order/demo-burger-joint", "_blank")
-                }
-                data-testid="quick-view-storefront-btn"
-              >
-                <Store className="w-4 h-4 mr-2" />
-                View Storefront
-              </Button>
             </CardContent>
           </Card>
         </div>
@@ -2687,7 +2556,10 @@ const AdminDashboard = () => {
         </Dialog>
 
         {/* Widget Preferences Dialog */}
-        <Dialog open={widgetPreferencesDialogOpen} onOpenChange={setWidgetPreferencesDialogOpen}>
+        <Dialog
+          open={widgetPreferencesDialogOpen}
+          onOpenChange={setWidgetPreferencesDialogOpen}
+        >
           <DialogContent className="sm:max-w-[450px]">
             <DialogHeader>
               <DialogTitle>Dashboard Widget Settings</DialogTitle>
@@ -2698,65 +2570,72 @@ const AdminDashboard = () => {
 
             <div className="space-y-4">
               {widgetPreferences && widgetPreferences.widgets ? (
-                Object.entries(widgetPreferences.widgets).map(([widgetKey, isEnabled]) => (
-                  <div
-                    key={widgetKey}
-                    className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Checkbox
-                        checked={isEnabled}
-                        onCheckedChange={async (checked) => {
-                          const newWidgets = {
-                            ...widgetPreferences.widgets,
-                            [widgetKey]: checked,
-                          };
-                          setWidgetPreferences({
-                            ...widgetPreferences,
-                            widgets: newWidgets,
-                          });
-                          // Save to backend
-                          try {
-                            await apiService.api.post(
-                              "/dashboard/widget-preferences",
-                              newWidgets,
-                            );
-                            toast.success("Widget preferences updated");
-                          } catch (err) {
-                            console.error("Failed to update widget preferences:", err);
-                            toast.error("Failed to save widget preferences");
-                          }
-                        }}
-                      />
-                      <div>
-                        <p className="font-medium text-sm">
-                          {widgetKey
-                            .replace(/_/g, " ")
-                            .split(" ")
-                            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-                            .join(" ")}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {widgetKey === "discount_kpis"
-                            ? "Show discount analytics"
-                            : widgetKey === "delivery_kpis"
-                              ? "Show delivery fee analytics"
-                              : widgetKey === "upsell_kpis"
-                                ? "Show upsell metrics"
-                                : widgetKey === "revenue_chart"
-                                  ? "Show revenue trend chart"
-                                  : widgetKey === "live_orders"
-                                    ? "Show live order expo"
-                                    : widgetKey === "customer_segments"
-                                      ? "Show customer segments"
-                                      : widgetKey === "top_items"
-                                        ? "Show top selling items"
-                                        : "Show merchant performance"}
-                        </p>
+                Object.entries(widgetPreferences.widgets).map(
+                  ([widgetKey, isEnabled]) => (
+                    <div
+                      key={widgetKey}
+                      className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Checkbox
+                          checked={isEnabled}
+                          onCheckedChange={async (checked) => {
+                            const newWidgets = {
+                              ...widgetPreferences.widgets,
+                              [widgetKey]: checked,
+                            };
+                            setWidgetPreferences({
+                              ...widgetPreferences,
+                              widgets: newWidgets,
+                            });
+                            // Save to backend
+                            try {
+                              await apiService.updateWidgetPreferences(
+                                newWidgets,
+                              );
+                              toast.success("Widget preferences updated");
+                            } catch (err) {
+                              console.error(
+                                "Failed to update widget preferences:",
+                                err,
+                              );
+                              toast.error("Failed to save widget preferences");
+                            }
+                          }}
+                        />
+                        <div>
+                          <p className="font-medium text-sm">
+                            {widgetKey
+                              .replace(/_/g, " ")
+                              .split(" ")
+                              .map(
+                                (word) =>
+                                  word.charAt(0).toUpperCase() + word.slice(1),
+                              )
+                              .join(" ")}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {widgetKey === "discount_kpis"
+                              ? "Show discount analytics"
+                              : widgetKey === "delivery_kpis"
+                                ? "Show delivery fee analytics"
+                                : widgetKey === "upsell_kpis"
+                                  ? "Show upsell metrics"
+                                  : widgetKey === "revenue_chart"
+                                    ? "Show revenue trend chart"
+                                    : widgetKey === "live_orders"
+                                      ? "Show live order expo"
+                                      : widgetKey === "customer_segments"
+                                        ? "Show customer segments"
+                                        : widgetKey === "top_items"
+                                          ? "Show top selling items"
+                                          : "Show merchant performance"}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  ),
+                )
               ) : (
                 <div className="py-4 text-center text-gray-500">
                   Loading widget preferences...

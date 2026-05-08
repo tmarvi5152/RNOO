@@ -397,9 +397,17 @@ const OrdersPage = () => {
       if (discountFilter === "no_discount" && order.discount_amount)
         return false;
       // Delivery filter
-      if (deliveryFilter === "delivery_only" && order.delivery_type !== "DELIVERY" && order.delivery_type !== "delivery")
+      if (
+        deliveryFilter === "delivery_only" &&
+        order.delivery_type !== "DELIVERY" &&
+        order.delivery_type !== "delivery"
+      )
         return false;
-      if (deliveryFilter === "pickup_only" && (order.delivery_type === "DELIVERY" || order.delivery_type === "delivery"))
+      if (
+        deliveryFilter === "pickup_only" &&
+        (order.delivery_type === "DELIVERY" ||
+          order.delivery_type === "delivery")
+      )
         return false;
       // Date range filter
       if (dateFrom) {
@@ -598,24 +606,34 @@ const OrdersPage = () => {
 
                 {/* Discount & Delivery Filters */}
                 <div className="flex flex-col sm:flex-row gap-4">
-                  <Select value={discountFilter} onValueChange={setDiscountFilter}>
+                  <Select
+                    value={discountFilter}
+                    onValueChange={setDiscountFilter}
+                  >
                     <SelectTrigger className="w-full sm:w-48">
                       <SelectValue placeholder="Discount Status" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Orders</SelectItem>
-                      <SelectItem value="has_discount">With Discount</SelectItem>
+                      <SelectItem value="has_discount">
+                        With Discount
+                      </SelectItem>
                       <SelectItem value="no_discount">No Discount</SelectItem>
                     </SelectContent>
                   </Select>
 
-                  <Select value={deliveryFilter} onValueChange={setDeliveryFilter}>
+                  <Select
+                    value={deliveryFilter}
+                    onValueChange={setDeliveryFilter}
+                  >
                     <SelectTrigger className="w-full sm:w-48">
                       <SelectValue placeholder="Delivery Type" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Delivery Types</SelectItem>
-                      <SelectItem value="delivery_only">Delivery Orders</SelectItem>
+                      <SelectItem value="delivery_only">
+                        Delivery Orders
+                      </SelectItem>
                       <SelectItem value="pickup_only">Pickup Orders</SelectItem>
                     </SelectContent>
                   </Select>
