@@ -843,6 +843,7 @@ def build_shepherd_order(order: dict, merchant_shepherd_config: dict) -> dict:
     }
 
     discount_amount = float(order.get("discount_amount") or 0)
+    discount_label = str(order.get("discount_label") or "Order Discount").strip() or "Order Discount"
 
     payments = []
     if include_payments:
@@ -852,13 +853,16 @@ def build_shepherd_order(order: dict, merchant_shepherd_config: dict) -> dict:
             "amt": format_price(order.get("total", 0))
         })
 
-    # Discount is represented as an additional payment line.
+    # Represent the discount as a negative item so Shepherd prices and ticket totals stay aligned.
     if discount_amount > 0:
-        discount_label = str(order.get("discount_label") or "Order Discount").strip() or "Order Discount"
-        payments.append({
-            "pmid": "RODISC",
-            "pm": discount_label,
-            "amt": format_price(discount_amount),
+        items.append({
+            "pn": "RODISC",
+            "n": "Discount",
+            "plu": "RODISC",
+            "qty": 1,
+            "p": format_price(-discount_amount),
+            "note": discount_label,
+            "mods": []
         })
     
     # Map delivery type (RNOO uses DELIVERY, TAKEOUT, DINEIN)

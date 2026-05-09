@@ -2639,19 +2639,18 @@ async def submit_order_to_shepherd_async(order_id: str, order_dict: dict, mercha
             if pn_value in {"TAX", "TIP", "DFEE"} or n_value in {"TAX", "TIP", "DELIVERY CHARGES"}:
                 special_items.append(ticket_item)
 
-        payment_lines = []
+        discount_items = []
         if isinstance(shepherd_order, dict):
             tickets = shepherd_order.get("tickets") or []
             if tickets and isinstance(tickets[0], dict):
-                payment_lines = tickets[0].get("payments") or []
-
-        discount_payment_lines = []
-        for payment_line in payment_lines:
-            if not isinstance(payment_line, dict):
-                continue
-            pmid_value = str(payment_line.get("pmid") or "").strip().upper()
-            if pmid_value == "RODISC":
-                discount_payment_lines.append(payment_line)
+                ticket_items = tickets[0].get("items") or []
+                for ticket_item in ticket_items:
+                    if not isinstance(ticket_item, dict):
+                        continue
+                    pn_value = str(ticket_item.get("pn") or "").strip().upper()
+                    plu_value = str(ticket_item.get("plu") or "").strip().upper()
+                    if pn_value == "RODISC" or plu_value == "RODISC":
+                        discount_items.append(ticket_item)
 
         await log_audit(
             action="order_shepherd_tax_tip_payload",
@@ -2669,7 +2668,7 @@ async def submit_order_to_shepherd_async(order_id: str, order_dict: dict, mercha
                 "tip": order_dict.get("tip"),
                 "total": order_dict.get("total"),
                 "special_items": special_items,
-                "discount_payment_lines": discount_payment_lines,
+                "discount_items": discount_items,
             },
             status_code=200,
         )
